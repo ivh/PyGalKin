@@ -12,12 +12,26 @@ import pyfits as P
 #import PyCigale
 import PyGalKin
 
+import pickle
+
 ## SHORTCUTS
 tab='\t'
 nl='\n'
 bs='\\'
 sp=' '
 null='\0'
+
+def dump(data,filename):
+  file=open(filename,'w')
+  pickle.dump(data,file)
+  file.close()
+
+def load(filename):
+  file=open(filename,'r')
+  data=pickle.load(file)
+  file.close()
+  return data
+
 
 def fromPAR(p,filename):
   """ reading my own parameter file with relevant parameters """

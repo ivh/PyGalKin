@@ -1,19 +1,22 @@
 # IMPORTS
 #
 import numarray as N
-import os
+import os,sys
 import copy
 import commands
 import matplotlib
 import matplotlib.pylab as MP
 #matplotlib.use('GTK')
 import Numeric
-from mpfit.mpfit import mpfit
+from mpfit import mpfit
 from math import pi,e,radians
+from gc import collect
+from time import sleep
 #
 # END IMPORTS
 
 from InOutput import *
+import PyCigale
 
 # CONSTANTS
 #
@@ -245,11 +248,11 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
   if (data.p['is_gauss']==True):
     print 'Object already is in gaussian form!'
     return data.get_copy()
-  
+
   # Temporary variables (copy() ensures that properties of the object is kept)
   temp = data.get_copy()
   temp2 = data.get_copy()
-  
+
   # Dimension and lengths
   dim=temp.nx()*temp.ny()
   length_x = temp.nx()
@@ -259,39 +262,49 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
   # Reshape for convenience
   temp.setshape((dim,length_z))
   # Resize the arrays to the needed length
-  temp2 = N.resize(temp2, (dim,14))
+  temp2 = N.zeros((dim,14),type='Float32')
 
-  manual_area = N.zeros((length_x, length_y))
-  if (manual != None):
+  
+  nopoints=[]
+  if (manual == None):
+    points=[]
+    for i in range(dim):
+      if (temp[i].max() > limit):
+        points = points + [i,]
+      else:
+        nopoints = nopoints + [i,]
+    print 'points over limit: ' + str(len(points))
+  else:
+    points=[]
+    manual_area = N.zeros((length_x, length_y))
     for i in range(len(manual)):
       manual_area[manual[i][0][1]:manual[i][1][1], manual[i][0][0]:manual[i][1][0]] = 1
-    print manual_area
-  manual_area.setshape((dim))
+    #print manual_area
+    manual_area.setshape((dim))
 
-  # Only mark points with the maximum value greater than 'limit' for computation
-  points=[]
-  manual_points=[]
-  nopoints=[]
-  for i in range(dim):
-    if (i%1000 == 0): print i
-    if (temp[i].max() > limit) and (manual_area[i] == 1):
-      manual_points = manual_points + [i,]
-    elif (temp[i].max() > limit):
-      points = points + [i,]
-    else:
-      nopoints = nopoints + [i,]
+    # Only mark points with the maximum value greater than 'limit' for computation
+
+    manual_points=[]
+    
+    for i in range(dim):
+      if (temp[i].max() > limit) and (manual_area[i] == 1):
+        manual_points = manual_points + [i,]
+      elif (temp[i].max() > limit):
+        points = points + [i,]
+      else:
+        nopoints = nopoints + [i,]
       
   
-  print 'Interactive points: '+str(len(manual_points))
+    print 'Interactive points: '+str(len(manual_points))
   
-  # Compute the interactive fits
-  if (len(manual_points) > 0):
-    count=0
-    for i in manual_points:
-      count+=1
-      if (count%100 == 0): print str(i)+' '+str(count)
-      params, error = gauss_from_array_interactive(temp[i])
-      temp2[i] = N.concatenate((params, error))
+    # Compute the interactive fits
+    if (len(manual_points) > 0):
+      count=0
+      for i in manual_points:
+        count+=1
+        if (count%100 == 0): print str(i)+' '+str(count)
+        params, error = gauss_from_array_interactive(temp[i])
+        temp2[i] = N.concatenate((params, error))
   
   
   print 'Automatic points: '+str(len(points))
@@ -299,21 +312,59 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
   # Compute the gauss fits and store them in temp2
   if (len(points) > 0):
     count=0
-    for i in points:
-      count+=1
-      #if (count%100 == 0): 
-      print str(i)+' '+str(count)
-      params, error = gauss_from_array(temp[i], double=double, try_double=try_double, do_shift=do_shift)
-      temp2[i] = N.concatenate((params, error))
+    r,w=os.pipe()
+    chunksize=2000
+    pid=os.fork()
+    if pid:
+      # we are the parent
+      os.close(w) # use os.close() to close a file descriptor
+      r = os.fdopen(r) # turn r into a file object
+      print "parent: reading"
+      #temp3 = PyCigale.fromstring(r.read(),type='Float32')
+      temp3=PyCigale.fromfile(r,type='Float32')
+      os.waitpid(pid, 0) # make sure the child process gets cleaned up
+    else:
+      # we are the child
+      os.close(r)
+      w = os.fdopen(w, 'w')
+      print "child: writing"
+      
+      for i in points:
+        count+=1
+        if (count%chunksize == 0): print str(i)+' '+str(count)
+        
+        params, error, status = gauss_from_array(temp[i], double=double, try_double=try_double, do_shift=do_shift)
+        if status != 1: print params, status, count, i
+        
+        params.astype('Float32').tofile(w)
+        error.astype('Float32').tofile(w)
+        #w.write(params.tostring())
+        #w.write(error.tostring())
+        #MP.savefig(str(count)+'.png')
+        #MP.clf()
+      w.close()
+      print "child: closing"
+      sys.exit(0)
+    
+    
+      #temp2[i] = N.concatenate((params, error))
+      
       #print 'Params: '+str(params)
       #print 'Error: '+str(error)
 
+  print 'Fitting finished.'
+  temp3.shape=(-1,14)
+  temp2[points]=temp3
+  
   # Set all other points to a zero-gauss
   if (len(nopoints) > 0):
     params = [0,0,0,1,0,0,1]
     error = [0,0,0,0,0,0,0]
     temp2[nopoints] = N.concatenate((params, error))
 
+  #make temp2 an adhoc object
+  temp2.__class__=PyCigale.adhoc
+  temp2.p=temp.p.copy()
   # Object is in gaussian form
   temp2.p['is_gauss']=True
   # Reshape
@@ -486,7 +537,7 @@ def gauss_from_array_interactive(arr):
     parinfo[6]['limits'][1] = float(arr.size())/2.0
   
   # Setup arrays with the data to fit
-  x = N.arange(float(arr.size())).astype('Float64')
+  x = N.arange(float(arr.size())).astype('Float32')
   y = N.zeros(arr.shape, 'Float32')
   y[:] = arr[:]
   err = N.ones(arr.shape, 'Float32')
@@ -606,7 +657,7 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
     
     y0=arr.min()
     
-    x01 = arr.argmax()
+    x01 = N.array(arr.argmax(),type='Float32')
     A1 = arr[x01]-y0
     sigma1 = 3.0
 
@@ -686,7 +737,7 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
     parinfo[6]['limits'][1] = float(arr.size())/2.0
   
   # Setup arrays with the data to fit
-  x = N.arange(float(arr.size())).astype('Float64')
+  x = N.arange(float(arr.size())).astype('Int32')
   y = N.zeros(arr.shape, 'Float32')
   y[:] = arr[:]
   err = N.ones(arr.shape, 'Float32')
@@ -698,14 +749,18 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
   if (double==True):
     m = mpfit(gauss_func_double, parinfo=parinfo, functkw=functkw, quiet=1)
     params = m.params
+    status=m.status
     if (m.perror == None):
       no_converge = True
       params_error = N.array([0,0,0,0,0,0,0])
     else:
       params_error = m.perror
   else:
+    
+    #print parinfo
     m = mpfit(gauss_func_single, parinfo=parinfo, functkw=functkw, quiet=1)
     params = N.concatenate((m.params,[0,0,1]))
+    status=m.status
     if (m.perror == None):
       params = N.array([0,0,0,1,0,0,1])
       params_error = N.array([0,0,0,0,0,0,0])
@@ -751,7 +806,7 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
         params, params_error_red = gauss_from_array(arr, double=False)
   
   params[0]+=minshift
-  return params, params_error_red
+  return params, params_error_red, status
 
 def gauss_func_single(p, fjac=None, x=None, y=None, err=None):
   """This is used by gauss_from_array(). It returnes a status flag and
@@ -760,20 +815,21 @@ def gauss_func_single(p, fjac=None, x=None, y=None, err=None):
   # Calculate the exponents first
   arr_len = len(x)
   limit = -700
-  
+  #print p
   temp1 = N.maximum( -((x-p[1])**2)/(2*p[3]**2) , limit)
   temp1_right = N.maximum( -(((x+arr_len)-p[1])**2)/(2*p[3]**2) , limit)
   temp1_left = N.maximum( -(((x-arr_len)-p[1])**2)/(2*p[3]**2) , limit)
     
   # Compute the double gauss
-  arr = p[0] + p[2]*Numeric.exp(temp1)
-  arr_left = p[2]*Numeric.exp(temp1_left)
-  arr_right = p[2]*Numeric.exp(temp1_right)
+  arr = p[0] + p[2]*N.exp(temp1)
+  arr_left = p[2]*N.exp(temp1_left)
+  arr_right = p[2]*N.exp(temp1_right)
   
   model_y = arr + arr_right + arr_left
   # We are not using this at the moment, 0 means successful computation
   status=0
-  
+  #MP.plot(y,'b')
+  #MP.plot(err*(y-model_y),'r')
   # Return the status and the weighted error in the fit
   return [status, err*(y-model_y)]
 

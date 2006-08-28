@@ -201,13 +201,16 @@ class adhoc(_n.NumArray, object):
     def __getitem__(self,i):
        tmp=_n.NumArray.__getitem__(self,i)
        if isinstance(tmp,float): tmp=array([tmp])
+       if isinstance(tmp,int): print 'aha' #tmp=array([tmp])
        if hasattr(self,'p'): tmp.p = self.p.copy()
        return tmp
     
-    def sum(self,axis=2):
-        tmp=N.sum(self,axis)
-        if hasattr(self,'p'): tmp.p = self.p.copy()
-        return tmp
+##     def sum(self,axis=2):
+##         if len(self.shape)<3: axis=-1
+##         tmp=N.sum(self,axis)
+##         if isinstance(tmp,float): tmp=array([tmp])
+##         if hasattr(self,'p'): tmp.p = self.p.copy()
+##         return tmp
 
      #END: Wrappers for numarray-methods to conserve the dictionary p
     
@@ -258,6 +261,10 @@ class adhoc(_n.NumArray, object):
     def distance(self):
       """ returns the distance (Mpc) to the object using Hubble's law"""
       return self.p['vr0']/H0
+  
+    def helioc(self):
+      """ return the value for helocentric correction"""
+      return self.p['corrv']
     
     def scale(self):
       """returns the physical scale for the object (pc/pix) """
@@ -591,6 +598,12 @@ def fromfile(*args, **keys):
   #a.p = {}
   return a
 
+def fromstring(*args, **keys):
+  a = N.fromstring(*args, **keys)
+  a.__class__ = adhoc
+  #a.p = {}
+  return a
+
 def array(*args, **keys):
   a = N.array(*args, **keys)
   a.__class__ = adhoc
@@ -598,11 +611,13 @@ def array(*args, **keys):
   return a
 
 def stripadhoc(arr):
-  tmp=N.zeros(arr.shape)
+  tmp=N.zeros(arr.shape,type=arr.type())
   tmp[:]=arr[:]
+  tmp.__class__=N.array([1]).__class__
   return tmp
 
 def sum(arr,axis=2):
+  if len(arr.shape)<3: axis=-1
   tmp = N.sum(arr,axis)
   if hasattr(arr,'p'): tmp.p = arr.p.copy()
   return tmp
@@ -780,19 +795,21 @@ def chan2absvel(inarr):
 def chan2relvel(inarr):
     """ convert channels into relative velocity"""
     #return lamb2vel((inarr * inarr.p['xil'] /inarr.p['lz'])+inarr.p['xlbneb']) - lamb2vel(inarr.p['xlbneb'])
-    return inarr
+    return lamb2vel(lambHA + (inarr * inarr.p['xil'] /float(inarr.p['lz'])))
 
 def peakvel(inarr,n=3):
     """ calculate velocity field from the peak"""
-
+    p=inarr.p.copy()
     erg = doforeachpoint(inarr,calcpeak,n)
-    erg.p=inarr.p.copy()
+    erg.p=p
     return chan2absvel(erg)
 
 def calcpeak(inarr,n):
     """ calculate the barycenter-velociy of the n highest pixels"""
     sorted,args=N.sort(inarr),N.argsort(inarr)
+    
     erg = N.sum(sorted[-n:] * args[-n:]) / N.sum(sorted[-n:])
+    
     return erg
 
 def firstmoment(inarr):
@@ -839,7 +856,6 @@ def doforeachpoint(data, function, *args_extra):
   temp2 = data.get_copy()
   dim = data.nx()*data.ny()
   temp.setshape((dim, data.nz()))
-  
   # First point
   args = (temp[0,:],) + args_extra
   point_zero = N.array(apply(function, args))
@@ -1005,10 +1021,16 @@ def vel2z(v):
   return v/sol
 
 def lamb2freq(l):
-  return sol/l
+  return 1.0E3*sol/l
 
 def freq2lamb(f):
-  return sol/f
+  return 1.0E3*sol/f
+
+def Ghz2micron(f):
+    return freq2lamb(f)*1.0E-3
+
+def micron2Ghz(l):
+    return lamb2freq(l)*1.0E-3
 
 def units(have,want,number=''):
   """

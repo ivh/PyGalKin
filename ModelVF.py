@@ -332,97 +332,99 @@ def fit_parameters(data, model_list, box_size=3):
   parinfo[0]['value'] = model_list[0][1]['dim']
   
   for i in range(len(model_list)):
-    parinfo[i*10+1]['value'] = model_list[i][1]['pa'][0]
+    parinfo[i*10+1]['value'] = model_list[i][1]['pa']
     parinfo[i*10+1]['limited'][0] = 1
     parinfo[i*10+1]['limits'][0] = 0
     parinfo[i*10+1]['limited'][1] = 1
-    parinfo[i*10+1]['limits'][1] = 180
-    parinfo[i*10+1]['fixed'] = model_list[i][1]['pa'][1]
+    parinfo[i*10+1]['limits'][1] = 360
+    parinfo[i*10+1]['fixed'] = 0
     
-    parinfo[i*10+2]['value'] = model_list[i][1]['inclination'][0]
+    parinfo[i*10+2]['value'] = model_list[i][1]['inclination']
     parinfo[i*10+2]['limited'][0] = 1
     parinfo[i*10+2]['limits'][0] = 0
     parinfo[i*10+2]['limited'][1] = 1
     parinfo[i*10+2]['limits'][1] = 90
-    parinfo[i*10+2]['fixed'] = model_list[i][1]['inclination'][1]
+    parinfo[i*10+2]['fixed'] = 0
     
-    parinfo[i*10+3]['value'] = model_list[i][1]['exp_max'][0]
+    parinfo[i*10+3]['value'] = model_list[i][1]['exp_max']
     parinfo[i*10+3]['limited'][0] = 1
     parinfo[i*10+3]['limits'][0] = 0
     parinfo[i*10+3]['limited'][1] = 1
     parinfo[i*10+3]['limits'][1] = model_list[0][1]['dim']
-    parinfo[i*10+3]['fixed'] = model_list[i][1]['exp_max'][1]
+    parinfo[i*10+3]['fixed'] = 1
     
-    parinfo[i*10+4]['value'] = model_list[i][1]['r_max'][0]
+    parinfo[i*10+4]['value'] = model_list[i][1]['r_max']
     parinfo[i*10+4]['limited'][0] = 1
     parinfo[i*10+4]['limits'][0] = 0
     parinfo[i*10+4]['limited'][1] = 1
     parinfo[i*10+4]['limits'][1] = model_list[0][1]['dim']
-    parinfo[i*10+4]['fixed'] = model_list[i][1]['r_max'][1]
+    parinfo[i*10+4]['fixed'] = 1
     
-    parinfo[i*10+5]['value'] = model_list[i][1]['v_max'][0]
+    parinfo[i*10+5]['value'] = model_list[i][1]['v_max']
     parinfo[i*10+5]['limited'][0] = 1
     parinfo[i*10+5]['limits'][0] = 0
     parinfo[i*10+5]['limited'][1] = 1
     parinfo[i*10+5]['limits'][1] = 1000
-    parinfo[i*10+5]['fixed'] = model_list[i][1]['v_max'][1]
+    parinfo[i*10+5]['fixed'] = 0
     
-    parinfo[i*10+6]['value'] = model_list[i][1]['v_system'][0]
+    parinfo[i*10+6]['value'] = model_list[i][1]['v_system']
     parinfo[i*10+6]['limited'][0] = 1
     parinfo[i*10+6]['limits'][0] = 0
     parinfo[i*10+6]['limited'][1] = 1
     parinfo[i*10+6]['limits'][1] = 2000
-    parinfo[i*10+6]['fixed'] = model_list[i][1]['v_system'][1]
+    parinfo[i*10+6]['fixed'] = 0
     
-    parinfo[i*10+7]['value'] = model_list[i][1]['v_expansion'][0]
+    parinfo[i*10+7]['value'] = model_list[i][1]['v_expansion']
     parinfo[i*10+7]['limited'][0] = 1
     parinfo[i*10+7]['limits'][0] = 0
     parinfo[i*10+7]['limited'][1] = 1
     parinfo[i*10+7]['limits'][1] = 1000
-    parinfo[i*10+7]['fixed'] = model_list[i][1]['v_expansion'][1]
+    parinfo[i*10+7]['fixed'] = 1
     
-    parinfo[i*10+8]['value'] = model_list[i][1]['a_scale'][0]
+    parinfo[i*10+8]['value'] = model_list[i][1]['a_scale']
     parinfo[i*10+8]['limited'][0] = 1
     parinfo[i*10+8]['limits'][0] = 0
     parinfo[i*10+8]['limited'][1] = 1
     parinfo[i*10+8]['limits'][1] = 100
-    parinfo[i*10+8]['fixed'] = model_list[i][1]['a_scale'][1]
+    parinfo[i*10+8]['fixed'] = 0
     
-    parinfo[i*10+9]['value'] = model_list[i][1]['centr_offset_x'][0]
+    parinfo[i*10+9]['value'] = model_list[i][1]['centr_offset_x']
     parinfo[i*10+9]['limited'][0] = 1
     parinfo[i*10+9]['limits'][0] = -int(0.5*model_list[0][1]['dim'])
     parinfo[i*10+9]['limited'][1] = 1
     parinfo[i*10+9]['limits'][1] = int(0.5*model_list[0][1]['dim'])
-    parinfo[i*10+9]['fixed'] = model_list[i][1]['centr_offset_x'][1]
+    parinfo[i*10+9]['fixed'] = 1
     
-    parinfo[i*10+10]['value'] = model_list[i][1]['centr_offset_y'][0]
+    parinfo[i*10+10]['value'] = model_list[i][1]['centr_offset_y']
     parinfo[i*10+10]['limited'][0] = 1
     parinfo[i*10+10]['limits'][0] = -int(0.5*model_list[0][1]['dim'])
     parinfo[i*10+10]['limited'][1] = 1
     parinfo[i*10+10]['limits'][1] = int(0.5*model_list[0][1]['dim'])
-    parinfo[i*10+10]['fixed'] = model_list[i][1]['centr_offset_y'][1]
+    parinfo[i*10+10]['fixed'] = 1
   
   # Input to mpfit
   functkw = {'x':model_list, 'y':boxes_avg, 'err':[boxes, box_size]}
   
   # Fit parameters
-  m = mpfit.mpfit(model_func, parinfo=parinfo, functkw=functkw, quiet=1)
+  print model_list,boxes_avg
+  m = mpfit.mpfit(model_func, parinfo=parinfo, functkw=functkw, quiet=0)
   p = m.params
+  print p,m.status
   
   # Create output model_list
   for i in range(len(model_list)):
-    model_list[i][1]['pa'][0] = p[1]
-    model_list[i][1]['inclination'][0] = p[2]
-    model_list[i][1]['exp_max'][0] = p[3]
-    model_list[i][1]['r_max'][0] = p[4]
-    model_list[i][1]['v_max'][0] = p[5]
-    model_list[i][1]['v_system'][0] = p[6]
-    model_list[i][1]['v_expansion'][0] = p[7]
-    model_list[i][1]['a_scale'][0] = p[8]
-    model_list[i][1]['centr_offset_x'][0] = p[9]
-    model_list[i][1]['centr_offset_y'][0] = p[10]
+    model_list[i][1]['pa'] = p[1]
+    model_list[i][1]['inclination'] = p[2]
+    model_list[i][1]['exp_max'] = p[3]
+    model_list[i][1]['r_max'] = p[4]
+    model_list[i][1]['v_max'] = p[5]
+    model_list[i][1]['v_system'] = p[6]
+    model_list[i][1]['v_expansion'] = p[7]
+    model_list[i][1]['a_scale'] = p[8]
+    model_list[i][1]['centr_offset_x'] = p[9]
+    model_list[i][1]['centr_offset_y'] = p[10]
 
-  return model_list
+  return model_list,parinfo
 
   
 def model_func(p, fjac=None, x=None, y=None, err=None):
@@ -435,7 +437,8 @@ def model_func(p, fjac=None, x=None, y=None, err=None):
   boxes_avg = N.array(y)
   boxes = err[0]
   box_size = err[1]
-  
+
+  print p
   # Create a model_list
   for i in range(len(model_list)):
     model_list[i][1]['pa'][0] = p[1]
@@ -459,7 +462,7 @@ def model_func(p, fjac=None, x=None, y=None, err=None):
   status = 0
   
   # Return status and model_boxes_avg-boxes_avg
-  return [status, (model_boxes_avg-boxes_avg)]
+  return [status, (model_boxes_avg - boxes_avg)]
 
   
 def get_boxes(data):
@@ -468,7 +471,7 @@ def get_boxes(data):
       """
   # Clean the click-file
   try:
-    os.remove('/tmp/MPclick.dat')
+    os.remove('/tmp/MPclick.dat-nono')
   except:
     pass
   
@@ -480,8 +483,8 @@ def get_boxes(data):
   MP.figure(num=1, figsize=(8.14, 8), dpi=80, facecolor='w', edgecolor='k')
   MP.imshow(N.swapaxes(data,0,1), vmin=lower, vmax=upper, interpolation='nearest', origin='lower', aspect='preserve')
   #MP.colorbar()
-  PyCigale.setXaxis_pc(data)
-  PyCigale.setYaxis_pc(data)
+  #PyCigale.setXaxis_pc(data)
+  #PyCigale.setYaxis_pc(data)
   MP.title(data.p['objname'] + ' - ' + 'Radial Velocity',font)
   MP.axis([0,data.nx()-1,0,data.ny()-1])
   MP.connect('button_press_event', PyCigale.on_click_float)
@@ -500,13 +503,13 @@ def get_boxes_avg(data, boxes, box_size):
   """Used by fit_parameters(). Computes the average value in each box defined
       by boxes and box_size.
       """
-  boxes_avg = []
+  boxes_avg = N.zeros(len(boxes),type='Float32')
   for i in range(len(boxes)):
     p1 = N.maximum(0,int(boxes[i][0]-box_size/2))
     p2 = N.minimum((data.nx()-1),int(boxes[i][0]+box_size/2))
     p3 = N.maximum(0,int(boxes[i][1]-box_size/2))
     p4 = N.minimum((data.ny()-1),int(boxes[i][1]+box_size/2))
-    boxes_avg += [data[p1:p2,p3:p4].mean()]
+    boxes_avg[i]= data[p1:p2,p3:p4].mean()
   
   return boxes_avg
 
@@ -579,8 +582,8 @@ def arguments_list(pars):
       r_and_phi: [r, phi], Two 2D-arrays with the transformed coordinates.
       """
   # Coordinates for the galaxy centrum
-  centr_x = pars['dim']/2 +pars['centr_offset_x'][0]
-  centr_y = pars['dim']/2 +pars['centr_offset_y'][0]
+  centr_x = pars['dim']/2 +pars['centr_offset_x']
+  centr_y = pars['dim']/2 +pars['centr_offset_y']
   
   # The empty maps
   r = N.zeros((pars['dim'],pars['dim']), type='Float64')
@@ -592,8 +595,8 @@ def arguments_list(pars):
       temp_x = x-centr_x
       temp_y = y-centr_y
       
-      pa = (-pars['pa'][0]-90)*M.pi/180
-      inclination = pars['inclination'][0]*M.pi/180
+      pa = (-pars['pa']-90)*M.pi/180
+      inclination = pars['inclination']*M.pi/180
       
       x_corr = temp_x*N.cos(pa) - temp_y*N.sin(pa)
       y_corr = temp_x*N.sin(pa) + temp_y*N.cos(pa)
@@ -650,7 +653,7 @@ def create_rot_vf(model, pars):
   v_model_rot = apply(model, arguments)
 
   # Projection to the rotation plane
-  vf = v_model_rot*N.cos(r_and_phi[1])*N.sin(pars['inclination'][0]*M.pi/180)
+  vf = v_model_rot*N.cos(r_and_phi[1])*N.sin(pars['inclination']*M.pi/180)
   
   return vf
 
@@ -666,7 +669,8 @@ def create_system_vf(pars):
         vf_sys = vf.get_copy()
         vf_sys[:,:] = create_system_vf(pars)
   """
-  vf = N.zeros((pars['dim'],pars['dim']), type='Float64') + pars['v_system'][0]
+  #print pars['v_system']
+  vf = N.zeros((pars['dim'],pars['dim']), type='Float64') + pars['v_system']
   return vf
   
   
@@ -721,8 +725,8 @@ def model_disk(r, pars):
   len_x = arr.shape[0]
   len_y = arr.shape[1]
   
-  a = pars['a_scale'][0]
-  vm = pars['v_max'][0]
+  a = pars['a_scale']
+  vm = pars['v_max']
 
   # Calculate the velocity in ervery point
   arr.setshape((len_x*len_y))
