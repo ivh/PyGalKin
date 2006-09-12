@@ -8,16 +8,17 @@ import numarray as N
 import pylab as P
 from PyCigale import read_fits,write_fits,shift
 import scipy.stats as S
-from mpfit.mpfit import mpfit
+from mpfit import mpfit
 import time
-from pyIDL import idl as IDL
+#from pyIDL import idl as IDL
 import pickle
 import scipy.signal.signaltools as Sig
 from scipy.fftpack import fft
+from time import sleep
 
-from pyraf import iraf
-iraf.module.rv()
-fxcor=iraf.module.rv.fxcor
+#from pyraf import iraf
+#iraf.module.rv()
+#fxcor=iraf.module.rv.fxcor
 
 import pyfits
 
@@ -38,20 +39,30 @@ PaschStren=N.array([1.3812, 1.0, 0.7830, 0.6131, 0.4801, 0.3759, 0.2943, 0.2477,
 PaschStren=PaschStren[::-1]
 
 EmissionLines=N.array([9068.6,8446,8579,8617])
-Lamb0=8206.
-Step=0.19996649916247891
 CaT=N.array([8498., 8542., 8662.])
-SpecLen=5970
+Sulfur=9068.6
+
+#Lamb0=8182.43
+#SpecLen=1407
+#Step=0.85
+Lamb0=8182.
+Step=0.19996649916247891
+SpecLen=5980
+
+SpecLenOrg=5980
+
 dimX=22
 dimY=14
-Sulfur=9068.6
+
+#skyregion=N.array([8750,8800])
+skyregion=N.array([8810,8876])
 
 
 
 ########################
 ## CONSTRUCTING THE CUBE
 ########################
-def image2cube(data,tablefile='/home/tom/projekte/PyArgus/argus-fibres.txt'):
+def image2cube(data,tablefile='/home/tom/projekte/PyGalKin/argus-fibres.txt'):
     """allows both a filename and a 2d-array as input. the latter has to be flipped already """
 
     if type(data) == type(''):
@@ -63,10 +74,16 @@ def image2cube(data,tablefile='/home/tom/projekte/PyArgus/argus-fibres.txt'):
         print 'unknown type of input'
         return -1
 
-    cube=N.zeros((dimX,dimY,SpecLen),'Float32')
-    sky=N.array([],'Float32')
-    simcal=N.array([],'Float32')
+    if data.shape[1]==311: havesimcal=False
+    elif data.shape[1]==316: havesimcal=True
+    else:
+        print 'unknown type of input'
+        return -1
 
+    cube=N.zeros((dimX,dimY,SpecLenOrg),'Float32')
+    sky=N.array([],'Float32')
+    if havesimcal: simcal=N.array([],'Float32')
+    
     file=open(tablefile,'r')
 
     # two header lines
@@ -77,52 +94,76 @@ def image2cube(data,tablefile='/home/tom/projekte/PyArgus/argus-fibres.txt'):
     missing=4
     for i in N.arange(missing): file.readline()
 
+    
     for line in file.readlines():
         line=line.split()
         index=int(line[1])-(missing+1)
         
-        if 'Sky' in line[4]: sky=N.concatenate((sky,data[:,index]))
-        elif 'Calibration' in line[4]: simcal=N.concatenate((simcal,data[:,index]))
+        if 'Sky' in line[4]:
+            sky=N.concatenate((sky,data[:,index]))
+           
+        elif 'Calibration' in line[4]:
+            if havesimcal: simcal=N.concatenate((simcal,data[:,index]))
+            else: missing+=1
         else:
             x,y=int(line[-3])-1,int(line[-2])-1
             #print x,y,index
             cube[x,y,:]=data[:,index]
+        
 
     file.close()
-    sky.setshape(sky.nelements()/SpecLen,SpecLen)
-    simcal.setshape(simcal.nelements()/SpecLen,SpecLen)
+    sky.setshape(sky.nelements()/SpecLenOrg,SpecLenOrg)
     badpixels(cube)
-    return cube,sky,simcal
+    if havesimcal:
+        simcal.setshape(simcal.nelements()/SpecLenOrg,SpecLenOrg)
+        return cube,sky,simcal
+    else: return cube,sky
 
 def badpixels(data, value=0):
     """ sets the known bad spectra in a cube to value"""
 
-    data[0,0,:]=value
-    data[1,0,:]=value
-    data[20,0,:]=value
-    data[21,0,:]=value
-    data[0,13,:]=value
-    data[1,13,:]=value
-    data[20,13,:]=value
-    data[21,13,:]=value
-    data[3,4,:]=value
-    data[20,8,:]=value
-    data[20,9,:]=value
-    data[20,10,:]=value
-
+    if len(data.shape)==3:
+        data[0,0,:]=value
+        data[1,0,:]=value
+        data[20,0,:]=value
+        data[21,0,:]=value
+        data[0,13,:]=value
+        data[1,13,:]=value
+        data[20,13,:]=value
+        data[21,13,:]=value
+        data[3,4,:]=value
+        data[20,8,:]=value
+        data[20,9,:]=value
+        data[20,10,:]=value
+    elif len(data.shape)==2:
+        data[0,0]=value
+        data[1,0]=value
+        data[20,0]=value
+        data[21,0]=value
+        data[0,13]=value
+        data[1,13]=value
+        data[20,13]=value
+        data[21,13]=value
+        data[3,4]=value
+        data[20,8]=value
+        data[20,9]=value
+        data[20,10]=value
 
 
 #####################
 ## SUBRTACTING STUFF
 #####################
-def skysub(data,sky,factor=1.9):
+def skysub(data,sky,factor=1.9,region=skyregion):
     """ wants data in 2d or 3d, sky is first medianned to 1d, then grown"""
     shape=data.getshape()
     if len(data.shape) == 3:
         data.shape=(shape[0]*shape[1],shape[2])
     sky=medianspec(sky)
-    sky=N.resize(sky,data.shape)
-    dataSS=data-(factor*sky)
+    #sky=N.resize(sky,data.shape)
+    factor=skyfit(data,sky,region)
+    dataSS=data.copy()
+    for i in N.arange(data.shape[0]):
+        dataSS[i]=data[i]-(factor[i]*sky)
     data.shape=shape
     dataSS.shape=shape
     return dataSS
@@ -163,91 +204,222 @@ def contFit(data,order=6,sigmaclip=1,plot=False):
 ### PASCHEN AND OTHER LINE FITTING
 ##################################
 
-def findLine(data,velRange=None,guessV=None,restlamb=Sulfur,parinfo=None,plot=False,prin=False,quiet=True):
+def fitAllPaschen(data,velRange=None,guessV=None,PaNumbers=[9,10,11,12,14,17,18,19],parinfo=None,plot=False,prin=False,quiet=True):
+    relevant=N.array([])
+    once=False
+    for p in PaNumbers:
+        p=PaLamb(p)
+        Left,Right= vel2lamb(guessV-(velRange/2.),p),vel2lamb(guessV+(velRange/2.),p)
+        Left,Right=int(lamb2pix(Left)),int(lamb2pix(Right))
+        if not once:
+            pixels=Right-Left-1
+            once=True
+        #print Left,Right, pixels
+        rel=data[Left:Left+pixels]
+        rel-=min(rel)
+        relevant=N.concatenate((relevant,rel))
+
+    
+    nlines=len(PaNumbers)
+    if parinfo==None:
+        parinfo=[]
+        parinfo.append({'value':0.1, 'fixed':0, 'limited':[1,1],'limits':[0.0, max(relevant)]})
+        parinfo.append({'value':pixels*0.5, 'fixed':0, 'limited':[1,1],'limits':[0.0, float(pixels)]})
+        parinfo.append({'value':pixels*0.05, 'fixed':0, 'limited':[1,1],'limits':[0.0, pixels*0.5]})
+        for i in range(nlines):
+            parinfo.append({'value':max(relevant[i*pixels:(i+1)*pixels]), 'fixed':0, 'limited':[1,1],'limits':[0.0, max(relevant[i*pixels:(i+1)*pixels])*1.2]})
+
+    x=N.arange(len(relevant),type='Float32')
+    #err=N.zeros(len(relevant))+1
+    err=1/N.sqrt(relevant)
+    
+    
+    fa = {'x':x, 'y':relevant, 'err':err, 'n':nlines}
+    
+    try:
+        fit=mpfit(funcAllPaschen,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet,gtol=1E-5)
+    except OverflowError:
+        return -1
+    
+    if plot==True:
+        P.plot(relevant,'r')
+        P.plot(funcAllPaschen(fit.params,x=N.arange(len(relevant)),n=nlines,returnmodel=True),'b')
+    if prin==True:
+        print fit.niter,fit.params,fit.status
+    print parinfo,pixels
+    
+    return fit
+
+
+def funcAllPaschen(p, fjac=None, x=None, y=None, err=None, n=None,returnmodel=False):
+    model=N.zeros(len(x),'Float32')
+    pixels=len(x)/n
+    
+    for i in N.arange(n):
+        #print x[i*pixels:(i+1)*pixels]
+        model[i*pixels:(i+1)*pixels]+=p[i+3]*N.exp( -1* ((x[i*pixels:(i+1)*pixels]-(p[1]+(i*pixels)))**2) / (2*(p[2]**2)) )
+        #P.plot(model)
+        #sleep(0.3)
+    model+=+p[0]
+    
+    #P.plot((y-model))
+    #P.plot(model)
+    #P.plot(y)
+
+    if returnmodel==True:
+        return model
+    else:
+        status = 0
+        return([status, (y-model)/err])
+
+
+def findLine(data,double=True,velRange=None,guessV=None,restlamb=Sulfur,parinfo=None,plot=False,prin=False,quiet=True):
     
     Left= vel2lamb(guessV-(velRange/2.),restlamb)
     Right= vel2lamb(guessV+(velRange/2.),restlamb)
     Left,Right=int(lamb2pix(Left)),int(lamb2pix(Right))
     relevant=data[Left:Right]
-    
-    fit=fit2gauss(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
-    if fit==-1: return fit
 
-    PeakPos=N.argmax(twogauss(fit.params,x=N.arange(len(relevant)),returnmodel=True))
-    Z=pix2lamb(PeakPos+Left) / restlamb
-    #print fit.params
-    return Z,fit.params,fit.params[1]-PeakPos,fit.params[4]-PeakPos
+    if double:
+        fit=fit2gauss(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
+        if fit==-1: return fit
+        PeakPos=N.argmax(twogauss(fit.params,x=N.arange(len(relevant)),returnmodel=True))
+    else:
+        fit=fitgauss(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
+        if fit==-1: return fit
+        PeakPos=N.argmax(gauss(fit.params,x=N.arange(len(relevant)),returnmodel=True))
+        
+    #Z=pix2lamb(PeakPos+Left) / restlamb
+    Z=pix2lamb(fit.params[1]+Left) / restlamb
+    #print fit.params,Z,Left
+    D1=fit.params[1]-PeakPos
+    if double: D2=fit.params[4]-PeakPos
+    else: D2=PeakPos
+    return Z,fit.params,D1,D2
                                 
 
-def SulfurVF(data,velRange=None,guessV=None):
+def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,double=False,plot=False):
     origshape=data.getshape()
     if len(data.shape) == 3:
         data.shape=(origshape[0]*origshape[1],origshape[2])
 
-    SulfVF=N.zeros(data.shape[0],'Float32')
-    for i in N.arange(len(SulfVF)):
+    EmVF=N.zeros(data.shape[0],'Float32')
+    Cont=N.zeros(data.shape[0],'Float32')
+    Ampl=N.zeros(data.shape[0],'Float32')
+    Width=N.zeros(data.shape[0],'Float32')
+    for i in N.arange(len(EmVF)):
         
-        Z=findLine(data[i,:],restlamb=Sulfur,velRange=velRange,guessV=guessV)
-        if Z==-1:
-            SulfVF[i]=0.0
+        results=findLine(data[i,:],restlamb=restlamb,velRange=velRange,guessV=guessV,double=double,plot=plot)
+        if results==-1:
+            Z,params,D1,D2=0.0,[0.0,0.0,0.0,0.0],0.0,0.0
         else:
-            SulfVF[i]=z2vel(Z[0])
-        
-        #print i,SulfVF[i]
-        
+            Z,params,D1,D2=results
+
+        #print Z
+        EmVF[i]=Z
+        Cont[i]=params[0]
+        if len(params)==4:
+            Ampl[i]=params[2]
+            Width[i]=params[3]
+        else:
+            Ampl[i]=params[2]+params[5]
+        #print i,EmVF[i]
+    
     data.shape=origshape
-    SulfVF.shape=(origshape[0],origshape[1])
-    #print data.shape,SulfVF.shape
-    #P.matshow(SulfVF)
-    return SulfVF
+    EmVF=z2vel(EmVF)
+    Width=pix2relvel(Width,restlamb)
+    EmVF.shape=(origshape[0],origshape[1])
+    Ampl.shape=(origshape[0],origshape[1])
+    Cont.shape=(origshape[0],origshape[1])
+    Width.shape=(origshape[0],origshape[1])
+    
+    #print data.shape,EmVF.shape
+    #P.matshow(EmVF)
+    return EmVF,Width,Ampl,Cont
 
+def createPaschen(data,double=True,velRange=None,guessV=None,plot=False,plotfit=False,PaNumb=9):
+    
+    fitresults=findLine(data,double=double,velRange=velRange,guessV=guessV,restlamb=Paschen[19-PaNumb],plot=plotfit)
+    if fitresults==-1:
+        return N.zeros(SpecLen)
+    else:
+        Z,paschenparam,D1,D2=fitresults
+            
+    print fitresults
+    Pasch=Paschen * Z
 
-def createPaschen(data,velRange=None,guessV=None,plot=False,plotfit=False,PaNumb=9):
+    # don't subtract continuum
+    paschenparam[0]=0.0
 
+    x=N.arange(SpecLen)
+    SynthSpec=N.zeros(SpecLen)
+
+    Stren=PaschStren / PaschStren[19-PaNumb]
+    #print Stren
+    for i in N.arange(len(Paschen)):
+        para=paschenparam.copy()
+        para[2]*=Stren[i]
+        para[1]=lamb2pix(Paschen[i]*Z)+D1
+        if double:
+            para[5]*=Stren[i]
+            para[4]=lamb2pix(Paschen[i]*Z)+D2
+            SynthSpec+=twogauss(para,x=x,returnmodel=True)
+        else:
+            SynthSpec+=gauss(para,x=x,returnmodel=True)
+
+    if plot:    
+        plotspec(SynthSpec)
+        plotspec(data)
+        plotspec(data-SynthSpec,Z=Z,region='cat',plotlines=True)
+    
+    return SynthSpec
+
+def createPaschenSul(data,velRange=None,guessV=None,plot=False,plotfit=False,PaNumb=9):
+
+    
     fitresults=findLine(data,velRange=velRange,guessV=guessV,plot=plotfit)
     if fitresults==-1:
         return N.zeros(SpecLen)
     else:
         Z,fitpara,D1,D2=fitresults
-        
+            
     Pasch=Paschen * Z
 
     parinfo=[]
     for i in range(7):
         parinfo.append({'value':0.0, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0})
-
     parinfo[0]['value']=fitpara[0]
-    
     parinfo[1]['value']=D1
     parinfo[1]['fixed']=1
-    
     parinfo[2]['value']=(max(data)-min(data))/2
-
     parinfo[3]['value']=fitpara[3]
     parinfo[3]['fixed']=1
-    
     parinfo[4]['value']=D2
     parinfo[4]['fixed']=1
-
-    relampl=fitpara[5]/fitpara[2]
-    parinfo[5]['tied'] = str(relampl)+'*p[2]'
+    try:
+        relampl=fitpara[5]/fitpara[2]
+        parinfo[5]['tied'] = str(relampl)+'*p[2]'
+    except ZeroDivisionError:
+        parinfo[5]['fixed'] = 1
+    
 
     parinfo[6]['value']=fitpara[6]
     parinfo[6]['fixed']=1
 
-    fitresults=findLine(data,velRange=velRange,guessV=z2vel(Z),restlamb=Paschen[19-PaNumb],parinfo=parinfo,plot=plotfit)
+    fitresults=findLine(data,velRange=velRange,guessV=z2vel(Z),restlamb=PaLamb(PaNumb),parinfo=parinfo,plot=plotfit)
     if fitresults==-1:
         return N.zeros(SpecLen)
     else:
         Z,paschenparam,D1,D2=fitresults
 
+    # don't subtract continuum
     paschenparam[0]=0.0
     
     x=N.arange(SpecLen)
     SynthSpec=N.zeros(SpecLen)
 
     Stren=PaschStren / PaschStren[19-PaNumb]
-    print Stren
+    #print Stren
     for i in N.arange(len(Paschen)):
         para=paschenparam.copy()
         para[2]*=Stren[i]
@@ -263,15 +435,18 @@ def createPaschen(data,velRange=None,guessV=None,plot=False,plotfit=False,PaNumb
     
     return SynthSpec
 
-def subtrPaschen(data,velRange=None,guessV=None,PaNumb=9):
+def subtrPaschen(data,velRange=None,guessV=None,PaNumb=9,fromSul=True,double=True):
     origshape=data.getshape()
     if len(data.shape) == 3:
         data.shape=(origshape[0]*origshape[1],origshape[2])
 
     subtracted=N.zeros(data.shape)
-    for i in N.arange(data.shape[0]):
-        subtracted[i,:]=data[i,:]-createPaschen(data[i,:],velRange=velRange,guessV=guessV,PaNumb=PaNumb)
-
+    if fromSul:
+        for i in N.arange(data.shape[0]):
+            subtracted[i,:]=data[i,:]-createPaschenSul(data[i,:],velRange=velRange,guessV=guessV,PaNumb=PaNumb)
+    else:
+        for i in N.arange(data.shape[0]):
+            subtracted[i,:]=data[i,:]-createPaschen(data[i,:],velRange=velRange,guessV=guessV,PaNumb=PaNumb,double=double)
     data.shape=origshape
     subtracted.shape=origshape
     return subtracted
@@ -308,9 +483,35 @@ def imshow(data,vmin=None,vmax=None):
     if vmax==None: vmax=data.max()
     P.imshow(N.transpose(data),vmin=vmin,vmax=vmax,interpolation='nearest',origin='lower')
 
+
+def skyfit(data,sky,region=skyregion,quiet=True):
+    factor=N.zeros(data.shape[0],'Float32')
+    region=lamb2pix(region)
+    parinfo=[]
+    for i in range(2):
+        parinfo.append({'value':1.0, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0})
+
+    for i in N.arange(data.shape[0]):
+        sdata=data[i,region[0]:region[1]]
+        ssky=sky[region[0]:region[1]]
+        #print sdata.shape,ssky.shape
+        fa={'data':sdata,'sky':ssky}
+        fit=mpfit(skyfunc,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet)
+        factor[i]=fit.params[1]
+    return factor
+    
+
+def skyfunc(p, fjac=None, data=None, sky=None, returnmodel=False):
+    model= p[0] + (p[1]*sky)
+    if returnmodel==True:
+        return model
+    else:
+        status = 0
+        return([status, (data-model)])
+
 def gauss(p, fjac=None, x=None, y=None, err=None, returnmodel=False):
     """p0=cont p1=ampl p2=center p3=sigma """
-    model = p[0] + (p[1] * N.exp( -1* ((x-p[2])**2) / (2*(p[3]**2)) )  )
+    model = p[0] + (p[2] * N.exp( -1* ((x-p[1])**2) / (2*(p[3]**2)) ) ) 
 
     #nomin=(x-p[2])**2
     #denom=(p[3]**2) * 2
@@ -341,9 +542,14 @@ def twogauss(p, fjac=None, x=None, y=None, err=None, returnmodel=False):
         return([status, (y-model)/err])
  
 
-def fitgauss(data,parinfo=None):
-    x=N.arange(len(data))
-    err=N.zeros(len(data))+1
+def fitgauss(data,parinfo=None,prin=False,plot=False,quiet=True):
+    if isconstant(data):
+        return -1
+
+    data=data.astype('Float64')
+    #data-=min(data)
+    x=N.arange(len(data),type='Float64')
+    #err=N.zeros(len(data))+1
     err=1/N.sqrt(data)
     
     fa = {'x':x, 'y':data, 'err':err}
@@ -355,15 +561,30 @@ def fitgauss(data,parinfo=None):
 
         parinfo[0]['value']=min(data)
         parinfo[0]['limited']=[1,1]
-        parinfo[0]['limits']=[min(data),max(data)/2]
-        parinfo[2]['value']=max(data)-min(data)
+        parinfo[0]['limits']=[min(data),max(data)]
         parinfo[1]['value']=N.argmax(data)
-        parinfo[3]['value']=len(data)/10.
+        parinfo[1]['limited']=[1,1]
+        parinfo[1]['limits']=[0.0,len(data)]
+        parinfo[2]['value']=(max(data)-min(data))
+        parinfo[2]['limited']=[1,1]
+        parinfo[2]['limits']=[0.0,max(data)]
+        parinfo[3]['value']=len(data)/6.
+        parinfo[3]['limited']=[1,1]
+        parinfo[3]['limits']=[0.0,len(data)/2.]
+        
 
-
-    #print data,x,err,p0,fa,parinfo
-    fit=mpfit(gauss,functkw=fa,parinfo=parinfo,maxiter=200,quiet=1)
-    P.plot(gauss(fit.params,x=N.arange(len(data)),returnmodel=True))
+    #print data,x,err,fa,parinfo
+    try:
+        fit=mpfit(gauss,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet)
+    except OverflowError:
+        return -1
+    
+    if plot==True:
+        P.plot(data,'r')
+        P.plot(gauss(fit.params,x=N.arange(len(data)),returnmodel=True),'b')
+    if prin==True:
+        print fit.niter,fit.params,fit.status
+    
     return fit
 
 
@@ -372,7 +593,7 @@ def fit2gauss(data,parinfo=None,plot=False,prin=False,quiet=True):
         return -1
 
     data=data.astype('Float64')
-    data-=min(data)
+    #data-=min(data)
     x=N.arange(len(data),type='Float64')
     #err=N.zeros(len(data))+1
     err=1/N.sqrt(data)
@@ -385,14 +606,26 @@ def fit2gauss(data,parinfo=None,plot=False,prin=False,quiet=True):
             parinfo.append({'value':0.0, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0})
 
         parinfo[0]['value']=min(data)
-        parinfo[0]['limited']=[1,0]
-        parinfo[0]['limits']=[min(data),0]
-        parinfo[2]['value']=(max(data)-min(data))/2
+        parinfo[0]['limited']=[1,1]
+        parinfo[0]['limits']=[min(data),max(data)]
         parinfo[1]['value']=N.argmax(data)
-        parinfo[3]['value']=len(data)/20.
-        parinfo[5]['value']=(max(data)-min(data))/2
+        parinfo[1]['limited']=[1,1]
+        parinfo[1]['limits']=[0.0,len(data)]
+        parinfo[2]['value']=(max(data)-min(data))
+        parinfo[2]['limited']=[1,1]
+        parinfo[2]['limits']=[0.0,max(data)]
+        parinfo[3]['value']=len(data)/6.
+        parinfo[3]['limited']=[1,1]
+        parinfo[3]['limits']=[0.0,len(data)/2.]
         parinfo[4]['value']=N.argmax(data)
-        parinfo[6]['value']=len(data)/20.
+        parinfo[4]['limited']=[1,1]
+        parinfo[4]['limits']=[0.0,len(data)]
+        parinfo[5]['value']=0.0
+        parinfo[5]['limited']=[1,1]
+        parinfo[5]['limits']=[0,max(data)]
+        parinfo[6]['value']=len(data)/2.
+        parinfo[6]['limited']=[1,1]
+        parinfo[6]['limits']=[0.0,len(data)/2.]
     else:
         parinfo[1]['value']+=len(data)/2
         parinfo[4]['value']+=len(data)/2
@@ -679,6 +912,9 @@ def pix2lamb(data):
 def pix2vel(data,lamb0):
     return z2vel(((data*Step)+lamb0 )/ lamb0)
 
+def pix2relvel(data,lamb0):
+    return data*Step/lamb0*c
+
 def vel2lamb(data,lamb0):
     return vel2z(data) * lamb0
 
@@ -694,6 +930,57 @@ def isconstant(data):
     else:
         return False
 
+def degrade_old(data,factor=4.25):
+    oldlen=data.shape[-1]
+    newlen=int(N.floor(oldlen/factor))
+    degr=N.zeros(newlen,'Float32')
+    for i in N.arange(newlen):
+        lower=int(N.ceil(i*factor))
+        upper=int(N.floor((i+1)*factor))-1
+        if i%2==0: split=upper+1
+        else: split=lower-1
+        degr[i]=N.sum(data[lower:upper+1])+ (data[split]/2.0)
+        
+    return degr/factor
+
+def degrade(data,factor=4.25,quadratic=False):
+    extfactor=1
+    while (factor*extfactor)%1 != 0:
+        extfactor+=1
+    #print extfactor
+    oldlen=data.shape[-1]
+    newlen=int(N.floor(oldlen/factor))
+    ldata=N.resize(data,(extfactor,oldlen))
+    ldata=N.transpose(ldata).flat
+    degr=N.zeros(newlen,'Float32')
+    fac=int(factor*extfactor)
+    for i in N.arange(newlen):
+        #print len(ldata[i*fac:(i+1)*fac])
+        if quadratic:
+            degr[i]=N.sqrt(N.sum((ldata[i*fac:(i+1)*fac])**2))/sqrt(fac)
+        else:
+            degr[i]=N.sum(ldata[i*fac:(i+1)*fac])/fac
+        
+    return degr
+
+def degradeall(data,factor=4.25,quadratic=False):
+    origshape=data.getshape()
+    if len(data.shape) == 3:
+        data.shape=(origshape[0]*origshape[1],origshape[2])
+
+    npix=data.shape[0]
+    newlen=int(N.floor(data.shape[-1]/factor))
+    degrad=N.zeros((npix,newlen))
+    for i in N.arange(npix):
+        degrad[i]=degrade(data[i,:],factor,quadratic=quadratic)
+
+    #print origshape,data.shape
+    data.shape=origshape
+    if len(data.shape) == 3: degrad.shape=(origshape[0],origshape[1],newlen)
+    return degrad
+
+def PaLamb(number):
+    return Paschen[19-number]
 
 if __name__ == '__main__':
     demo()
