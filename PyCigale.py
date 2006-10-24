@@ -727,7 +727,7 @@ def shift(vec,i):
       i:  The steps to shift the vector with
       new_vec: The vector shifted i steps
       """
-  temp = vec.get_copy()
+  temp = vec.copy()
   n= temp.size()
   i %= n
   temp[:] = N.concatenate((temp[n-i:n],temp[0:n-i]))
@@ -1038,6 +1038,21 @@ def units(have,want,number=''):
   """
   out=commands.getoutput('units -q -s ' + str(number) + have + ' ' + want + '| head -1 | cut -d " " -f2')
   return N.array([float(out)])
+
+def arcsec2rad(arcsec):
+    return radians(arcsec/3600.0)
+
+def arcsec2kpc(arcsec=1.0,vsys=1000):
+    return vsys/H0*1E3*arcsec2rad(arcsec)
+
+def kpc2arcsec(kpc=1.0,vsys=1000):
+    return kpc/arcsec2kpc(vsys=vsys)
+
+def m2M(kpc,m):
+    return m-(5*N.log10(kpc*100.0)) 
+
+def hubbledist(v):
+    return v/H0*1000
 #
 # END: PHYSICAL FUNCTIONS
 
