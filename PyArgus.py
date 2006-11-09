@@ -6,15 +6,18 @@
 
 import numarray as N
 import pylab as P
-from PyCigale import read_fits,write_fits,shift
+from PyCigale import read_fits,write_fits,shift,calcpeak,secondmoment
 import scipy.stats as S
 from mpfit import mpfit
 import time
-#from pyIDL import idl as IDL
+from pyIDL import idl as IDL
 import pickle
-import scipy.signal.signaltools as Sig
+import scipy.signal as Sig
+from scipy.ndimage import gaussian_filter1d
+from filtfilt import filtfilt
 from scipy.fftpack import fft
 from time import sleep
+from os.path import exists
 
 #from pyraf import iraf
 #iraf.module.rv()
@@ -46,7 +49,7 @@ Sulfur=9068.6
 #SpecLen=1407
 #Step=0.85
 
-Lamb0=8183.43
+Lamb0=8183.425
 SpecLen=1357
 Step=0.85
 
@@ -60,6 +63,7 @@ Step=0.425
 
 #SpecLenOrg=5980
 SpecLenOrg=2715
+#SpecLenOrg=1357
 
 dimX=22
 dimY=14
@@ -227,7 +231,52 @@ def contFit(data,order=6,sigmaclip=1.0,plot=False):
 ### PASCHEN AND OTHER LINE FITTING
 ##################################
 
-def fitAllPaschen(data,err,velRange=None,guessV=None,PaNumbers=[9,10,11,12,14,17],parinfo=None,plot=False,prin=False,quiet=True):
+def PaModel(p, fjac=None, x=None, y=None, err=None, returnmodel=False):
+    
+    model=N.zeros(len(x),'Float32')+1.0
+    print p
+    PaNumbers=N.array([9,10,11,12,14,17])
+    PaLa=PaLamb(PaNumbers)*p[0]
+    for i in N.arange(len(PaLa)):
+        para=[0.0,lamb2pix(PaLa[i]),p[-6+i],p[1]]
+        model+=gauss(para,x=x,returnmodel=True)
+
+    if returnmodel==True:
+        return model
+    else:
+        status = 0
+        
+        return([status, (y-model)/err])
+    
+def fitAllPaschen(data,guessV=None,plot=False,prin=False,quiet=True):
+    PaNumbers=[9,10,11,12,14,17]
+    parinfo=[]
+    parinfo.append({'value':vel2z(guessV), 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0})
+    parinfo.append({'value':5.0, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0})
+    for i in PaNumbers:
+        parinfo.append({'value':0.003, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0})
+
+    x=N.arange(len(data))
+    err=x*0.0 + 0.001
+    
+    fa = {'x':x, 'y':data, 'err':err}
+    #print parinfo
+    try:
+        fit=mpfit(PaModel,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet)
+    except OverflowError:
+        return -1
+
+    print 'fitAllPaschen status: ',fit.status
+    
+    if plot==True:
+        P.plot(data,'r')
+        P.plot(PaModel(fit.params,x=x,returnmodel=True),'b')
+    if prin==True:
+        print fit.niter,fit.params,fit.status
+    
+    return fit.params
+
+def fitAllPaschen_old(data,err,velRange=None,guessV=None,PaNumbers=[9,10,11,12,14,17],parinfo=None,plot=False,prin=False,quiet=True):
     relevant=N.array([],type='Float32')
     relerr=N.array([],type='Float32')
     once=False
@@ -250,10 +299,10 @@ def fitAllPaschen(data,err,velRange=None,guessV=None,PaNumbers=[9,10,11,12,14,17
     nlines=len(PaNumbers)
     if parinfo==None:
         parinfo=[]
-        parinfo.append({'value':min(relevant), 'fixed':0, 'limited':[0,0],'limits':[min(relevant), max(relevant)], 'step':0.0})
         parinfo.append({'value':pixels*0.5, 'fixed':0, 'limited':[0,0],'limits':[0.0, float(pixels)], 'step':0.0})
         parinfo.append({'value':pixels*0.05, 'fixed':0, 'limited':[0,0],'limits':[0.0, pixels*0.5], 'step':0.0})
         for i in range(nlines):
+            parinfo.append({'value':min(relevant[i*pixels:(i+1)*pixels]), 'fixed':0, 'limited':[0,0],'limits':[min(relevant[i*pixels:(i+1)*pixels]), max(relevant[i*pixels:(i+1)*pixels])], 'step':0.0})
             #print max(relevant[i*pixels:(i+1)*pixels])
             parinfo.append({'value':max(relevant[i*pixels:(i+1)*pixels])-min(relevant), 'fixed':0, 'limited':[0,0],'limits':[0.0, max(relevant[i*pixels:(i+1)*pixels])*1.2], 'step':0.0})
 
@@ -266,7 +315,7 @@ def fitAllPaschen(data,err,velRange=None,guessV=None,PaNumbers=[9,10,11,12,14,17
     except OverflowError:
         return -1
 
-    print 'status: ',fit.status
+    print 'fitAllPaschen status: ',fit.status
     
     if plot==True:
         P.plot(relevant,'r')
@@ -277,20 +326,13 @@ def fitAllPaschen(data,err,velRange=None,guessV=None,PaNumbers=[9,10,11,12,14,17
     return fit.params
 
 
-def funcAllPaschen(p, fjac=None, x=None, y=None, err=None, n=None,returnmodel=False):
+def funcAllPaschen_old(p, fjac=None, x=None, y=None, err=None, n=None,returnmodel=False):
     model=N.zeros(len(x),'Float32')
     pixels=len(x)/n
     
     for i in N.arange(n):
         #print x[i*pixels:(i+1)*pixels]
-        model[i*pixels:(i+1)*pixels]+=p[i+3]*N.exp( -1* ((x[i*pixels:(i+1)*pixels]-(p[1]+(i*pixels)))**2) / (2*(p[2]**2)) )
-        #P.plot(model)
-        #sleep(0.3)
-    model+=p[0]
-    
-    #P.plot((y-model))
-    #P.plot(model)
-    #P.plot(y)
+        model[i*pixels:(i+1)*pixels] += p[(2*i)+3]*N.exp( -1* ((x[i*pixels:(i+1)*pixels]-(p[0]+(i*pixels)))**2) / (2*(p[1]**2))) + p[(2*i)+2]
 
     if returnmodel==True:
         return model
@@ -317,6 +359,7 @@ def findLine(data,double=True,velRange=None,guessV=None,restlamb=Sulfur,parinfo=
         if fit==-1: return fit
         PeakPos=N.argmax(gauss(fit.params,x=N.arange(len(relevant)),returnmodel=True))
 
+    print "findLine status:",fit.status
     #Z=pix2lamb(PeakPos+Left) / restlamb
     Z=pix2lamb(fit.params[1]+Left) / restlamb
     #print fit.params,Z,Left
@@ -337,7 +380,7 @@ def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,double=False,plot=
     Width=N.zeros(data.shape[0],'Float32')
     for i in N.arange(len(EmVF)):
         
-        results=findLine(data[i,:],restlamb=restlamb,velRange=velRange,guessV=guessV,double=double,plot=plot)
+        results=findLine(bandfilt(data[i,:]),restlamb=restlamb,velRange=velRange,guessV=guessV,double=double,plot=plot)
         if results==-1:
             Z,params,D1,D2=0.0,[0.0,0.0,0.0,0.0],0.0,0.0
         else:
@@ -367,76 +410,186 @@ def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,double=False,plot=
 
 
 
-def interpasch(data,error,velRange=None,guessV=None,PaNumb=10,filename='intPa.dat'):
-    sub=data.copy()
-    for i in range(data.shape[0]):
-        for j in range(data.shape[1]):
-            dat=data[i,j,:].copy()
-            err=error[i,j,:].copy()
-            if isconstant(dat):
-                print 'skipping '+str(i)+' '+str(j)
-                sub[i,j,:]=data[i,j,:]
-                continue
-            print 'Cuttent pixel: %s %s' % (i,j)
-            inter=interactplot(dat,err,filename=filename,velRange=velRange,guessV=guessV,i=i,j=j,PaNumb=PaNumb)
-            P.show()
-            sub[i,j,:]=inter.data - inter.shiftscaled()
+def interpasch(data,error,velRange=None,guessV=None,PaNumb=9,prefix='intPa'):
+    #sub=data.copy()
+    #for i in range(data.shape[0]):
+    #    for j in range(data.shape[1]):
+    #        dat=data[i,j,:].copy()
+    #        err=error[i,j,:].copy()
+    #        if isconstant(dat):
+    #            print 'skipping '+str(i)+' '+str(j)
+    #            sub[i,j,:]=data[i,j,:]
+    #            continue
+    #        print 'Cuttent pixel: %s %s' % (i,j)
+    inter=interactplot(data,error,prefix=prefix,velRange=velRange,guessV=guessV,i=i,j=j,PaNumb=PaNumb)
+    P.show()
+    sub[i,j,:]=inter.data - inter.shiftscaled()
 
     return sub
             
 
 class interactplot:
-    def __init__(self,data,error,velRange,guessV,i,j,filename='intPa.dat',PaNumb=10):
+    def __init__(self,data,error,velRange,guessV,prefix='intPa',PaNumb=9 ):
         self.odata=data
-        self.data=contSubtr(self.odata,order=5)
-        self.error=error
+        self.oerror=error
         self.velRange=velRange
         self.guessV=guessV
-        self.i=i
-        self.j=j
+        self.prefix=prefix
+        self.i=-1
+        self.j=0
+        self.tiltfac=0.0
+        self.flag=0
+        self.x=data.shape[0]
+        self.y=data.shape[1]
+        print self.x,self.y
+        
         #self.double=double
         self.PaNumb=PaNumb
-        self.sn=selav(self.odata/self.error)
+        self.osn=selav(self.odata/self.oerror)
         self.step=0.1
         self.fact=1.0
         self.shift=0
-        self.file=open(filename,'a')
+
+        if exists(prefix+'.pick'): self.subtracted=load(prefix+'.pick')
+        else: self.subtracted=N.zeros(data.shape,'Float32')
+
+        self.currdata()
+        self.file=open(prefix+'.dat','a')
         self.fig=P.figure(1)#,figsize=(14,10))
+        
         canvas = self.fig.canvas
         canvas.mpl_connect('key_press_event', self.key_press_callback)
         canvas.mpl_connect('button_press_event', self.button_press_callback)
         self.canvas = canvas
+
+        #first one
+        self.nextone()
+        
+    def nextone(self):
+        if self.i+1 < self.x: self.i +=1
+        elif self.j+1 < self.y:
+            self.i=0
+            self.j +=1
+        else:
+            print "DONE!"
+            self.quit()
+            
+        self.currdata()
+        if isconstant(self.data):
+            print "skipping",self.i,self.j
+            self.nextone()
+        elif not isconstant(self.subtr):
+            print "This one has already been subtracted."
+            get=raw_input('Redo (y/N): ')
+            if get != 'y': self.nextone()
+            else: self.startover()
+        else:
+            self.startover()
+
+    def update(self):
+        self.currdata()
         self.measurePa()
         self.makesynt()
+        self.plot()
+
+    def currdata(self):
+        self.data=self.odata[self.i,self.j,:]
+        self.error=self.oerror[self.i,self.j,:]
+        self.sn=self.osn[self.i,self.j]
+        self.subtr=self.subtracted[self.i,self.j,:]
+
+    def save(self):
+        dump(self.subtracted,self.prefix+'.pick')
+        self.file.write('%s %s %s %s %s %s %s\n'%(self.i,self.j,self.PaNumb,self.fact,self.shift,self.tiltfac, self.flag))
         
+    def choosepix(self):
+        self.i=int(raw_input('i: '))
+        self.j=int(raw_input('j: '))
+        self.update()
 
     def makesynt(self):
-        #P.figure(2)
-        self.osynt=createPaschen(self.odata,double=True,velRange=self.velRange,guessV=self.guessV,PaNumb=self.PaNumb,plotfit=False)
+        if self.PaNumb == 8:
+            self.osynt=createPaschenSul(self.data+1,velRange=self.velRange,guessV=self.guessV,plotfit=False)
+        else:
+            self.osynt=createPaschen(self.data+1,double=True,velRange=self.velRange,guessV=self.guessV,PaNumb=self.PaNumb,plotfit=False)
         self.synt=self.osynt.copy()
-        #P.figure(1)
-        self.plot()
-        
-    def fromSulf(self):
-        self.osynt=createPaschenSul(self.odata,velRange=self.velRange,guessV=self.guessV,plotfit=False)
-        self.synt=self.osynt.copy()
-        self.plot()
+ 
         
     def measurePa(self):
-        params=fitAllPaschen(self.odata,self.error,velRange=self.velRange,guessV=self.guessV,plot=False,prin=False)
-        print params
+        params=fitAllPaschen(self.data,self.error,velRange=self.velRange,guessV=self.guessV,plot=False,prin=False)
+        #print params
         self.paparams=params
+        
 
     def shiftscaled(self):
-        return shift(self.synt,self.shift)*self.fact
+        return shift(self.synt,self.shift)*self.fact * self.tilt()
 
+    def tilt(self):
+        return N.ones(len(self.data),'Float32') + (self.tiltfac *N.arange(-1.,1.,2.0/len(self.data)))
+        
+    def accept(self):
+        self.subtracted[self.i,self.j,:]=self.data - self.shiftscaled()
+        self.save()
+        self.nextone()
+
+    def quit(self):
+        self.file.close()
+        P.close(self.fig)
+
+    def reject(self):
+        self.file.write('%s %s %s\n'%(self.i,self.j,'R'))
+        self.nextone()
+    
+    def startover(self):
+        #self.fact=1.0
+        #self.shift=0
+        self.flag=0
+        #self.tiltfac=0.0
+        self.update()
+        
+
+    def chooseline(self,key):
+        self.PaNumb=int(key)
+        if self.PaNumb < 8: self.PaNumb +=10
+        self.update()
+
+    def smooth(self):
+        pass
+
+    def toggleflag(self):
+        if self.flag == 0: self.flag = 1
+        else: self.flag = 0
+        self.accept()
+        
+    def key_press_callback(self,event):
+        
+        if event.key == '+': self.fact += self.step
+        elif event.key == '-': self.fact -= self.step 
+        elif event.key == 'l': self.shift -= 1
+        elif event.key == 'r': self.shift += 1
+        elif event.key == 's': self.smooth()
+        elif event.key == 'o': self.startover()
+        elif event.key == 'a': self.accept()
+        elif event.key == 'x': self.reject()
+        elif event.key == 'c': self.choosepix()
+        elif event.key == 'q': self.quit()
+        elif event.key == 'u': self.update()
+        elif event.key == 'b': self.toggleflag()
+        elif event.key == 'm': self.tiltfac += 0.1
+        elif event.key == 'n': self.tiltfac -= 0.1
+        
+        
+        elif event.key in '0123456789': self.chooseline(event.key)
+        else: print "Unknown key pressed, doing nothing"
+        self.plot()
+        
     def plot(self):
         self.fig.clf()
 
         # Around CaT
         ax=P.axes([0.02,0.68,0.70,0.27])
         P.setp(ax,xticks=[], yticks=[])
-        plotspec(self.shiftscaled(),style='-r')
+        plotspec(self.shiftscaled(),style='-b')
         plotspec(self.data,style='-k')
         plotspec(self.data-self.shiftscaled(),region=[8470,8700],style='-r')
         
@@ -478,8 +631,14 @@ class interactplot:
         ## PaStren Ratio
         ax=P.axes([0.28,0.02,0.23,0.27])
         lines=N.array([9,10,11,12,14,17])
-        ratio=self.paparams[3:] / PaschStren[19-lines]
-        P.plot(lines[::-1],ratio/ratio[-3],'bo')
+        meas=N.zeros(len(lines),'Float32')
+        j=0
+        for i in N.arange(6)*2 + 3:
+            meas[j]=self.paparams[i]
+            j+=1
+            
+        ratio=meas / PaschStren[19-lines]
+        P.plot(lines[::-1],ratio/ratio[-2],'bo')
         P.setp(ax,xticks=[9,10,11,12,14,17])
         P.title('Pa Strength Ratio')
 
@@ -487,6 +646,11 @@ class interactplot:
         ax=P.axes([0.86,0.02,0.10,0.27])
         P.text(0.1,0.9,'S/N: '+str(int(self.sn)),transform = ax.transAxes)
         P.text(0.1,0.8,'X: %s  Y: %s'%(self.i,self.j),transform = ax.transAxes)
+        P.text(0.1,0.7,'PaNumb: %s'%(self.PaNumb,),transform = ax.transAxes)
+        P.text(0.1,0.6,'Tilt %s'%(self.tiltfac,),transform = ax.transAxes)
+        P.text(0.1,0.5,'Fact: %s'%(self.fact),transform = ax.transAxes)
+        P.text(0.1,0.4,'Shift: %s'%(self.shift),transform = ax.transAxes)
+        P.text(0.1,0.3,'Flag: %s'%(self.flag),transform = ax.transAxes)
         
         P.setp(ax,xticks=[], yticks=[])
         P.title('Some Values')
@@ -498,60 +662,11 @@ class interactplot:
         #print lamb,region, self.velRange, self.guessV
         plotspec(self.shiftscaled(),region=region,style='r',linestyle='steps')
         plotspec(self.data,region=region,style='k',linestyle='steps')
-        
-        
-    def accept(self):
-        self.file.write('%s %s %s %s %s\n'%(self.i,self.j,self.PaNumb,self.fact,self.shift))
-        self.file.close()
-        P.close(self.fig)
 
-    def reject(self):
-        self.file.write('%s %s %s\n'%(self.i,self.j,'R'))
-        self.file.close()
-        P.close(self.fig)
-    
-    def startover(self):
-        self.synt=self.osynt.copy()
-        self.data=self.data=contSubtr(self.odata,order=5)
-        self.fact=1.0
-        self.shift=0
-        self.plot()
-
-    def chooseline(self):
-        get=raw_input('tell me: ')
-        if get == 's': self.fromSulf()
-        else:
-            self.PaNumb=int(get)
-            self.makesynt()
-        
-        
-    def key_press_callback(self,event):
-        
-        if event.key == '+': self.fact += self.step
-        elif event.key == '-': self.fact -= self.step 
-        elif event.key == 'l': self.shift -= 1
-        elif event.key == 'r': self.shift += 1
-        elif event.key == 's': self.smooth()
-        elif event.key == 'o': self.startover()
-        elif event.key == 'a': self.accept()
-        elif event.key == 'q': self.reject()
-        elif event.key == 'c': self.chooseline()
-        else: print "Unknown key pressed, doing nothing"
-        self.plot()
-        
     def button_press_callback(self,event):
         pass
         
-
-def createPaschen(data,double=True,velRange=None,guessV=None,plot=False,plotfit=False,PaNumb=9):
-    fitresults=findLine(data,double=double,velRange=velRange,guessV=guessV,restlamb=PaLamb(PaNumb),plot=plotfit)
-    #print fitresults
-    if fitresults==-1:
-        return N.zeros(SpecLen,'Float32')
-    else:
-        Z,paschenparam,D1,D2=fitresults
-            
-    #print fitresults
+def createPa(paschenparam,Z,double,PaNumb,D1=0.0,D2=0.0):
     Pasch=Paschen * Z
 
     # don't subtract continuum
@@ -573,6 +688,19 @@ def createPaschen(data,double=True,velRange=None,guessV=None,plot=False,plotfit=
         else:
             SynthSpec+=gauss(para,x=x,returnmodel=True)
 
+    return SynthSpec
+
+
+def createPaschen(data,double=True,velRange=None,guessV=None,plot=False,plotfit=False,PaNumb=9):
+    fitresults=findLine(data,double=double,velRange=velRange,guessV=guessV,restlamb=PaLamb(PaNumb),plot=plotfit)
+    #print fitresults
+    if fitresults==-1:
+        return N.zeros(SpecLen,'Float32')
+    else:
+        Z,paschenparam,D1,D2=fitresults
+
+    SynthSpec=createPa(paschenparam,Z,D1=0.0,D2=0.0,double=double,PaNumb=PaNumb)
+    
     if plot:    
         plotspec(SynthSpec)
         plotspec(data)
@@ -618,22 +746,9 @@ def createPaschenSul(data,velRange=None,guessV=None,plot=False,plotfit=False,PaN
     else:
         Z,paschenparam,D1,D2=fitresults
 
-    # don't subtract continuum
-    paschenparam[0]=0.0
+        
+    SynthSpec=createPa(paschenparam,Z,D1=0.0,D2=0.0,double=True,PaNumb=PaNumb)
     
-    x=N.arange(SpecLen)
-    SynthSpec=N.zeros(SpecLen,'Float32')
-
-    Stren=PaschStren / PaschStren[19-PaNumb]
-    #print Stren
-    for i in N.arange(len(Paschen)):
-        para=paschenparam.copy()
-        para[2]*=Stren[i]
-        para[5]*=Stren[i]
-        para[1]=lamb2pix(Paschen[i]*Z)+D1
-        para[4]=lamb2pix(Paschen[i]*Z)+D2
-        SynthSpec+=twogauss(para,x=x,returnmodel=True)
-
     if plot:    
         plotspec(SynthSpec)
         plotspec(data)
@@ -657,28 +772,7 @@ def subtrPaschen(data,velRange=None,guessV=None,PaNumb=9,fromSul=True,double=Tru
     subtracted.shape=origshape
     return subtracted
 
-def fxcorrelate(galaxy,star):
 
-    write_fits(galaxy,'/tmp/galaxy.fits')
-    write_fits(star,'/tmp/star.fits')
-
-    fxcor('/tmp/galaxy.fits','/tmp/star.fits',output='/tmp/spool')
-
-    #first choose the relevant spectral range
-    ## margin=200
-##     Left=lamb2pix(CaT[0])-margin
-##     Right=lamb2pix(CaT[2])+margin
-##     return Left,Right
-##     relev_star=star[Left:Right]
-##     Left=lamb2pix(CaT[0]*Z)-margin
-##     Right=lamb2pix(CaT[2]*Z)+margin
-##     relev_galax=galaxy[Left:Right]
-##     P.plot(relev_star)
-##     P.plot(relev_galax)
-    #galax='/tmp/galax.fits'
-    #templ='/tmp/templ.fits'
-    #write_fits(galaxy,galax)
-    #write_fits(template,templ)
 
 #########################
 ####  FITTING
@@ -748,7 +842,7 @@ def twogauss(p, fjac=None, x=None, y=None, err=None, returnmodel=False):
         return([status, (y-model)/err])
  
 
-def fitgauss(data,parinfo=None,prin=False,plot=False,quiet=True):
+def fitgauss(data,err=None,parinfo=None,prin=False,plot=False,quiet=True):
     if isconstant(data):
         return -1
 
@@ -756,7 +850,7 @@ def fitgauss(data,parinfo=None,prin=False,plot=False,quiet=True):
     #data-=min(data)
     x=N.arange(len(data),type='Float64')
     #err=N.zeros(len(data))+1
-    err=1/N.sqrt(data)
+    if err==None: err=1/N.sqrt(data)
     
     fa = {'x':x, 'y':data, 'err':err}
 
@@ -774,20 +868,90 @@ def fitgauss(data,parinfo=None,prin=False,plot=False,quiet=True):
         parinfo[2]['value']=(max(data)-min(data))
         parinfo[2]['limited']=[1,1]
         parinfo[2]['limits']=[0.0,max(data)]
-        parinfo[3]['value']=len(data)/6.
+        parinfo[3]['value']=len(data)/16.
         parinfo[3]['limited']=[1,1]
         parinfo[3]['limits']=[0.0,len(data)/2.]
         
 
-    #print data,x,err,fa,parinfo
+    #print parinfo
     try:
         fit=mpfit(gauss,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet)
     except OverflowError:
         return -1
     
     if plot==True:
-        P.plot(data,'r')
+        P.plot(data,'r',linestyle='steps')
         P.plot(gauss(fit.params,x=N.arange(len(data)),returnmodel=True),'b')
+    if prin==True:
+        print fit.niter,fit.params,fit.status
+    
+    return fit
+
+def gaussh34(p, fjac=None, x=None, y=None, err=None, returnmodel=False):
+    """p0=cont p1=ampl p2=center p3=sigma """
+    X=(x-p[1])/p[3]
+    h3=((2*N.sqrt(2)*(X**3)) - (3*N.sqrt(2)*X))/N.sqrt(6)
+    h4=((4*(X**4)) - (12*(X**2)) + 3) / N.sqrt(24)
+    G= N.exp( -1*(X**2) /2) * p[2] 
+    model = p[0]+ G*(1 + (p[4] * h3) + (p[5]*h4))
+
+    if returnmodel==True:
+        return model
+    else:
+        status = 0
+        return([status, (y-model)/err])
+
+def fitgaussh34(data,err=None,parinfo=None,prin=False,plot=False,quiet=True):
+    if isconstant(data):
+        return -1
+    
+    data=data.astype('Float64')
+    x=N.arange(len(data),type='Float64')
+    if err==None: err=1/N.sqrt(data)
+    
+    fa = {'x':x, 'y':data, 'err':err}
+
+    if parinfo==None:
+        parinfo=[]
+        for i in range(6):
+            parinfo.append({'value':0.0, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0})
+
+        parinfo[0]['value']=min(data)
+        parinfo[0]['limited']=[1,1]
+        parinfo[0]['limits']=[min(data),max(data)]
+        
+        parinfo[1]['value']=N.argmax(data)
+        parinfo[1]['limited']=[1,1]
+        parinfo[1]['limits']=[0.0,len(data)]
+
+        parinfo[2]['value']=(max(data)-min(data))
+        parinfo[2]['limited']=[1,1]
+        parinfo[2]['limits']=[0.0,max(data)]
+
+        parinfo[3]['value']=len(data)/16.
+        parinfo[3]['limited']=[1,1]
+        parinfo[3]['limits']=[0.0,len(data)/2.]
+
+#        parinfo[4]['value']=len(data)/16.
+#        parinfo[4]['limited']=[1,1]
+#        parinfo[4]['limits']=[0.0,len(data)/2.]
+
+#        parinfo[5]['value']=len(data)/16.
+#        parinfo[5]['limited']=[1,1]
+#        parinfo[5]['limits']=[0.0,len(data)/2.]
+
+ 
+        
+
+    #print parinfo
+    try:
+        fit=mpfit(gaussh34,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet)
+    except OverflowError:
+        return -1
+    
+    if plot==True:
+        P.plot(data,'r',linestyle='steps')
+        P.plot(gaussh34(fit.params,x=N.arange(len(data)),returnmodel=True),'b')
     if prin==True:
         print fit.niter,fit.params,fit.status
     
@@ -903,12 +1067,117 @@ def plotspec(data,region=None,plotlines=False,Z=1.002912,style=False,linestyle='
 
 
 #########################
+####  Cross correlation
+#########################
+
+
+
+def xcorr(galaxy,star,filtgal=False,filtstar=None,range=N.array([700,1300]),baryN=15,plot=False,offset=50):
+
+    wavecal=pix2lamb(range)
+
+    if filtstar != None: gaussian_filter1d(star,filtstar)
+    origshape=galaxy.getshape()
+    galaxy=galaxy.copy()
+    star=star.copy()
+    star=contSubtr(star,order=1)
+    star=star[range[0]:range[1]]
+    star,x=log_rebin(star,wavecal)
+    
+    
+    if len(galaxy.shape) == 3:
+        galaxy.shape=(origshape[0]*origshape[1],origshape[2])
+    
+    pos=N.zeros(galaxy.shape[0],'Float32')
+    wid=N.zeros(galaxy.shape[0],'Float32')
+    bary=N.zeros(galaxy.shape[0],'Float32')
+    secmom=N.zeros(galaxy.shape[0],'Float32')
+    cont=N.zeros(galaxy.shape[0],'Float32')
+    amp=N.zeros(galaxy.shape[0],'Float32')
+    h3=N.zeros(galaxy.shape[0],'Float32')
+    h4=N.zeros(galaxy.shape[0],'Float32')
+
+    fitl=(len(star)/2)-80+offset
+    fitr=(len(star)/2)+80+offset
+    print fitl,fitr
+    for i in N.arange(len(pos)):
+        if isconstant(galaxy[i]): continue
+        gal=contSubtr(galaxy[i,range[0]:range[1]],order=1)
+        gal,x1=log_rebin(gal,wavecal)
+        print x1[1]-x1[0]
+        if filtgal:
+            gal.ndim=1
+            gal=bandfilt(gal)
+        
+        xc=Sig.correlate(gal,star,'same')
+        xc=xc[fitl:fitr]
+        if plot: P.clf()
+        fit=fitgaussh34(xc+1.0,err=1/xc,plot=plot,prin=True)
+        #fit=fit2gauss(xc+1.0,plot=True)
+        if fit == -1: print "somethings wrong!"
+        else:
+            cont[i],pos[i],amp[i],wid[i],h3[i],h4[i]=fit.params
+            #cont,pos[i],amp,wid[i],x4,x5,x6=fit.params
+
+        bary[i]=calcpeak(xc,baryN)
+        xc=N.array(xc)
+        secmom[i]=secondmoment(xc)
+
+
+        if plot: P.plot([pos[i],bary[i]],[amp[i]+cont[i],amp[i]+cont[i]],'ro')
+        P.draw()
+
+    pos=pos-((fitr-fitl)/2.0)+offset
+    bary=bary-((fitr-fitl)/2.0)+offset
+    #vel=((exp(x[0])/exp(x[diff]))-1)*3E5
+    if len(origshape) == 3:
+        pos.shape=(origshape[0],origshape[1])
+        wid.shape=(origshape[0],origshape[1])
+        bary.shape=(origshape[0],origshape[1])
+        secmom.shape=(origshape[0],origshape[1])
+        cont.shape=(origshape[0],origshape[1])
+        amp.shape=(origshape[0],origshape[1])
+        h3.shape=(origshape[0],origshape[1])
+        h4.shape=(origshape[0],origshape[1])
+        
+    return pos,bary,wid,secmom,cont,amp,h3,h4
+
+
+def offset2vel(data,calib=4.93750657338e-05):
+    return (N.exp(data*calib)-1) * c
+    
+
+def sigmacal(star):
+
+    sigmain=N.arange(0,30,0.2,'Float32')
+    sigmaout=sigmain.copy()*0.0
+    wavecal=[8000,8000+(Step*len(sigmain))]
+    star,x=log_rebin(star,wavecal)
+    for i in N.arange(len(sigmain)):
+        st,x1=log_rebin(gaussian_filter1d(star,sigmain[i]),wavecal)
+        xc=Sig.correlate(star,st,'same')
+        fit=fitgauss(xc+1.0)
+        sigmaout[i]=fit.params[3]
+    return dlamb2vel(sigmain*Step,CaT[1]),sigmaout
+
+    
+def applysigcal(data,cal):
+    mi=cal.x.min()
+    ma=cal.x.max()
+
+    dat=N.where(data <= ma, data, data*0.0 + mi)
+    dat=N.where(dat >= mi, dat, data*0.0 +mi)
+    cadat=cal(dat.flat)
+    cadat.shape=dat.shape
+    return cadat
+
+    
+#########################
 ####  IDL Wrappers
 #########################
 
-def log_rebin(spec,lamRange):
+def log_rebin(spec,lamRange=None):
     """ wrapper for IDL's log_rebin"""
-
     
     # make a new IDL session
     idl=IDL()
@@ -1057,6 +1326,38 @@ def rad_profile(data,xbin,ybin,xcen,ycen,BinNumber):
     diff=N.sqrt(((xbin-xcen)**2)+((ybin-ycen)**2))
     P.plot(diff,BinValues,'x')
 
+def bandfilt(data):
+    
+    lpcf = 0.2
+    lpsf = 0.25
+    hpcf = 0.7
+    hpsf = 0.6
+    
+    Rp = 2
+    Rs = 20
+    #print [lpcf,hpcf],[lpsf,hpsf],Rp,Rs
+    #return lhpfilt(data,params=[[lpcf,hpcf],[lpsf,hpsf],Rp,Rs])
+    return lhpfilt(data,params=[lpcf,lpsf,Rp,Rs])
+
+def lhpfilt(data,params=[0.006,0.01,0,20]):
+    """
+    wp, ws -- Passband and stopband edge frequencies, normalized from 0
+    to 1 (1 corresponds to pi radians / sample).  For example:
+                   Lowpass:   wp = 0.2,          ws = 0.3
+                   Highpass:  wp = 0.3,          ws = 0.2
+                   Bandpass:  wp = [0.2, 0.5],   ws = [0.1, 0.6]
+                   Bandstop:  wp = [0.1, 0.6],   ws = [0.2, 0.5]
+      gpass -- The maximum loss in the passband (dB).
+      gstop -- The minimum attenuation in the stopband (dB).
+      """
+    data.ndim=1
+    wp,ws,gpass,gstop=params
+    [n,Wn] = Sig.buttord(wp,ws,gpass,gstop)
+    [b,a] = Sig.butter(n,Wn)
+    return filtfilt(b,a,data)
+
+def hpfilt(data):
+    pass
 
 #########################
 ####  HELPER FUNCTIONS
@@ -1134,6 +1435,9 @@ def medianspec(data):
 def lamb2pix(data):
     if type(data) == type(1) or type(data) == type(1.0): return int(N.around((data-Lamb0)/Step).astype('Int32'))
     else: return N.around((data-Lamb0)/Step).astype('Int32')
+
+def dlamb2vel(data,lamb0):
+    return data/lamb0*c
 
 def pix2lamb(data):
     return (data*Step)+Lamb0
@@ -1296,3 +1600,4 @@ if __name__ == '__main__':
 
 def demo():
     print "This file defines some functions. It is not meant to be executed. Import it instead!"
+
