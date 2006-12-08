@@ -10,7 +10,7 @@ from PyCigale import read_fits,write_fits,shift,calcpeak,secondmoment
 import scipy.stats as S
 from mpfit import mpfit
 import time
-from pyIDL import idl as IDL
+#from pyIDL import idl as IDL
 import pickle
 import scipy.signal as Sig
 from scipy.ndimage import gaussian_filter1d
@@ -201,7 +201,7 @@ def contSubtr(data,order=6,sigmaclip=1.0,plot=False):
 
     contSub=N.zeros(data.shape,'Float32')
     for i in N.arange(data.shape[0]):
-        contSub[i,:]=contFit(data[i,:],order=order,sigmaclip=sigmaclip,plot=plot)
+        contSub[i,:]=data[i,:]-contFit(data[i,:],order=order,sigmaclip=sigmaclip,plot=plot)
         #print str(i)+' done'
 
     data.shape=origshape
@@ -222,7 +222,7 @@ def contFit(data,order=6,sigmaclip=1.0,plot=False):
         P.plot(flagged)
         P.plot(finalfit)
         P.plot(data-finalfit)
-    return data-finalfit
+    return finalfit
 
 
     
@@ -311,7 +311,7 @@ def fitAllPaschen_old(data,err,velRange=None,guessV=None,PaNumbers=[9,10,11,12,1
     fa = {'x':x, 'y':relevant, 'err':relerr, 'n':nlines}
     
     try:
-        fit=mpfit(funcAllPaschen,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet,gtol=1E-5)
+        fit=mpfit(funcAllPaschen_old,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet,gtol=1E-5)
     except OverflowError:
         return -1
 
@@ -319,7 +319,7 @@ def fitAllPaschen_old(data,err,velRange=None,guessV=None,PaNumbers=[9,10,11,12,1
     
     if plot==True:
         P.plot(relevant,'r')
-        P.plot(funcAllPaschen(fit.params,x=N.arange(len(relevant)),n=nlines,returnmodel=True),'b')
+        P.plot(funcAllPaschen_old(fit.params,x=N.arange(len(relevant)),n=nlines,returnmodel=True),'b')
     if prin==True:
         print fit.niter,fit.params,fit.status
     
@@ -516,7 +516,7 @@ class interactplot:
  
         
     def measurePa(self):
-        params=fitAllPaschen(self.data,self.error,velRange=self.velRange,guessV=self.guessV,plot=False,prin=False)
+        params=fitAllPaschen_old(self.data,self.error,velRange=self.velRange,guessV=self.guessV,plot=False,prin=False)
         #print params
         self.paparams=params
         
@@ -1583,16 +1583,9 @@ def plotbadpix(color='w'):
     P.plot([20,21],[10,9],color)
     P.plot([20,21],[11,10],color)
 
-
-#def inspect(data):
-#    for i in range(data.shape[0]):
-#        for j in range(data.shape[1]):
-#            P.clf()
-#            title(str(i)+' - '+str(j))
-#            plotspec(data[i,j,:])
-#            sleep(1)
-
-
+def measwidth(event):
+    print event.xdata
+    
 
 if __name__ == '__main__':
     demo()

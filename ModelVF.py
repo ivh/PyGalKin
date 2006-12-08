@@ -29,6 +29,689 @@ import matplotlib.pylab as MP
 #matplotlib.use('GTK')
 import mpfit
 
+###
+import pickle
+import pylab as P
+import PyGalKin as G
+from matplotlib.numerix.ma import masked_where 
+###
+
+
+
+
+class interactvf:
+	def __init__(self, data, pixels=7, avg_square=3):
+	
+		# Basic Values
+		self.avg_square_size = avg_square
+		self.pixels = pixels
+		self.spectra_size = (0.15,0.10)
+		self.spectra_dist = (0.01,0.01)
+		self.spectra_coord = (0.015,0.44)
+		self.spectra_break = 4
+		self.cenx = 0
+		self.ceny = 0
+			
+		self.trusted = []
+		self.trustgraph = []
+#		self.trustlength = 0
+
+		self.vel_pars = None
+		self.flux_pars = None
+		self.spectral_pars = None
+		
+		# import and process data cube
+		self.odata = data.get_copy()
+		self.cdata = data.cliparoundcenter()
+		self.cdata = N.transpose(self.cdata,axes=(1,0,2))
+		self.cdata.p = self.odata.p
+		self.sdata = G.sum(self.cdata)
+		
+		# import or calculate velocity field
+		self.vel_file = self.odata.p['objname'] + '_peakvf_' + `self.pixels` + 'pixels.pick'
+
+		if os.path.exists(self.vel_file):
+			self.ini_velf = G.load(self.vel_file)
+			print 'imported old velocity field'
+		else:
+			print 'recalculating velocity field ...,'
+			self.ini_velf = G.peakvel(self.cdata,self.pixels)
+			G.dump(self.ini_velf, self.vel_file)
+			print 'done!\n'
+		
+		# setup main figure
+		self.fig=P.figure(1)
+#		P.title(self.odata.p['objname'])
+		canvas = self.fig.canvas
+		canvas.mpl_connect('key_press_event', self.key_press_callback)
+		canvas.mpl_connect('button_press_event', self.button_press_callback)
+		self.canvas = canvas
+		self.plot()
+		
+        
+	def plot(self):
+		self.fig.clf()
+        
+        # Total Flux
+		self.axflux=P.axes([-0.03,0.59,0.36,0.36])
+		minmaxflux = N.array(self.sdata)
+		minmaxflux.shape = (-1,)
+		minmaxflux = N.sort(minmaxflux)
+		takeflux = int(round(len(minmaxflux)*0.01))
+		axfluxresmax = max(int(round(minmaxflux[-takeflux])),1)
+		axfluxresmin = max(int(round(minmaxflux[takeflux])), 0)
+		P.setp(self.axflux,xticks=[], yticks=[])
+		P.imshow(N.transpose(self.sdata),interpolation='nearest',vmin=axfluxresmin,vmax=axfluxresmax)
+		P.title('Total Flux')
+		
+		# Velocity Field
+		self.axvelf=P.axes([0.27,0.59,0.36,0.36])
+		minmaxvel = N.array(self.ini_velf)
+		minmaxvel.shape = (-1,)
+		minmaxvel = N.sort(minmaxvel)
+		takevel = int(round(len(minmaxvel)*0.01))
+		axvelresmax = max(int(round(minmaxvel[-takevel])),1)
+		axvelresmin = max(int(round(minmaxvel[takevel])), 0)
+		P.setp(self.axvelf,xticks=[], yticks=[])
+		P.imshow(N.transpose(self.ini_velf), interpolation='nearest',vmin=axvelresmin, vmax=axvelresmax)
+		P.title('Velocity Field')
+		
+		# Local Spectrum
+		self.axspec=P.axes([0.015,0.44,0.15,0.10],xticks=[], yticks=[])
+#		P.title('Local Spectrum')
+		
+		
+	def key_press_callback(self,event):
+        # key bindings
+		if event.key == 'q': self.fitvellinear()
+		elif event.key == 'v': self.del_all_trusted()
+		elif event.key == 'a': self.fitfluxexp(modeltype='expfit_func')
+		elif event.key == 's': self.fitfluxexp(modeltype='powerlawfit_func')
+		elif event.key == 'p': self.printfit()
+		elif event.key == 'y': self.modelspectra_from_trusted()
+		elif event.key == 'b': self.get_modelled_spectrum()
+		elif event.key == 'control': P.close(1); print 'interactvf closed. goodbye!'
+#		elif event.key == 't': print event.x, event.y, event.inaxes
+		else: print "Unknown key pressed:", event.key, '@ ('+`event.x`+','+`event.y`+ ") ... doing nothing"
+#		self.plot()
+
+
+	def button_press_callback(self,event):
+		# mouse bindings, depending on axes
+		if event.inaxes in [self.axflux, self.axvelf]:
+			(x,y) = self.coord(event)
+			if event.button == 1:
+				self.plotat((x,y))
+			elif event.button == 3:
+				self.add_to_trusted((x,y))
+			elif event.button == 2:
+				self.set_center((x,y))
+				
+		elif event.inaxes in self.trustgraph:
+			if event.button == 3:
+				self.drop_trusted(event.inaxes)
+				
+		else: print '.'
+		
+		
+	def plotat(self, xy):
+		# refresh local spectrum
+#		P.delaxes(self.axspec)
+#		self.axspec=P.axes([0.62,0.59,0.36,0.36])
+		self.axspec.cla()
+		self.axspec.plot(self.cdata[xy[0],xy[1],:], 'r', linewidth=2)
+		P.setp(self.axspec, xticks=[], yticks=[], title='Local Spectrum')
+#		P.title(self.axspec, 'Local Spectrum')
+		self.currdat = self.cdata[xy[0],xy[1],:]
+		self.canvas.draw()
+		
+		
+	def add_to_trusted(self, xy):
+		# add coordinates, spectrum and velocity to trusted data
+		temp = N.zeros((self.cdata.shape[2],))
+		cnt = 0.0
+		dev = self.avg_square_size / 2
+		for i in range(self.avg_square_size):
+			for j in range(self.avg_square_size):
+				try:
+					tmp = self.cdata[xy[0]+i-dev,xy[1]+j-dev,:]
+#					self.move_to_peak(tmp)
+					temp += tmp
+				except: print 'Point at the border chosen! Continuing anyways.'
+				else: cnt += 1.0
+		temp = temp/cnt
+		veli = G.calcpeak(temp, 7)
+		newlistitem = [temp, xy, self.ini_velf[xy[0],xy[1]], self.sdata[xy[0],xy[1]]]
+		self.trusted.append(newlistitem)
+		print 'added point @', xy, 'to trusted points'
+		self.update_trusted()
+		
+		
+	def drop_trusted(self, axis):
+		# remove trusted data
+		i = self.trustgraph.index(axis)
+		print 'point @', self.trusted[i][1], 'being removed'
+		self.trusted = self.trusted[:i] + self.trusted[i+1:]
+		self.update_trusted(delf=i)
+		
+		
+	def del_all_trusted(self):
+		# remove all trusted data-points
+		for i in range(len(self.trusted)):
+			self.trusted = self.trusted[:-1]
+			self.update_trusted(delf=i)
+			self.canvas.draw()
+		print 'all trusted points removed'
+			
+		
+	def update_trusted(self, delf=-1):
+		# update graphs of trusted data				
+		trustlen = len(self.trusted)
+		
+		# add new graphs		
+		if len(self.trustgraph) == trustlen - 1:
+			self.trustgraph.append(P.axes(self.newaxis(trustlen-1, cutat = self.spectra_break), xticks=[],yticks=[]))
+#			tmplen = len(self.trustgraph)-1
+			P.plot(self.trusted[trustlen-1][0])
+		
+		# delete old ones
+		elif len(self.trustgraph) == trustlen + 1 and delf >= 0:
+			P.delaxes(self.trustgraph[-1])
+			self.trustgraph = self.trustgraph[:-1]
+			for i in range(delf,len(self.trusted)):
+				self.trustgraph[i].cla()
+				P.setp(self.trustgraph[i], xticks=[],yticks=[])
+				self.trustgraph[i].plot(self.trusted[i][0])
+		
+		# notify errors
+		elif len(self.trustgraph) == trustlen:
+			print 'plotter idling ...'
+		else:
+			print 'something strange this way comes ...'
+
+		# updating stuff
+		self.canvas.draw()
+
+
+
+	def fitvellinear(self):
+		# perform a linear fit to trusted points, giving modelled VF as output
+		
+		try: P.delaxes(self.axlinf)
+		except: pass
+		else: print 'old axis killed'
+		
+		print 'velocity fit started ...'	
+		# get and process input data
+		ini_values = []
+		ini_coordx = []
+		ini_coordy = []
+		ini_velocs = []
+		self.data_shape = self.cdata.shape
+		for i in self.trusted:
+			ini_values.append(i[0])
+			ini_coordx.append(i[1][0]-self.cdata.shape[0]/2-self.cenx)
+			ini_coordy.append(i[1][1]-self.cdata.shape[1]/2-self.ceny)#-self.data_shape[1]/2-self.ceny)
+			ini_velocs.append(i[2])
+		ini_values = N.array(ini_values)
+		ini_coordx = N.array(ini_coordx)
+		ini_coordy = N.array(ini_coordy)
+		ini_velocs = N.array(ini_velocs)
+		print 'got values\n'
+		
+		# initialize mpfit fitting
+		parinfo=[]
+		parinfo.append({'value':self.odata.p['pa'], 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'pa'})		# position angle
+		parinfo.append({'value':1.0, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.1, 'parname':'vel gradient'})		# gradient
+		parinfo.append({'value':self.odata.p['vr0'], 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':1.0, 'parname':'vel gradient'})		# system
+
+		err = 0
+		functkw = {'x':ini_coordx, 'y':ini_coordy, 'z':ini_velocs, 'err':err}
+
+		linfitres=mpfit.mpfit(linfit_func,parinfo=parinfo,functkw=functkw,quiet=False)
+
+		# show results & store them
+		print '\n\njuchu!'
+		print linfitres.params
+		print 'status', linfitres.status, '\n'
+		print 'pa', (360-(linfitres.params[0]%360))
+		self.vel_pars = {'model':'lin', 'posang':linfitres.params[0], 'gradient':linfitres.params[1], 'system':linfitres.params[2]}
+
+		# checking the results
+		seen=linfit_func(linfitres.params, None,  x=ini_coordx, y=ini_coordy, z=None, err=None, returnmodel=True)
+		print '\ntrue velocities:\n', ini_velocs
+		print '\nmodel velocities:\n', seen
+		
+		# visual output
+		all_coordx = N.array(range(-self.cdata.shape[0]/2-self.cenx,self.cdata.shape[0]/2-self.cenx)*self.cdata.shape[1])
+		all_coordy = N.array(range(-self.cdata.shape[1]/2-self.ceny,self.cdata.shape[1]/2-self.ceny)*self.cdata.shape[0])
+		all_coordy.sort()
+		self.field = linfit_func(linfitres.params, None,  x=all_coordx, y=all_coordy, z=None, err=None, returnmodel=True)
+		self.field.shape = ((self.data_shape[0],self.data_shape[1]))
+		self.axlinf=P.axes([0.61,0.03,0.36,0.36])
+		P.setp(self.axlinf,xticks=[], yticks=[])
+		P.imshow(self.field, interpolation='nearest')
+		P.title('Velocity Model')
+		P.colorbar()
+		
+		print 'done!\n'
+		
+		# redrawings
+		self.canvas.draw()
+		
+			
+	def fitfluxexp(self, modeltype, contnr=3):
+		# fit exponential law to flux of trusted points
+		
+		# throw away your television
+		try: P.delaxes(self.axfluxmod)
+		except: pass
+		else: print 'old axis killed'
+
+
+		print 'doing:', modeltype, '...'
+		if modeltype == 'expfit_func':
+			modeltype = expfit_func
+			modelt = 'exp'
+		elif modeltype == 'powerlawfit_func':
+			modeltype = powerlawfit_func
+			modelt = 'powerlaw'
+
+
+		# get & process values
+		fluxes = N.array([])
+		radii = []
+		ini_coordx = []
+		ini_coordy = []
+
+		for i in self.trusted:
+			ini_coordx.append(i[1][0]-self.cdata.shape[0]/2-self.cenx)
+			ini_coordy.append(i[1][1]-self.cdata.shape[1]/2-self.ceny)
+			tmp = i[0].copy()
+			tmp.sort()
+			tmp = tmp[:contnr]
+			cont = tmp.sum()
+			cont /= contnr
+			flux = i[3] - self.cdata.shape[2] * cont
+			fluxes = N.concatenate((fluxes, flux))
+			x = (i[1][0]-self.cdata.shape[0]/2-self.cenx)
+			y = (i[1][1]-self.cdata.shape[1]/2-self.ceny)
+			r = M.sqrt(x**2+y**2)
+			radii.append(r)
+		radii = N.array(radii)
+		fluxes = N.log(fluxes)																		####################
+		
+		ini_coordx = N.array(ini_coordx)
+		ini_coordy = N.array(ini_coordy)
+		
+		
+		# initialize mpfit
+		parinfo=[]
+		parinfo.append({'value':10.0, 'fixed':0, 'limited':[1,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'max'})		# position angle
+		parinfo.append({'value':-0.1, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'slope'})	# gradient
+
+		err = N.sqrt(fluxes)
+		functkw = {'x':ini_coordx, 'y':ini_coordy, 'z':fluxes, 'err':err}
+
+		expfitres=mpfit.mpfit(modeltype,parinfo=parinfo,functkw=functkw,quiet=False)
+		
+		# store data
+		print expfitres.params
+		print 'radii:',radii
+		self.flux_pars = {'model':modelt, 'amp':expfitres.params[0], 'slope':expfitres.params[1]}
+		
+		# nice output
+		self.axfluxmod=P.axes([0.62,0.75,0.36,0.20], yticks=[], title='Flux Model')
+		self.axfluxmod.plot(radii, M.e**fluxes,'bo')
+		self.axfluxmod.semilogy()
+		
+		# get fitted field
+		maxrad = max(radii)
+		modelled_flux = N.array([])
+		l = N.array(range(1,int(round(maxrad))+1))
+		modelled_flux = M.e **(modeltype(expfitres.params, None,  x=l, y=N.zeros((len(l),)), z=None, err=None, returnmodel=True))
+		self.axfluxmod.plot(l, modelled_flux, 'k')
+
+		print 'done!\n'
+
+		# redrawings
+		self.canvas.draw()
+			
+			
+			
+	def modelspectra_from_trusted(self):
+		# get typical spectral shape from trusted points
+
+		# die,die,die!
+		try: P.delaxes(self.axspecmod)
+		except: pass
+		else: print 'old axis killed'
+
+		# construct model spectrum
+		try:
+			vel_base = self.vel_pars['system']
+		except TypeError:
+			vel_base = self.odata.vel1st()
+			print 'taking velocity from par'
+		else:
+			print 'got fitted systemic velocity'
+			
+		vel_step = self.cdata.fsr()
+		channr = self.cdata.shape[2]
+		midchan = channr/2
+		sspectra = N.zeros(channr)
+		sspectra = N.array(sspectra, type=N.Float32)
+		for i in self.trusted:
+			vel = i[2]
+			chan = int(round((i[2]-vel_base)/vel_step))
+			sspec = G.PyCigale.shift(i[0], chan)
+			sspectra += sspec
+		norm = N.sum(sspectra)
+		sspectra /= norm
+		
+		# store fit in plot
+		self.spectral_pars = {'model':'empirical', 'spectrum':sspectra}
+		print 'model spectrum done\n'
+		
+		# plot it
+		self.axspecmod=P.axes([0.62,0.47,0.36,0.20], xticks=[], yticks=[], title='Model Spectrum')
+		self.axspecmod.plot(self.spectral_pars['spectrum'], 'r', linewidth=2)
+
+		# redrawings
+		self.canvas.draw()
+	
+	
+	def get_modelled_spectrum(self):
+		# use all of the results from fitting procedures to form model spectrum
+		
+		# check for performed fits, else abort
+		if self.vel_pars == None:
+			print '!!! No velocity model yet. Please perform modelling first (q) !!!'
+			return
+		elif self.flux_pars == None:
+			print '!!! No flux model yet. Please perform modelling first (a,s) !!!'
+			return
+		elif self.spectral_pars == None:
+			print '!!! No spectral model yet. Please perform modelling first (y) !!!'
+			return
+		
+		# get velocities from vel model, rescale with flux model, give obtained spectral shape
+		print 'alright, starting modelling with current fits ...'
+
+		# get vel model
+		if self.vel_pars['model'] == 'lin':
+			vel_model = linfit_func
+			vel_pars = [self.vel_pars['posang'], self.vel_pars['gradient'], self.vel_pars['system']]
+		
+		# get flux model
+		if self.flux_pars['model'] == 'exp':
+			flux_model = expfit_func
+			flux_pars = [self.flux_pars['amp'], self.flux_pars['slope']]
+		elif self.flux_pars['model'] == 'powerlaw':
+			flux_model = powerlawfit_func
+			flux_pars = [self.flux_pars['amp'], self.flux_pars['slope']]
+		
+		# get spectral model
+		if self.spectral_pars['model'] == 'empirical':
+			spectral_model = self.spectral_pars['spectrum']
+
+		# get spectral model
+		start = N.array(spectral_model)
+		start.shape = (len(spectral_model),1,1)
+		inter = N.repeat(start, self.cdata.shape[0], axis=1)
+		model = N.repeat(inter, self.cdata.shape[1], axis=2)
+		model = N.transpose(model, (1,2,0))
+		
+		# build coordinate arrays
+		wdt = self.cdata.shape[0]/2
+		hgt = self.cdata.shape[1]/2
+		all_coordx = N.array(range(-wdt,wdt)*hgt*2)
+		all_coordy = all_coordx.copy()
+		all_coordy.sort()
+		
+		# get velocity model
+		velmod = vel_model(vel_pars, None,  x=all_coordx, y=all_coordy, z=None, err=None, returnmodel=True)
+		velmod.shape = (2*wdt,2*hgt)
+		
+		# get flux model
+		fluxmod = N.exp(flux_model(flux_pars, None,  x=all_coordx, y=all_coordy, z=None, err=None, returnmodel=True))
+		fluxmod.shape = (2*wdt,2*hgt)
+		self.fluxmod = fluxmod
+		
+		# get unshifted spectral model
+		intermediate_model = fluxmod[:,:,N.NewAxis] * model
+		
+		# get indexshifts
+		channr = self.cdata.shape[2]
+		midchan = channr/2
+		vel_base = self.vel_pars['system']
+		vel_step = self.cdata.fsr()/channr
+		shiftarray = N.around((velmod-vel_base)/vel_step)
+		shiftarray.type = 'Int32'
+		
+		# final model
+		fin_mod = intermediate_model.copy()
+		for i in range(fin_mod.shape[0]):
+			for j in range(fin_mod.shape[1]):
+				fin_mod[i,j,:] = G.PyCigale.shift(fin_mod[i,j,:], int(shiftarray[i,j]))
+		print 'done!\n'
+		
+		print 'creating residuals ...'
+		self.synth_spectrum = G.PyCigale.array(fin_mod)
+		self.synth_spectrum.p = self.cdata.p
+		self.synth_spectrum.p['vr0'] = self.vel_pars['system']
+#		self.synth_total = G.sum(self.synth_spectrum)		
+#		self.synth_vel = G.peakvel(self.synth_spectrum, 7)
+		self.residual = self.cdata - self.synth_spectrum
+		self.residual_sum = G.sum(self.residual)
+		self.residual_vel = G.peakvel(self.residual, 7)
+		
+		# show it!!
+#		self.result = P.figure()
+#		self.rescanvas = self.result.canvas
+
+		# Total Flux
+		try: 							################
+			P.delaxes(self.axflux)		################
+			P.delaxes(self.axfluxres)	################
+		except: pass					################
+		minmaxflux = N.array(self.residual_sum)
+		minmaxflux.shape = (-1,)
+		minmaxflux = N.sort(minmaxflux)
+		takeflux = int(round(len(minmaxflux)*0.01))
+		axfluxresmax = max(int(round(minmaxflux[-takeflux])),1)
+		axfluxresmin = max(int(round(minmaxflux[takeflux])), 0)
+		self.axfluxres=P.axes([-0.03,0.59,0.36,0.36], xticks=[], yticks=[],title='Total Flux (Residual)')
+		self.axfluxres.imshow(self.residual_sum, interpolation='nearest', vmin=axfluxresmin,vmax=axfluxresmax)
+		
+		# Velocity Field
+		try: 							################
+			P.delaxes(self.axvelf)		################
+			P.delaxes(self.axvelf1)		################
+		except: pass					################
+		minmaxvel = N.array(self.residual_vel)
+		minmaxvel.shape = (-1,)
+		minmaxvel = N.sort(minmaxvel)
+		takevel = int(round(len(minmaxvel)*0.01))
+		axvelresmax = max(int(round(minmaxvel[-takevel])),1)
+		axvelresmin = max(int(round(minmaxvel[takevel])), 0)
+		self.axvelf1=P.axes([0.29,0.59,0.36,0.36],xticks=[], yticks=[],title='Velocity Field (Residual)')
+		self.axvelf1.imshow(self.residual_vel, interpolation='nearest', vmin=axvelresmin,vmax=axvelresmax)
+
+		self.canvas.draw()
+		
+		print 'done!\n'
+		
+		
+	def set_center(self,xy):
+		# select new center for the galaxy
+		self.cenx = xy[0] - self.cdata.shape[0]/2
+		self.ceny = xy[1] - self.cdata.shape[1]/2
+		print 'new center selected @', xy
+		
+
+	def printfit(self):
+		print '\nParameters for velocity field model:\n', self.vel_pars
+		print '\nParameters for radial flux model:\n', self.flux_pars
+		print '\nParameters for spectral model:\n', self.spectral_pars, '\n'
+	
+	
+	def coord(self, event):
+		# extract proper coordinates of mouse event
+		x = int(round(event.xdata))
+		y = int(round(event.ydata))
+		self.xy = (x,y)
+		return self.xy
+		
+		
+	def newaxis(self, i, cutat=4):
+		# iterate window positions for trusted data
+		row = (i+1)/cutat
+		col = (i+1)%cutat
+				
+		coordadd = (row*(self.spectra_size[0] + self.spectra_dist[0]), -col*(self.spectra_size[1] + self.spectra_dist[1]))
+		coords = (self.spectra_coord[0] + coordadd[0], self.spectra_coord[1] + coordadd[1])
+				
+		return [coords[0], coords[1], self.spectra_size[0], self.spectra_size[1]]
+
+
+def radii_from_position(coords, pars):
+	# calc radii from x,y coordinates
+	pa = pars['pa']*M.pi/180.0
+	x = coords[0]
+	y = coords[1]
+	cenx = pars['centr_offset_x']
+	ceny = pars['centr_offset_y']
+	radii = []
+			
+	for i in range(len(x)):
+		sx = (x[i] - cenx)
+		sy = (y[i] - ceny)
+		if sy == 0:
+			if sx >= 0:
+				ang = M.pi/2
+			else:
+				ang = -M.pi/2
+		else:
+			ang = M.atan(sx/sy)
+
+		t = sx * M.sin(-pa) + sy * M.cos(pa)
+		o = sx * M.cos(pa) + sy * M.sin(pa)
+		dx = cenx + t * M.sin(-pa) - x[i]
+		dy = cenx + t * M.cos(pa) - y[i]
+		if o >= 0:
+			sgn = -1
+		else:
+			sgn = +1
+		
+		r = sgn*M.sqrt(dx**2 + dy**2)
+		radii.append(r)
+		
+	radii = N.array(radii)
+	return radii
+
+
+def interact_model_linear(r, pars):
+	# calculate velocities from gradient and radius
+	arr = r[:].copy()
+	velgrad = pars['gradient']
+	sysvel = pars['system']
+	arr = arr * velgrad + sysvel
+	return arr
+
+
+def galmod_fitlin(x, y, p):
+	# returns linear vel field from coordinates x,y and fitting parameters p
+	pars = {}
+	pars['pa'] = p[0]
+	pars['gradient'] = p[1]
+	pars['system'] = p[2]
+	pars['centr_offset_x'] = 0
+	pars['centr_offset_y'] = 0
+	
+	radii = radii_from_position((x,y),pars)
+	vels = interact_model_linear(radii, pars)
+	return vels
+	
+
+
+def linfit_func(p, fjac, x=None, y=None, z=None, err=None, returnmodel=False):
+	# linear galaxy rotation modelling, conform to mpfit
+	model = galmod_fitlin(x, y, p)
+	if returnmodel: return model
+	else: return([0, z-model])
+		
+		
+def expfit_func(p, fjac, x=None, y=None, z=None, err=None, returnmodel=False):						####################
+	# exponential galaxy flux modelling, conform to mpfit
+	model = p[0]+(p[1]*N.sqrt(x**2+y**2))															####################
+	if returnmodel: return model
+	else: return([0, z-model])
+		
+		
+def powerlawfit_func(p, fjac, x=None, y=None, z=None, err=None, returnmodel=False):		
+	# exponential galaxy flux modelling, conform to mpfit
+	model = p[0]+p[1]*N.log(N.sqrt(x**2+y**2))
+	if returnmodel: return model
+	else: return([0, z-model])
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+##### trashy stuff ######
+##	
+	def move_to_peak(selfmo, row):
+		
+		parinfo=[]
+		parinfo.append({'value':1.0, 'fixed':0, 'limited':[1,0],'limits':[0.0, 0.0], 'step':0.0})
+		parinfo.append({'value':1.0, 'fixed':0, 'limited':[1,0],'limits':[0.0, 0.0], 'step':0.0})
+		parinfo.append({'value':24.0, 'fixed':0, 'limited':[1,1],'limits':[0.0, len(row)], 'step':0.0})
+		
+		x = range(len(row))
+		y = row
+		err = 1/abs(sqrt(y))
+		functkw = {'x':x, 'y':y, 'err':err}
+		
+		gaussres=mpfit.mpfit(gauss_fit_func,parinfo=parinfo,functkw=functkw,quiet=False)
+		print gaussres.status
+		print gaussres.params
+		
+		## + a lot more			
+	
+def gauss_fit_func(p, fjac, x=None, y=None, err=None):
+	# gaussian fitting function, conform to mpfit
+	model = p[0]*exp(-p[1]*(x-P[2])**2)
+	return([0, y-model])
+##
+##### end trashy stuff #####
+
+
+#################################################################
+
+
 def rotation_curve(rings, outfile=None):
   """Generates a position and velocity vector from a list of rings generated
       by tilted_ring_model(). It can also write the output to a .rc-file.
@@ -835,8 +1518,8 @@ def model_linear(r, pars):
   len_x = arr.shape[0]
   len_y = arr.shape[1]
   
-  rm = pars['r_max'][0]
-  vm = pars['v_max'][0]
+  rm = pars['r_max']
+  vm = pars['v_max']
 
   # Calculate the velocity in ervery point
   arr.setshape((len_x*len_y))

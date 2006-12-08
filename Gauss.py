@@ -1,6 +1,9 @@
 # IMPORTS
 #
 import numarray as N
+
+from numarray import any
+
 import os,sys
 import copy
 import commands
@@ -86,9 +89,9 @@ def find_peaks(data):
   
   # Find all peaks in the form _-^-_
   for i in N.arange(data.size()):
-    if ((shift(data,-1)[i] < data[i]) and (shift(data,1)[i] < data[i]) and (shift(data, -2)[i] < shift(data, -1)[i]) and (shift(data, 2)[i] < shift(data, 1)[i])):
+    if (any(shift(data,-1)[i] < data[i]) and any(shift(data,1)[i] < data[i]) and any(shift(data, -2)[i] < shift(data, -1)[i]) and any(shift(data, 2)[i] < shift(data, 1)[i])):
       temp = temp + [i]
-    elif ( (shift(data,-1)[i]  > data[i]) and (shift(data,1)[i]  > data[i]) and (shift(data, -3)[i] < shift(data, -2)[i]) and (shift(data, 3)[i] < shift(data, 2)[i]) and (shift(data, 2)[i] < shift(data, 1)[i]) and (shift(data, -2)[i] < shift(data, -1)[i])):
+    elif (N.any(shift(data,-1)[i]  > data[i]) and N.any(shift(data,1)[i]  > data[i]) and N.any(shift(data, -3)[i] < shift(data, -2)[i]) and N.any(shift(data, 3)[i] < shift(data, 2)[i]) and N.any(shift(data, 2)[i] < shift(data, 1)[i]) and N.any(shift(data, -2)[i] < shift(data, -1)[i])):
       temp = temp + [i]
   
   # Bubble sort, but only two times (enough to move the two biggest peaks to the end of the list)
@@ -96,14 +99,14 @@ def find_peaks(data):
   if (n==0):
     return peaks
   elif (n==1):
-    if ((data[temp[0]] - data.min()) > (limit*N.sqrt(data[temp[0]]))):
+    if any((data[temp[0]] - data.min()) > (limit*N.sqrt(data[temp[0]]))):
       peaks[0]=temp[0]
     return peaks
   else:
     for i in range(2):
       n=n-1
       for j in range(n):
-        if(data[temp[j]]>data[temp[j+1]]):
+        if any(data[temp[j]]>data[temp[j+1]]):
           a=temp[j]
           temp[j]=temp[j+1]
           temp[j+1]=a
@@ -112,10 +115,10 @@ def find_peaks(data):
     n = len(temp)
     
     # The (peak - minimum) must be bigger than limit * sqrt(peak)
-    if ((data[temp[n-1]] - data.min()) > (limit*N.sqrt(data[temp[n-1]]))):
+    if any((data[temp[n-1]] - data.min()) > (limit*N.sqrt(data[temp[n-1]]))):
       peaks[0] = temp[n-1]
     
-    if ((data[temp[n-2]] - data.min()) > (limit*N.sqrt(data[temp[n-2]]))):
+    if any((data[temp[n-2]] - data.min()) > (limit*N.sqrt(data[temp[n-2]]))):
       peaks[1] = temp[n-2]
     
     return peaks

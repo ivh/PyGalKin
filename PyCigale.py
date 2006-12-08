@@ -380,9 +380,9 @@ class adhoc(_n.NumArray, object):
         savefig='/tmp/plots/unknown.png'
         
       MP.figure(num=1, figsize=(8.14, 8), dpi=80, facecolor='w', edgecolor='k')
-      MP.imshow(N.swapaxes(self,0,1), vmin=lower, vmax=upper, interpolation='nearest', origin='lower', aspect='preserve')
-      setXaxis_pc(self)
-      setYaxis_pc(self)
+      MP.imshow(N.swapaxes(self,0,1), vmin=lower, vmax=upper, interpolation='nearest', origin='lower', aspect=1.0)
+##      setXaxis_pc(self)
+##      setYaxis_pc(self)
       MP.title(self.p['objname'] + ' - ' + type,font)
       MP.axis([0,self.nx()-1,0,self.ny()-1])
       MP.savefig(savefig)
@@ -417,14 +417,16 @@ class adhoc(_n.NumArray, object):
       else:
         MP.jet()
       
-      MP.imshow(N.swapaxes(self,0,1), vmin=lower, vmax=upper, interpolation='nearest', origin='lower', aspect='preserve')
+      MP.imshow(N.swapaxes(self,0,1), vmin=lower, vmax=upper, interpolation='nearest', origin='lower', aspect='equal')
       MP.colorbar()
       
       # Plot the pa-axis
+      MP.figure(num=1, figsize=(8.14, 8), dpi=80, facecolor='w', edgecolor='k')
       if (plotaxis==True):
         vec=N.array([-N.sin(radians(self.p['pa'])),N.cos(radians(self.p['pa']))])
         p1=self.p['dyncen']+(vec*self.p['relsize']*1.5)
         p2=self.p['dyncen']-(vec*self.p['relsize']*1.5)
+	MP.imshow(N.swapaxes(self,0,1), vmin=lower, vmax=upper, interpolation='nearest', origin='lower', aspect='equal')
         MP.plot([p1[0],p2[0]],[p1[1],p2[1]],'w-',linewidth=3)
       
       # Plot the slit
@@ -767,7 +769,7 @@ def setXaxis_pc(inarr):
   """ set the plotting-axes to parsec """
   
   nticks=inarr.nx()*inarr.scale()/1000
-  nticks=nticks.sum()
+  nticks=nticks[0]
   factor=1.
 
   while nticks > 10:
@@ -777,6 +779,12 @@ def setXaxis_pc(inarr):
   MP.setp(MP.gca(),'xticks',N.arange(nticks)/inarr.scale()*1000/factor)
   MP.setp(MP.gca(),'xticklabels',N.arange(nticks)/factor)
   MP.xlabel('[kpc]',font)
+
+
+def imshow(data,vmin=None,vmax=None):
+    if vmin==None: vmin=data.min()
+    if vmax==None: vmax=data.max()
+    MP.imshow(N.transpose(data),vmin=vmin,vmax=vmax,interpolation='nearest',origin='lower')
 
 def dis(arr1,arr2):
   """ returns the distance between two points""" 
