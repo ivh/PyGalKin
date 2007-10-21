@@ -18,24 +18,18 @@
  This file needs better integration into the package PyCigale!!
 """
 
-import numarray as N
+import numpy as N
 import Scientific.Functions.LeastSquares as LS
 import math as M
 import os
 import InOutput as IO
 import PyCigale as PyCigale
-import matplotlib
-import matplotlib.pylab as MP
-#matplotlib.use('GTK')
 import mpfit
-
-###
 import pickle
 import pylab as P
 import PyGalKin as G
-from matplotlib.numerix.ma import masked_where 
-###
-
+import wx
+from matplotlib.numerix.ma import masked_where
 
 
 
@@ -45,31 +39,39 @@ class interactvf:
 		# Basic Values
 		self.avg_square_size = avg_square
 		self.pixels = pixels
-		self.spectra_size = (0.15,0.10)
+		self.spectra_size = (0.12,0.08)
 		self.spectra_dist = (0.01,0.01)
-		self.spectra_coord = (0.015,0.44)
-		self.spectra_break = 4
+		self.spectra_coord = (0.015,0.46)
+		self.spectra_break = 6
 		self.cenx = 0
 		self.ceny = 0
 			
 		self.trusted = []
 		self.trustgraph = []
-#		self.trustlength = 0
+		self.windownr = 1
 
 		self.vel_pars = None
 		self.flux_pars = None
 		self.spectral_pars = None
+		self.residual = None
+		self.residual_sum = None
+		self.residual_vel = None
+		self.field = None
+		self.modelled_flux = None
+		self.radii = None
+		self.synth_spectrum = None
+		
+		
 		
 		# import and process data cube
 		self.odata = data.get_copy()
 		self.cdata = data.cliparoundcenter()
-		self.cdata = N.transpose(self.cdata,axes=(1,0,2))
+		self.cdata = self.cdata
 		self.cdata.p = self.odata.p
 		self.sdata = G.sum(self.cdata)
 		
 		# import or calculate velocity field
 		self.vel_file = self.odata.p['objname'] + '_peakvf_' + `self.pixels` + 'pixels.pick'
-
 		if os.path.exists(self.vel_file):
 			self.ini_velf = G.load(self.vel_file)
 			print 'imported old velocity field'
@@ -81,7 +83,6 @@ class interactvf:
 		
 		# setup main figure
 		self.fig=P.figure(1)
-#		P.title(self.odata.p['objname'])
 		canvas = self.fig.canvas
 		canvas.mpl_connect('key_press_event', self.key_press_callback)
 		canvas.mpl_connect('button_press_event', self.button_press_callback)
@@ -93,47 +94,40 @@ class interactvf:
 		self.fig.clf()
         
         # Total Flux
-		self.axflux=P.axes([-0.03,0.59,0.36,0.36])
-		minmaxflux = N.array(self.sdata)
-		minmaxflux.shape = (-1,)
-		minmaxflux = N.sort(minmaxflux)
-		takeflux = int(round(len(minmaxflux)*0.01))
-		axfluxresmax = max(int(round(minmaxflux[-takeflux])),1)
-		axfluxresmin = max(int(round(minmaxflux[takeflux])), 0)
+		self.axflux=P.axes([0.00,0.59,0.34,0.34])
+		axfluxresmin, axfluxresmax = self.nicegraph(self.sdata)
 		P.setp(self.axflux,xticks=[], yticks=[])
-		P.imshow(N.transpose(self.sdata),interpolation='nearest',vmin=axfluxresmin,vmax=axfluxresmax)
+		P.imshow(self.sdata,interpolation='nearest',vmin=axfluxresmin,vmax=axfluxresmax)
 		P.title('Total Flux')
+		P.colorbar()
 		
 		# Velocity Field
-		self.axvelf=P.axes([0.27,0.59,0.36,0.36])
-		minmaxvel = N.array(self.ini_velf)
-		minmaxvel.shape = (-1,)
-		minmaxvel = N.sort(minmaxvel)
-		takevel = int(round(len(minmaxvel)*0.01))
-		axvelresmax = max(int(round(minmaxvel[-takevel])),1)
-		axvelresmin = max(int(round(minmaxvel[takevel])), 0)
+		self.axvelf=P.axes([0.34,0.59,0.34,0.34])
+		axvelresmin, axvelresmax = self.nicegraph(self.ini_velf)
 		P.setp(self.axvelf,xticks=[], yticks=[])
-		P.imshow(N.transpose(self.ini_velf), interpolation='nearest',vmin=axvelresmin, vmax=axvelresmax)
+		P.imshow(self.ini_velf, interpolation='nearest',vmin=axvelresmin, vmax=axvelresmax)
 		P.title('Velocity Field')
+		P.colorbar()
 		
 		# Local Spectrum
-		self.axspec=P.axes([0.015,0.44,0.15,0.10],xticks=[], yticks=[])
-#		P.title('Local Spectrum')
+		self.axspec=P.axes([0.015,0.46,0.12,0.08],xticks=[], yticks=[])
 		
 		
 	def key_press_callback(self,event):
         # key bindings
-		if event.key == 'q': self.fitvellinear()
-		elif event.key == 'v': self.del_all_trusted()
-		elif event.key == 'a': self.fitfluxexp(modeltype='expfit_func')
-		elif event.key == 's': self.fitfluxexp(modeltype='powerlawfit_func')
+		if event.key == 'a': self.fitvellinear()
+		elif event.key == 'n': self.del_all_trusted()
+		elif event.key == 's': self.fitfluxexp(modeltype='expfit_func')
+		elif event.key == 'x': self.fitfluxexp(modeltype='powerlawfit_func')
 		elif event.key == 'p': self.printfit()
-		elif event.key == 'y': self.modelspectra_from_trusted()
-		elif event.key == 'b': self.get_modelled_spectrum()
-		elif event.key == 'control': P.close(1); print 'interactvf closed. goodbye!'
-#		elif event.key == 't': print event.x, event.y, event.inaxes
+		elif event.key == 'd': self.modelspectra_from_trusted()
+		elif event.key == 'c': self.modelgauss_from_trusted()
+		elif event.key == 'v': self.get_modelled_spectrum()
+		elif event.key == 'q': self.close_all()
+		elif event.key == 'm': self.open_menu()
+		elif event.key == 'u': self.dump()
+		elif event.key == 'i': self.load()
 		else: print "Unknown key pressed:", event.key, '@ ('+`event.x`+','+`event.y`+ ") ... doing nothing"
-#		self.plot()
 
 
 	def button_press_callback(self,event):
@@ -154,33 +148,60 @@ class interactvf:
 		else: print '.'
 		
 		
+	def res_key_press_callback(self, event):
+		# key bindings for result window
+		if   event.key == 'a': self.res_log_flux()
+		elif event.key == 'y': self.res_log_flux(log=0)
+		elif event.key == 's': self.res_log_vel()
+		elif event.key == 'x': self.res_log_vel(log=0)
+		else: print 'unused key:', event.key
+	
+		
+	def res_button_press_callback(self, event):
+		print 'unused button:', event.button
+		
+		
+	def open_menu(self):
+		# opens menu window to easily access models, modify graph range, etc.
+		app = wx.PySimpleApp()
+		name = self.odata.p['objname'] + ' Menu Window'
+		frame = MenuWindow(None, -1, name)
+		app.MainLoop()
+		print 'huhu'
+		###########################
+		###########################
+		###########################
+		###########################
+    
+    
 	def plotat(self, xy):
 		# refresh local spectrum
-#		P.delaxes(self.axspec)
-#		self.axspec=P.axes([0.62,0.59,0.36,0.36])
+		P.figure(1)
 		self.axspec.cla()
 		self.axspec.plot(self.cdata[xy[0],xy[1],:], 'r', linewidth=2)
-		P.setp(self.axspec, xticks=[], yticks=[], title='Local Spectrum')
-#		P.title(self.axspec, 'Local Spectrum')
+		P.setp(self.axspec, xticks=[], yticks=[], title='Local')
 		self.currdat = self.cdata[xy[0],xy[1],:]
 		self.canvas.draw()
 		
 		
 	def add_to_trusted(self, xy):
 		# add coordinates, spectrum and velocity to trusted data
+		P.figure(1)
 		temp = N.zeros((self.cdata.shape[2],))
 		cnt = 0.0
 		dev = self.avg_square_size / 2
 		for i in range(self.avg_square_size):
 			for j in range(self.avg_square_size):
-				try:
-					tmp = self.cdata[xy[0]+i-dev,xy[1]+j-dev,:]
-#					self.move_to_peak(tmp)
+				di = xy[0]+i-dev
+				dj = xy[1]+j-dev
+				if di < self.cdata.shape[0] and dj < self.cdata.shape[1] and di >= 0 and dj >= 0:
+					tmp = self.cdata[di,dj,:]
 					temp += tmp
-				except: print 'Point at the border chosen! Continuing anyways.'
-				else: cnt += 1.0
+					cnt += 1.0
+				else:
+				    print 'Point at the border chosen! Continuing anyways.'
 		temp = temp/cnt
-		veli = G.calcpeak(temp, 7)
+#		veli = 'na'#G.calcpeak(temp, 7)
 		newlistitem = [temp, xy, self.ini_velf[xy[0],xy[1]], self.sdata[xy[0],xy[1]]]
 		self.trusted.append(newlistitem)
 		print 'added point @', xy, 'to trusted points'
@@ -189,6 +210,7 @@ class interactvf:
 		
 	def drop_trusted(self, axis):
 		# remove trusted data
+		P.figure(1)
 		i = self.trustgraph.index(axis)
 		print 'point @', self.trusted[i][1], 'being removed'
 		self.trusted = self.trusted[:i] + self.trusted[i+1:]
@@ -197,6 +219,7 @@ class interactvf:
 		
 	def del_all_trusted(self):
 		# remove all trusted data-points
+		P.figure(1)
 		for i in range(len(self.trusted)):
 			self.trusted = self.trusted[:-1]
 			self.update_trusted(delf=i)
@@ -205,13 +228,13 @@ class interactvf:
 			
 		
 	def update_trusted(self, delf=-1):
-		# update graphs of trusted data				
+		# update graphs of trusted data
+		P.figure(1)
 		trustlen = len(self.trusted)
 		
 		# add new graphs		
 		if len(self.trustgraph) == trustlen - 1:
 			self.trustgraph.append(P.axes(self.newaxis(trustlen-1, cutat = self.spectra_break), xticks=[],yticks=[]))
-#			tmplen = len(self.trustgraph)-1
 			P.plot(self.trusted[trustlen-1][0])
 		
 		# delete old ones
@@ -237,6 +260,7 @@ class interactvf:
 	def fitvellinear(self):
 		# perform a linear fit to trusted points, giving modelled VF as output
 		
+		P.figure(1)
 		try: P.delaxes(self.axlinf)
 		except: pass
 		else: print 'old axis killed'
@@ -284,39 +308,35 @@ class interactvf:
 		
 		# visual output
 		all_coordx = N.array(range(-self.cdata.shape[0]/2-self.cenx,self.cdata.shape[0]/2-self.cenx)*self.cdata.shape[1])
+		all_coordx = all_coordx[::-1]
 		all_coordy = N.array(range(-self.cdata.shape[1]/2-self.ceny,self.cdata.shape[1]/2-self.ceny)*self.cdata.shape[0])
 		all_coordy.sort()
 		self.field = linfit_func(linfitres.params, None,  x=all_coordx, y=all_coordy, z=None, err=None, returnmodel=True)
 		self.field.shape = ((self.data_shape[0],self.data_shape[1]))
-		self.axlinf=P.axes([0.61,0.03,0.36,0.36])
-		P.setp(self.axlinf,xticks=[], yticks=[])
+		self.field = N.transpose(self.field)
+		self.axlinf=P.axes([0.68,0.02,0.32,0.32],xticks=[], yticks=[], title='Velocity Model')
 		P.imshow(self.field, interpolation='nearest')
-		P.title('Velocity Model')
-		P.colorbar()
 		
-		print 'done!\n'
-		
-		# redrawings
 		self.canvas.draw()
+		print 'done!\n'
 		
 			
 	def fitfluxexp(self, modeltype, contnr=3):
 		# fit exponential law to flux of trusted points
 		
+		P.figure(1)
 		# throw away your television
 		try: P.delaxes(self.axfluxmod)
 		except: pass
 		else: print 'old axis killed'
 
-
-		print 'doing:', modeltype, '...'
+		print 'doing: ', modeltype, '...'
 		if modeltype == 'expfit_func':
 			modeltype = expfit_func
 			modelt = 'exp'
 		elif modeltype == 'powerlawfit_func':
 			modeltype = powerlawfit_func
 			modelt = 'powerlaw'
-
 
 		# get & process values
 		fluxes = N.array([])
@@ -333,22 +353,22 @@ class interactvf:
 			cont = tmp.sum()
 			cont /= contnr
 			flux = i[3] - self.cdata.shape[2] * cont
-			fluxes = N.concatenate((fluxes, flux))
+			fluxes = N.concatenate((fluxes, N.array([flux])))
 			x = (i[1][0]-self.cdata.shape[0]/2-self.cenx)
 			y = (i[1][1]-self.cdata.shape[1]/2-self.ceny)
 			r = M.sqrt(x**2+y**2)
 			radii.append(r)
-		radii = N.array(radii)
-		fluxes = N.log(fluxes)																		####################
-		
+		self.radii = N.array(radii)
+		fluxes = N.log(fluxes)
+
+
+		# initialize mpfit
 		ini_coordx = N.array(ini_coordx)
 		ini_coordy = N.array(ini_coordy)
-		
-		
-		# initialize mpfit
 		parinfo=[]
-		parinfo.append({'value':10.0, 'fixed':0, 'limited':[1,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'max'})		# position angle
-		parinfo.append({'value':-0.1, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'slope'})	# gradient
+		parinfo.append({'value':10.0, 'fixed':0, 'limited':[1,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'amp'})		# amp
+		parinfo.append({'value':-0.1, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'slope'})	# slope
+		parinfo.append({'value':10.0, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'cutoff'})	# cutoff
 
 		err = N.sqrt(fluxes)
 		functkw = {'x':ini_coordx, 'y':ini_coordy, 'z':fluxes, 'err':err}
@@ -357,31 +377,29 @@ class interactvf:
 		
 		# store data
 		print expfitres.params
-		print 'radii:',radii
-		self.flux_pars = {'model':modelt, 'amp':expfitres.params[0], 'slope':expfitres.params[1]}
+		print 'radii:',self.radii
+		self.flux_pars = {'model':modelt, 'amp':expfitres.params[0], 'slope':expfitres.params[1], 'cutoff':expfitres.params[2]}
 		
 		# nice output
-		self.axfluxmod=P.axes([0.62,0.75,0.36,0.20], yticks=[], title='Flux Model')
-		self.axfluxmod.plot(radii, M.e**fluxes,'bo')
+		self.axfluxmod=P.axes([0.72,0.75,0.27,0.20], yticks=[], title='Flux Model')
+		self.axfluxmod.plot(self.radii, M.e**fluxes,'bo')
 		self.axfluxmod.semilogy()
 		
 		# get fitted field
-		maxrad = max(radii)
+		maxrad = max(self.radii)
 		modelled_flux = N.array([])
 		l = N.array(range(1,int(round(maxrad))+1))
-		modelled_flux = M.e **(modeltype(expfitres.params, None,  x=l, y=N.zeros((len(l),)), z=None, err=None, returnmodel=True))
-		self.axfluxmod.plot(l, modelled_flux, 'k')
+		self.modelled_flux = M.e **(modeltype(expfitres.params, None,  x=l, y=N.zeros((len(l),)), z=None, err=None, returnmodel=True))
+		self.axfluxmod.plot(l, self.modelled_flux, 'k')
 
-		print 'done!\n'
-
-		# redrawings
 		self.canvas.draw()
-			
+		print 'done!\n'
 			
 			
 	def modelspectra_from_trusted(self):
 		# get typical spectral shape from trusted points
 
+		P.figure(1)
 		# die,die,die!
 		try: P.delaxes(self.axspecmod)
 		except: pass
@@ -392,7 +410,7 @@ class interactvf:
 			vel_base = self.vel_pars['system']
 		except TypeError:
 			vel_base = self.odata.vel1st()
-			print 'taking velocity from par'
+			print 'taking velocity from par file'
 		else:
 			print 'got fitted systemic velocity'
 			
@@ -400,7 +418,7 @@ class interactvf:
 		channr = self.cdata.shape[2]
 		midchan = channr/2
 		sspectra = N.zeros(channr)
-		sspectra = N.array(sspectra, type=N.Float32)
+		sspectra = N.array(sspectra, dtype='float32')
 		for i in self.trusted:
 			vel = i[2]
 			chan = int(round((i[2]-vel_base)/vel_step))
@@ -411,14 +429,88 @@ class interactvf:
 		
 		# store fit in plot
 		self.spectral_pars = {'model':'empirical', 'spectrum':sspectra}
-		print 'model spectrum done\n'
 		
 		# plot it
-		self.axspecmod=P.axes([0.62,0.47,0.36,0.20], xticks=[], yticks=[], title='Model Spectrum')
+		self.axspecmod=P.axes([0.70,0.47,0.29,0.20], xticks=[], yticks=[], title='Model Spectrum')
 		self.axspecmod.plot(self.spectral_pars['spectrum'], 'r', linewidth=2)
-
-		# redrawings
 		self.canvas.draw()
+		print 'model spectrum done\n'
+		
+		
+	def modelgauss_from_trusted(self):
+		# assume gaussian shape and perform fit in width, amplitude and noise
+		amplis = []
+		widths = []
+		widerr = []
+		centrs = []
+		noises = []
+		coords = []
+	    
+		parinfo=[]
+		parinfo.append({'value':1.0, 'fixed':0, 'limited':[1,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'amp'})		# amplitude
+		parinfo.append({'value':1.0, 'fixed':0, 'limited':[1,1],'limits':[0.0, self.cdata.shape[2]], 'step':0.0, 'parname':'width'})	# width
+		parinfo.append({'value':self.cdata.shape[2]/2, 'fixed':0, 'limited':[1,1],'limits':[0.0, self.cdata.shape[2]], 'step':0.0, 'parname':'center'})	# center
+		parinfo.append({'value':1.0, 'fixed':0, 'limited':[1,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'noise'})	# noise
+	    # fit each and every spectrum
+		for i in self.trusted:
+			y = N.array(i[0])
+			x = N.arange(len(y))		
+			err = N.sqrt(y)
+			functkw = {'x':x, 'y':y, 'err':err}
+
+			gaussfitres=mpfit.mpfit(gauss_fit_func,parinfo=parinfo,functkw=functkw,quiet=True)
+		    
+			pp = gaussfitres.params
+			amplis.append(pp[0])
+			widths.append(pp[1])
+			widerr.append(gaussfitres.perror[1])
+			centrs.append(pp[2])
+			noises.append(pp[3])
+			
+			dx = i[1][0] - self.cdata.shape[0] - self.cenx
+			dy = i[1][1] - self.cdata.shape[1] - self.ceny
+			dr = M.sqrt(dx**2+dy**2)
+			coords.append(dr)
+			
+			#print '\n\n'
+		
+		# convert to arrays
+		amplis = N.array(amplis)
+		widths = N.array(widths)
+		widerr = N.array(widerr)
+		centrs = N.array(centrs)
+		noises = N.array(noises)
+		coords = N.array(coords)
+		
+		# show all results
+		print '\n'
+		print amplis,'\n'
+		print widths,'\n'
+		print centrs,'\n'
+		print noises,'\n'
+		P.figure()
+		P.plot(coords, widths, 'bo')
+		P.show()
+		self.windownr += 1
+		
+		# linear fit to width
+		parinfo=[]
+		parinfo.append({'value':1.0, 'fixed':0, 'limited':[1,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'offset'})		# initial
+		parinfo.append({'value':1.0, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'slope'})	# slope
+		functkw = {'x':coords, 'y':widths, 'err':widerr}
+		widthfit=mpfit.mpfit(lin_fit_func,parinfo=parinfo,functkw=functkw,quiet=False)
+		
+		# show fit
+		offset = widthfit.params[0]
+		slope =  widthfit.params[1]
+		xi = N.arange(min(coords),max(coords))
+		yi = offset + xi * slope
+		P.plot(xi,yi,'k')
+		
+		####################
+		####################
+		####################
+		####################
 	
 	
 	def get_modelled_spectrum(self):
@@ -426,13 +518,13 @@ class interactvf:
 		
 		# check for performed fits, else abort
 		if self.vel_pars == None:
-			print '!!! No velocity model yet. Please perform modelling first (q) !!!'
+			print '!!! No velocity model yet. Please perform modelling first (a) !!!'
 			return
 		elif self.flux_pars == None:
-			print '!!! No flux model yet. Please perform modelling first (a,s) !!!'
+			print '!!! No flux model yet. Please perform modelling first (s,x) !!!'
 			return
 		elif self.spectral_pars == None:
-			print '!!! No spectral model yet. Please perform modelling first (y) !!!'
+			print '!!! No spectral model yet. Please perform modelling first (d) !!!'
 			return
 		
 		# get velocities from vel model, rescale with flux model, give obtained spectral shape
@@ -449,7 +541,7 @@ class interactvf:
 			flux_pars = [self.flux_pars['amp'], self.flux_pars['slope']]
 		elif self.flux_pars['model'] == 'powerlaw':
 			flux_model = powerlawfit_func
-			flux_pars = [self.flux_pars['amp'], self.flux_pars['slope']]
+			flux_pars = [self.flux_pars['amp'], self.flux_pars['slope'], self.flux_pars['cutoff']]
 		
 		# get spectral model
 		if self.spectral_pars['model'] == 'empirical':
@@ -466,20 +558,23 @@ class interactvf:
 		wdt = self.cdata.shape[0]/2
 		hgt = self.cdata.shape[1]/2
 		all_coordx = N.array(range(-wdt,wdt)*hgt*2)
+		all_coordx = all_coordx[::-1]
 		all_coordy = all_coordx.copy()
 		all_coordy.sort()
 		
 		# get velocity model
 		velmod = vel_model(vel_pars, None,  x=all_coordx, y=all_coordy, z=None, err=None, returnmodel=True)
 		velmod.shape = (2*wdt,2*hgt)
+		velmod = N.transpose(velmod)
 		
 		# get flux model
 		fluxmod = N.exp(flux_model(flux_pars, None,  x=all_coordx, y=all_coordy, z=None, err=None, returnmodel=True))
 		fluxmod.shape = (2*wdt,2*hgt)
+		fluxmod = N.transpose(fluxmod)
 		self.fluxmod = fluxmod
 		
 		# get unshifted spectral model
-		intermediate_model = fluxmod[:,:,N.NewAxis] * model
+		intermediate_model = fluxmod[:,:,N.newaxis] * model
 		
 		# get indexshifts
 		channr = self.cdata.shape[2]
@@ -487,7 +582,7 @@ class interactvf:
 		vel_base = self.vel_pars['system']
 		vel_step = self.cdata.fsr()/channr
 		shiftarray = N.around((velmod-vel_base)/vel_step)
-		shiftarray.type = 'Int32'
+		shiftarray.dtype = 'Int32'
 		
 		# final model
 		fin_mod = intermediate_model.copy()
@@ -500,49 +595,129 @@ class interactvf:
 		self.synth_spectrum = G.PyCigale.array(fin_mod)
 		self.synth_spectrum.p = self.cdata.p
 		self.synth_spectrum.p['vr0'] = self.vel_pars['system']
-#		self.synth_total = G.sum(self.synth_spectrum)		
-#		self.synth_vel = G.peakvel(self.synth_spectrum, 7)
 		self.residual = self.cdata - self.synth_spectrum
 		self.residual_sum = G.sum(self.residual)
 		self.residual_vel = G.peakvel(self.residual, 7)
 		
 		# show it!!
-#		self.result = P.figure()
-#		self.rescanvas = self.result.canvas
+		self.result = P.figure()
+		self.rescanvas = self.result.canvas
+		P.show()
 
 		# Total Flux
-		try: 							################
-			P.delaxes(self.axflux)		################
-			P.delaxes(self.axfluxres)	################
-		except: pass					################
-		minmaxflux = N.array(self.residual_sum)
+		axfluxresmin, axfluxresmax = self.nicegraph(self.residual_sum)
+		self.axfluxres=P.axes([0.00,0.59,0.36,0.36], xticks=[], yticks=[],title='Total Flux (Residual)')
+		self.axfluxres.imshow(self.residual_sum, interpolation='nearest', vmin=axfluxresmin,vmax=axfluxresmax)
+		self.canvas.draw()
+		P.colorbar()
+		
+		# Velocity Field
+		axvelresmin, axvelresmax = self.nicegraph(self.residual_vel)
+		self.axvelres=P.axes([0.36,0.59,0.36,0.36],xticks=[], yticks=[],title='Velocity Field (Residual)')
+		self.axvelres.imshow(self.residual_vel, interpolation='nearest', vmin=axvelresmin,vmax=axvelresmax)
+		self.canvas.draw()
+		P.colorbar()
+
+#		P.show()
+		self.windownr += 1
+		self.rescanvas.mpl_connect('key_press_event', self.res_key_press_callback)
+		self.rescanvas.mpl_connect('button_press_event', self.res_button_press_callback)
+		print 'done!\n'
+		
+	
+	def res_log_flux(self,log=1):
+		# log flux plot
+		if log:
+			temp = N.log(N.where(self.residual_sum>0.001,self.residual_sum,0.001))
+		else:
+			temp = self.residual_sum
+		self.axfluxres.cla()
+		
+		minmaxflux = N.array(temp)
 		minmaxflux.shape = (-1,)
 		minmaxflux = N.sort(minmaxflux)
 		takeflux = int(round(len(minmaxflux)*0.01))
 		axfluxresmax = max(int(round(minmaxflux[-takeflux])),1)
 		axfluxresmin = max(int(round(minmaxflux[takeflux])), 0)
-		self.axfluxres=P.axes([-0.03,0.59,0.36,0.36], xticks=[], yticks=[],title='Total Flux (Residual)')
-		self.axfluxres.imshow(self.residual_sum, interpolation='nearest', vmin=axfluxresmin,vmax=axfluxresmax)
+		if log:
+			P.setp(self.axfluxres, xticks=[], yticks=[], title='Flux (residual,log)')
+		else:
+			P.setp(self.axfluxres, xticks=[], yticks=[], title='Flux (residual)')
+		self.axfluxres.imshow(temp, interpolation='nearest', vmin=axfluxresmin,vmax=axfluxresmax)
+		self.rescanvas.draw()
+	
+	
+	def res_log_vel(self,log=1):
+		# log vel plot
+		if log:
+			temp = N.log(N.where(self.residual_vel>0.001,self.residual_vel,0.001))
+		else:
+			temp = self.residual_vel
+		self.axvelres.cla()
+		print temp
 		
-		# Velocity Field
-		try: 							################
-			P.delaxes(self.axvelf)		################
-			P.delaxes(self.axvelf1)		################
-		except: pass					################
-		minmaxvel = N.array(self.residual_vel)
-		minmaxvel.shape = (-1,)
-		minmaxvel = N.sort(minmaxvel)
-		takevel = int(round(len(minmaxvel)*0.01))
-		axvelresmax = max(int(round(minmaxvel[-takevel])),1)
-		axvelresmin = max(int(round(minmaxvel[takevel])), 0)
-		self.axvelf1=P.axes([0.29,0.59,0.36,0.36],xticks=[], yticks=[],title='Velocity Field (Residual)')
-		self.axvelf1.imshow(self.residual_vel, interpolation='nearest', vmin=axvelresmin,vmax=axvelresmax)
-
-		self.canvas.draw()
-		
-		print 'done!\n'
+		minmaxflux = N.array(temp)
+		minmaxflux.shape = (-1,)
+		minmaxflux = N.sort(minmaxflux)
+		takeflux = int(round(len(minmaxflux)*0.01))
+		axfluxresmax = max(minmaxflux[-takeflux],1)
+		axfluxresmin = max(minmaxflux[takeflux],0)
+		print axfluxresmax, axfluxresmin
+		if log:
+			P.setp(self.axvelres, xticks=[], yticks=[], title='Flux (residual,log)')
+		else:
+			P.setp(self.axvelres, xticks=[], yticks=[], title='Flux (residual)')
+		self.axvelres.imshow(temp, interpolation='nearest', vmin=axfluxresmin,vmax=axfluxresmax)
+		self.rescanvas.draw()
 		
 		
+	def dump(self):
+		# dump all relevant data
+		dumper = {}
+		dumper['vel_pars'] = self.vel_pars
+		dumper['vel_field'] = self.field
+		dumper['flux_pars'] = self.flux_pars
+		dumper['modelled_flux'] = self.modelled_flux
+		dumper['radii'] = self.radii
+		dumper['spectral_pars'] = self.spectral_pars
+		dumper['synth_spectrum'] = self.synth_spectrum
+		dumper['residual'] = self.residual
+		dumper['residual_sum'] = self.residual_sum
+		dumper['residual_vel'] = self.residual_vel
+		dumper['trusted'] = self.trusted
+		
+		dumpname = raw_input('Filename for dump? ')#self.odata.p['objname'] + '_interactvf_dumpfile.pick'
+		G.dump(dumper, dumpname)
+		print 'all dumped'
+		
+	
+	def load(self):
+		# load the dumped data
+		#dumpname = self.odata.p['objname'] + '_interactvf_dumpfile.pick'
+		dumpname=raw_input('Filename for load? ')
+		if os.path.exists(dumpname):
+			dumper = G.load(dumpname)
+			print 'dump imported\n'
+			
+			print 'rebuilding data structure ...'
+			self.vel_pars = dumper['vel_pars']
+			self.field = dumper['vel_field']
+			self.flux_pars = dumper['flux_pars']
+			self.modelled_flux = dumper['modelled_flux']
+			self.radii = dumper['radii']
+			self.spectral_pars = dumper['spectral_pars']
+			self.synth_spectrum = dumper['synth_spectrum']
+			self.residual = dumper['residual']
+			self.residual_sum = dumper['residual_sum']
+			self.residual_vel = dumper['residual_vel']
+			self.trusted = dumper['trusted']
+			print 'done!\n'
+			
+			
+		else:
+			print 'no dumpfile found'
+		
+	
 	def set_center(self,xy):
 		# select new center for the galaxy
 		self.cenx = xy[0] - self.cdata.shape[0]/2
@@ -551,15 +726,36 @@ class interactvf:
 		
 
 	def printfit(self):
+		# print parameters from fitting
 		print '\nParameters for velocity field model:\n', self.vel_pars
 		print '\nParameters for radial flux model:\n', self.flux_pars
-		print '\nParameters for spectral model:\n', self.spectral_pars, '\n'
+		print '\nParameters for spectral model:\n', self.spectral_pars
+		print '\n'
+		
+		
+	def nicegraph(self, values, cut=0.02):
+		# asjust upper & lower limit for graphs
+		minmax = N.array(values)
+		minmax.shape = (-1,)
+		minmax = N.sort(minmax)
+		take = int(round(len(minmax)*cut))
+		tmax = max(int(round(minmax[-take])),1)
+		tmin = max(int(round(minmax[take])), 0)
+		return (tmin, tmax)
 	
+	
+	def close_all(self):
+		# close all opened windows
+		for i in range(self.windownr):
+			try: P.close(self.windownr-i)
+			except: pass
+		print 'interactvf closed. goodbye!\n\n'
+		
 	
 	def coord(self, event):
 		# extract proper coordinates of mouse event
-		x = int(round(event.xdata))
-		y = int(round(event.ydata))
+		y = int(round(event.xdata))
+		x = int(round(event.ydata))
 		self.xy = (x,y)
 		return self.xy
 		
@@ -568,10 +764,8 @@ class interactvf:
 		# iterate window positions for trusted data
 		row = (i+1)/cutat
 		col = (i+1)%cutat
-				
 		coordadd = (row*(self.spectra_size[0] + self.spectra_dist[0]), -col*(self.spectra_size[1] + self.spectra_dist[1]))
 		coords = (self.spectra_coord[0] + coordadd[0], self.spectra_coord[1] + coordadd[1])
-				
 		return [coords[0], coords[1], self.spectra_size[0], self.spectra_size[1]]
 
 
@@ -588,22 +782,15 @@ def radii_from_position(coords, pars):
 		sx = (x[i] - cenx)
 		sy = (y[i] - ceny)
 		if sy == 0:
-			if sx >= 0:
-				ang = M.pi/2
-			else:
-				ang = -M.pi/2
-		else:
-			ang = M.atan(sx/sy)
-
+			if sx >= 0: ang = M.pi/2
+			else: ang = -M.pi/2
+		else: ang = M.atan(sx/sy)
 		t = sx * M.sin(-pa) + sy * M.cos(pa)
-		o = sx * M.cos(pa) + sy * M.sin(pa)
+		o = sx * M.cos(pa)  + sy * M.sin(pa)
 		dx = cenx + t * M.sin(-pa) - x[i]
-		dy = cenx + t * M.cos(pa) - y[i]
-		if o >= 0:
-			sgn = -1
-		else:
-			sgn = +1
-		
+		dy = cenx + t * M.cos(pa)  - y[i]
+		if o >= 0: sgn = +1
+		else: sgn = -1
 		r = sgn*M.sqrt(dx**2 + dy**2)
 		radii.append(r)
 		
@@ -634,7 +821,6 @@ def galmod_fitlin(x, y, p):
 	return vels
 	
 
-
 def linfit_func(p, fjac, x=None, y=None, z=None, err=None, returnmodel=False):
 	# linear galaxy rotation modelling, conform to mpfit
 	model = galmod_fitlin(x, y, p)
@@ -642,72 +828,68 @@ def linfit_func(p, fjac, x=None, y=None, z=None, err=None, returnmodel=False):
 	else: return([0, z-model])
 		
 		
-def expfit_func(p, fjac, x=None, y=None, z=None, err=None, returnmodel=False):						####################
+def expfit_func(p, fjac, x=None, y=None, z=None, err=None, returnmodel=False):
 	# exponential galaxy flux modelling, conform to mpfit
-	model = p[0]+(p[1]*N.sqrt(x**2+y**2))															####################
+	model = p[0]+(p[1]*N.sqrt(x**2+y**2))
 	if returnmodel: return model
 	else: return([0, z-model])
 		
 		
-def powerlawfit_func(p, fjac, x=None, y=None, z=None, err=None, returnmodel=False):		
+def powerlawfit_func2(p, fjac, x=None, y=None, z=None, err=None, returnmodel=False):		
 	# exponential galaxy flux modelling, conform to mpfit
 	model = p[0]+p[1]*N.log(N.sqrt(x**2+y**2))
 	if returnmodel: return model
 	else: return([0, z-model])
 		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-##### trashy stuff ######
-##	
-	def move_to_peak(selfmo, row):
-		
-		parinfo=[]
-		parinfo.append({'value':1.0, 'fixed':0, 'limited':[1,0],'limits':[0.0, 0.0], 'step':0.0})
-		parinfo.append({'value':1.0, 'fixed':0, 'limited':[1,0],'limits':[0.0, 0.0], 'step':0.0})
-		parinfo.append({'value':24.0, 'fixed':0, 'limited':[1,1],'limits':[0.0, len(row)], 'step':0.0})
-		
-		x = range(len(row))
-		y = row
-		err = 1/abs(sqrt(y))
-		functkw = {'x':x, 'y':y, 'err':err}
-		
-		gaussres=mpfit.mpfit(gauss_fit_func,parinfo=parinfo,functkw=functkw,quiet=False)
-		print gaussres.status
-		print gaussres.params
-		
-		## + a lot more			
+def powerlawfit_func(p, fjac, x=None, y=None, z=None, err=None, returnmodel=False):		
+	# exponential galaxy flux modelling, conform to mpfit
+	model = N.where(p[0]+p[1]*N.log(N.sqrt(x**2+y**2))<p[2],p[0]+p[1]*N.log(N.sqrt(x**2+y**2)),p[2])
+	if returnmodel: return model
+	else: return([0, z-model])
 	
-def gauss_fit_func(p, fjac, x=None, y=None, err=None):
+		
+def gauss_fit_func(p, fjac, x=None, y=None, err=None, returnmodel=False):
 	# gaussian fitting function, conform to mpfit
-	model = p[0]*exp(-p[1]*(x-P[2])**2)
-	return([0, y-model])
-##
-##### end trashy stuff #####
+	model = p[0]*N.exp(-(x-p[2])**2/(2*p[1]**2))+p[3]
+	if returnmodel: return model
+	else: return([0, y-model])		
+		
 
+def lin_fit_func(p, fjac, x=None, y=None, err=None, returnmodel=False):
+	# linear fitting function, conform to mpfit
+	model = p[0]+x*p[1]
+	if returnmodel: return model
+	else: return([0, y-model])		
+		
+		
+		
+
+
+##### trash #####
+		
+class MenuWindow(wx.Frame):
+    # interactvf menu widget (control colours, models, ...)
+    def __init__(self,parent,id,title):
+        wx.Frame.__init__(self,parent,wx.ID_ANY, title)
+		
+##### trash #####
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
 
 #################################################################
 
@@ -858,9 +1040,9 @@ def model_system_func(p, fjac=None, x=None, y=None, err=None):
   minimum = err
   
   # Array to store the result
-  result = N.zeros((dim,dim), type='Float64')
+  result = N.zeros((dim,dim), dtype='Float64')
   # Uniform velocity field
-  vf_system = N.zeros((dim,dim), type='Float64') + p[0]
+  vf_system = N.zeros((dim,dim), dtype='Float64') + p[0]
   # Points where there is data
   points = N.where(data > minimum)
   # Difference between model and data
@@ -886,7 +1068,7 @@ def model_tilted_ring_func(p, fjac=None, x=None, y=None, err=None):
   minimum = y[4]
   
   # Create a system velocity field from the known system velocity
-  vf_system = N.zeros((dim,dim), type='Float64') + v_system
+  vf_system = N.zeros((dim,dim), dtype='Float64') + v_system
 
   # Create a ring and add the system velocity
   ring = create_ring(p, radius, width, dim)
@@ -899,10 +1081,10 @@ def model_tilted_ring_func(p, fjac=None, x=None, y=None, err=None):
   ring[points1] = ring[points1] + vf_system[points1]
   
   # The difference between the data and the model
-  result_temp = N.zeros((dim,dim), type='Float64')
+  result_temp = N.zeros((dim,dim), dtype='Float64')
   result_temp[points1] = ring[points1] - data[points1]
   
-  result = N.zeros((dim,dim), type='Float64')
+  result = N.zeros((dim,dim), dtype='Float64')
   result[points2] = result_temp[points2]
   result.setshape(dim*dim)
   
@@ -939,10 +1121,10 @@ def create_ring(p, radius, width, dim):
   inclination = inclination*M.pi/180
 
   # Arrays needed for the computation
-  r = N.zeros((dim,dim), type='Float64')
-  phi = N.zeros((dim,dim), type='Float64')
-  ring_non_tr = N.zeros((dim,dim), type='Float64')
-  ring_tr = N.zeros((dim,dim), type='Float64')
+  r = N.zeros((dim,dim), dtype='Float64')
+  phi = N.zeros((dim,dim), dtype='Float64')
+  ring_non_tr = N.zeros((dim,dim), dtype='Float64')
+  ring_tr = N.zeros((dim,dim), dtype='Float64')
   
   # Create an array with the angle and one with the radius in each point
   # calculated from the ring-centre.
@@ -1163,15 +1345,15 @@ def get_boxes(data):
   upper=data.max()+1
   font = {'fontname'   : 'Courier','color'      : 'k','fontsize'   : 20}
 
-  MP.figure(num=1, figsize=(8.14, 8), dpi=80, facecolor='w', edgecolor='k')
-  MP.imshow(N.swapaxes(data,0,1), vmin=lower, vmax=upper, interpolation='nearest', origin='lower', aspect='preserve')
+  P.figure(num=1, figsize=(8.14, 8), dpi=80, facecolor='w', edgecolor='k')
+  P.imshow(N.swapaxes(data,0,1), vmin=lower, vmax=upper, interpolation='nearest', origin='lower', aspect='preserve')
   #MP.colorbar()
   #PyCigale.setXaxis_pc(data)
   #PyCigale.setYaxis_pc(data)
-  MP.title(data.p['objname'] + ' - ' + 'Radial Velocity',font)
-  MP.axis([0,data.nx()-1,0,data.ny()-1])
-  MP.connect('button_press_event', PyCigale.on_click_float)
-  MP.show()
+  P.title(data.p['objname'] + ' - ' + 'Radial Velocity',font)
+  P.axis([0,data.nx()-1,0,data.ny()-1])
+  P.connect('button_press_event', PyCigale.on_click_float)
+  P.show()
   
   # Read the clicks and put the coordinates in the boxes-list
   boxes = []
@@ -1186,7 +1368,7 @@ def get_boxes_avg(data, boxes, box_size):
   """Used by fit_parameters(). Computes the average value in each box defined
       by boxes and box_size.
       """
-  boxes_avg = N.zeros(len(boxes),type='Float32')
+  boxes_avg = N.zeros(len(boxes),dtype='Float32')
   for i in range(len(boxes)):
     p1 = N.maximum(0,int(boxes[i][0]-box_size/2))
     p2 = N.minimum((data.nx()-1),int(boxes[i][0]+box_size/2))
@@ -1269,8 +1451,8 @@ def arguments_list(pars):
   centr_y = pars['dim']/2 +pars['centr_offset_y']
   
   # The empty maps
-  r = N.zeros((pars['dim'],pars['dim']), type='Float64')
-  phi = N.zeros((pars['dim'],pars['dim']), type='Float64')
+  r = N.zeros((pars['dim'],pars['dim']), dtype='Float64')
+  phi = N.zeros((pars['dim'],pars['dim']), dtype='Float64')
    
   # Transform each point
   for x in range(pars['dim']):
@@ -1353,7 +1535,7 @@ def create_system_vf(pars):
         vf_sys[:,:] = create_system_vf(pars)
   """
   #print pars['v_system']
-  vf = N.zeros((pars['dim'],pars['dim']), type='Float64') + pars['v_system']
+  vf = N.zeros((pars['dim'],pars['dim']), dtype='Float64') + pars['v_system']
   return vf
   
   
@@ -1603,7 +1785,7 @@ def create_linear (arg):
                            # that in the corners if you rotate of course).
     rot=M.radians(arg[2])  # rotation from top to left in degrees.
     
-  vf = N.zeros((dim,dim), type=N.Float32)
+  vf = N.zeros((dim,dim), dtype='float32')
   cent = dim / 2.
   diff = vel / cent
   normvec=[M.sin(rot),M.cos(rot)]
@@ -1636,7 +1818,7 @@ def create_disk (arg):
     incl=M.radians(arg[3])    # inclination
     rot=M.radians(arg[4])     # rotation from top to left in degrees.
     
-  vf = N.zeros((dim,dim), type=N.Float32)
+  vf = N.zeros((dim,dim), dtype='float32')
   cent = dim / 2.
   minaxis=[M.sin(rot),M.cos(rot)]
   majaxis=[M.cos(rot),-M.sin(rot)]
@@ -1680,7 +1862,7 @@ def create_shell(arg):
     vel=float(arg[2])         # vel. (see above)
     rot=M.radians(arg[3])     # rotation from top to left in degrees.
     
-  vf = N.zeros((dim,dim), type=N.Float32)
+  vf = N.zeros((dim,dim), dtype='float32')
   cent = dim / 2.
   perpaxis=[M.sin(rot),M.cos(rot)]
   rotaxis=[M.cos(rot),-M.sin(rot)] 

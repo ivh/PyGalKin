@@ -1,75 +1,15 @@
 # IMPORTS
 #
-import numarray as N
+from tool import *
+from fitting import *
 
-from numarray import any
+from numpy import any
+import os
 
-import os,sys
-import copy
-import commands
-import matplotlib
-import matplotlib.pylab as MP
-#matplotlib.use('GTK')
-import Numeric
-from mpfit import mpfit
-from math import pi,e,radians
-from gc import collect
-from time import sleep
-#
-# END IMPORTS
+#from InOutput import 
+from PyCigale import adhoc
 
-from InOutput import *
-import PyCigale
 
-# CONSTANTS
-#
-# units:
-#        velocity: km/s
-#        wavelength: Angstrom
-lambHA=N.array([6562.7797852000003],'Float32')
-sol=N.array([299792.458],'Float32')
-H0=N.array([75.],'Float32')
-G=N.array([6.6726E-11*1.989E30/1000**3],'Float32') ### in solar masses and km
-pc=N.array([3.086E13],'Float32') ## in km
-#
-# END CONSTANTS
-
-def lamb2vel(l):
-  """Convert a wavelength in A wrt HA into a radial velocity."""
-  return ((l/lambHA)-1)*sol
-  
-def shift(vec,i):
-  """ Shift a vector.
-      Usage: new_vec = shift(vec, i)
-      
-      vec:  The vector to be shifted
-      i:  The steps to shift the vector with
-      new_vec: The vector shifted i steps
-      """
-  temp = vec.get_copy()
-  n= temp.size()
-  i %= n
-  temp[:] = N.concatenate((temp[n-i:n],temp[0:n-i]))
-  return temp
-
-def on_click_float(event):
-  """Handle click events in plotting windows. Not to be called from the command line.
-      It saves the coordinates for the clicks with button 1 in a temporary file. Button 3 closes the figure.
-      """
-
-  file=open('/tmp/MPclick.dat','a')
-
-  if (event.button == 1):
-    if event.inaxes:
-      #print event.xdata, event.ydata
-      file.write('%f %f\n' % (event.xdata, event.ydata))
-  elif (event.button == 2):
-    pass
-  elif (event.button == 3):
-    MP.close()
-
-  file.close()
-  
 def find_peaks(data):
   """Finds statistically significant peaks in a data set. If two peaks are found,
       the position of the peaks are returned in a list. A value of -1 in the list
@@ -88,7 +28,7 @@ def find_peaks(data):
   limit = 0.1
   
   # Find all peaks in the form _-^-_
-  for i in N.arange(data.size()):
+  for i in N.arange(data.size):
     if (any(shift(data,-1)[i] < data[i]) and any(shift(data,1)[i] < data[i]) and any(shift(data, -2)[i] < shift(data, -1)[i]) and any(shift(data, 2)[i] < shift(data, 1)[i])):
       temp = temp + [i]
     elif (N.any(shift(data,-1)[i]  > data[i]) and N.any(shift(data,1)[i]  > data[i]) and N.any(shift(data, -3)[i] < shift(data, -2)[i]) and N.any(shift(data, 3)[i] < shift(data, 2)[i]) and N.any(shift(data, 2)[i] < shift(data, 1)[i]) and N.any(shift(data, -2)[i] < shift(data, -1)[i])):
@@ -129,10 +69,10 @@ def count_double_single(data):
       
       data: A gauss fitted adhoc-object.
       """
-  temp=data.get_copy()
+  temp=data.copy()
   dim = temp.nx()*temp.ny()
   
-  temp.setshape((dim,14))
+  temp.shape=(dim,14)
   
   empty=0
   double=0
@@ -164,15 +104,15 @@ def gauss_to_spectra(data, array_length=None, first_peak=False, second_peak=Fals
   # If the data is not in gauss form, return a copy
   if (data.p['is_gauss']==False):
     print 'Object is not in gaussian form!'
-    return data.get_copy()
+    return data.copy()
   
   # Default to length lz
   if (array_length == None):
     array_length = data.p['lz']
   
-  # Temporary variables (get_copy() ensures that properties of the object is kept)
-  temp = data.get_copy()
-  temp2 = data.get_copy()
+  # Temporary variables 
+  temp = data.copy()
+  temp2 = data.copy()
   
   # Dimension and lengths
   dim = temp.nx()*temp.ny()
@@ -181,7 +121,7 @@ def gauss_to_spectra(data, array_length=None, first_peak=False, second_peak=Fals
   length_z = temp.nz()
   
   # Reshape for convenience
-  temp.setshape((dim,length_z))
+  temp.shape=(dim,length_z)
   
   # Resize the arrays to the needed length
   temp2 = N.resize(temp2, (dim, array_length))
@@ -220,7 +160,7 @@ def gauss_to_spectra(data, array_length=None, first_peak=False, second_peak=Fals
   # Object is no longer in gaussian form
   temp2.p['is_gauss']=False
   # Reshape
-  temp2.setshape((length_x,length_y,array_length))
+  temp2.shape=(length_x,length_y,array_length)
     
   return temp2
 
@@ -250,11 +190,11 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
   # If the object is already in gauss form, return a copy
   if (data.p['is_gauss']==True):
     print 'Object already is in gaussian form!'
-    return data.get_copy()
+    return data.copy()
 
   # Temporary variables (copy() ensures that properties of the object is kept)
-  temp = data.get_copy()
-  temp2 = data.get_copy()
+  temp = data.copy()
+  temp2 = data.copy()
 
   # Dimension and lengths
   dim=temp.nx()*temp.ny()
@@ -263,9 +203,9 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
   length_z = temp.nz()
   
   # Reshape for convenience
-  temp.setshape((dim,length_z))
+  temp.shape=(dim,length_z)
   # Resize the arrays to the needed length
-  temp2 = N.zeros((dim,14),type='Float32')
+  temp2 = N.zeros((dim,14),dtype='Float32')
 
   
   nopoints=[]
@@ -283,7 +223,7 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
     for i in range(len(manual)):
       manual_area[manual[i][0][1]:manual[i][1][1], manual[i][0][0]:manual[i][1][0]] = 1
     #print manual_area
-    manual_area.setshape((dim))
+    manual_area.shape=(dim)
 
     # Only mark points with the maximum value greater than 'limit' for computation
 
@@ -313,42 +253,17 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
   print 'Automatic points: '+str(len(points))
   
   # Compute the gauss fits and store them in temp2
-  if (len(points) > 0):
-    count=0
-    r,w=os.pipe()
-    chunksize=2000
-    pid=os.fork()
-    if pid:
-      # we are the parent
-      os.close(w) # use os.close() to close a file descriptor
-      r = os.fdopen(r) # turn r into a file object
-      print "parent: reading"
-      #temp3 = PyCigale.fromstring(r.read(),type='Float32')
-      temp3=PyCigale.fromfile(r,type='Float32')
-      os.waitpid(pid, 0) # make sure the child process gets cleaned up
-    else:
-      # we are the child
-      os.close(r)
-      w = os.fdopen(w, 'w')
-      print "child: writing"
-      
-      for i in points:
-        count+=1
-        if (count%chunksize == 0): print str(i)+' '+str(count)
+  for i in points:
+    params, error, status = gauss_from_array(temp[i], double=double, try_double=try_double, do_shift=do_shift)
+    if status != 1: print params, status, count, i
         
-        params, error, status = gauss_from_array(temp[i], double=double, try_double=try_double, do_shift=do_shift)
-        if status != 1: print params, status, count, i
-        
-        params.astype('Float32').tofile(w)
-        error.astype('Float32').tofile(w)
+        #params.astype('Float32').tofile(w)
+        #error.astype('Float32').tofile(w)
         #w.write(params.tostring())
         #w.write(error.tostring())
-        #MP.savefig(str(count)+'.png')
-        #MP.clf()
-      w.close()
-      print "child: closing"
-      sys.exit(0)
-    
+        #P.savefig(str(count)+'.png')
+        #P.clf()
+      
     
       #temp2[i] = N.concatenate((params, error))
       
@@ -365,14 +280,13 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
     error = [0,0,0,0,0,0,0]
     temp2[nopoints] = N.concatenate((params, error))
 
+  temp2.shape=(length_x,length_y,14)
   #make temp2 an adhoc object
-  temp2.__class__=PyCigale.adhoc
-  temp2.p=temp.p.copy()
+  temp2=adhoc(temp2,temp.p.copy())
   # Object is in gaussian form
   temp2.p['is_gauss']=True
   # Reshape
-  temp2.setshape((length_x,length_y,14))
-
+  
   return temp2
 
 def gauss_to_array(p, array_length=None):
@@ -445,9 +359,9 @@ def gauss_from_array_interactive(arr):
   except:
     pass
   
-  MP.plot(arr, 'bo')
-  MP.connect('button_press_event', on_click_float)
-  MP.show()
+  P.plot(arr, 'bo')
+  P.connect('button_press_event', on_click_float)
+  P.show()
   
   # Read the choosen points
   points = []
@@ -517,7 +431,7 @@ def gauss_from_array_interactive(arr):
   parinfo[3]['limited'][0] = 1
   parinfo[3]['limits'][0] = 0.5
   parinfo[3]['limited'][1] = 1
-  parinfo[3]['limits'][1] = float(arr.size())/2.0
+  parinfo[3]['limits'][1] = float(arr.size)/2.0
   
   if (len(points)>1):
     # If this is a double fit, set initial values for the second gauss
@@ -537,10 +451,10 @@ def gauss_from_array_interactive(arr):
     parinfo[6]['limited'][0] = 1
     parinfo[6]['limits'][0] = 0.5
     parinfo[6]['limited'][1] = 1
-    parinfo[6]['limits'][1] = float(arr.size())/2.0
+    parinfo[6]['limits'][1] = float(arr.size)/2.0
   
   # Setup arrays with the data to fit
-  x = N.arange(float(arr.size())).astype('Float32')
+  x = N.arange(float(arr.size)).astype('Float32')
   y = N.zeros(arr.shape, 'Float32')
   y[:] = arr[:]
   err = N.ones(arr.shape, 'Float32')
@@ -549,11 +463,11 @@ def gauss_from_array_interactive(arr):
   
   # Fit parameters
   if (len(points)>1):
-    m = mpfit(gauss_func_double, parinfo=parinfo, functkw=functkw, quiet=1)
+    m = mpfit(twogauss_overlap, parinfo=parinfo, functkw=functkw, quiet=1)
     params = m.params
     params_error = m.perror
   else:
-    m = mpfit(gauss_func_single, parinfo=parinfo, functkw=functkw, quiet=1)
+    m = mpfit(gauss_overlap, parinfo=parinfo, functkw=functkw, quiet=1)
     params = N.concatenate((m.params,[0,0,1]))
     params_error = N.concatenate((m.perror,[0,0,0]))
 
@@ -658,9 +572,10 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
     else:
       minshift=0
     
-    y0=arr.min()
+    y0=arr.min().astype('int32')
     
-    x01 = N.array(arr.argmax(),type='Float32')
+    x01 = N.array(arr.argmax(),dtype='int32')
+    print x01,y0
     A1 = arr[x01]-y0
     sigma1 = 3.0
 
@@ -670,9 +585,9 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
   # Maybe we can remove this as it doesn't affect the fit at all?
   if (do_shift == True):
     if (double==True):
-      shift_i = int(arr.size()/2-peaks[0])
+      shift_i = int(arr.size/2-peaks[0])
     else:
-      shift_i = int(arr.size()/2-arr.argmax())
+      shift_i = int(arr.size/2-arr.argmax())
     
     arr = P.shift(arr, shift_i)
     x01 = x01 + shift_i
@@ -696,16 +611,16 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
 
   arr_sorted = N.sort(arr)
   arr_sorted_mean = arr_sorted[0:5].mean()
-  arr_sorted_stddev = arr_sorted[0:5].stddev()
+  arr_sorted_stddev = arr_sorted[0:5].std()
   y0_upper_limit = arr_sorted_mean + arr_sorted_stddev
 
   parinfo[0]['limits'][1] = arr.min() + 0.5*(arr.max()-arr.min()) #N.maximum(0, y0_upper_limit)
   
   parinfo[1]['value'] = x01
   parinfo[1]['limited'][0] = 1
-  parinfo[1]['limits'][0] = 0.0 #-float(arr.size()-1)
+  parinfo[1]['limits'][0] = 0.0 #-float(arr.size-1)
   parinfo[1]['limited'][1] = 1
-  parinfo[1]['limits'][1] = float(arr.size()-1) #2 * float(arr.size()-1)
+  parinfo[1]['limits'][1] = float(arr.size -1) #2 * float(arr.size-1)
   
   parinfo[2]['value'] = A1
   parinfo[2]['limited'][0] = 1
@@ -717,15 +632,15 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
   parinfo[3]['limited'][0] = 1
   parinfo[3]['limits'][0] = 0.5
   parinfo[3]['limited'][1] = 1
-  parinfo[3]['limits'][1] = float(arr.size())/2.0
+  parinfo[3]['limits'][1] = float(arr.size)/2.0
   
   if (double==True):
     # If this is a double fit, set initial values for the second gauss
     parinfo[4]['value'] = x02
     parinfo[4]['limited'][0] = 1
-    parinfo[4]['limits'][0] = 0.0 #-float(arr.size()-1)
+    parinfo[4]['limits'][0] = 0.0 #-float(arr.size-1)
     parinfo[4]['limited'][1] = 1
-    parinfo[4]['limits'][1] = float(arr.size()-1) #2 * float(arr.size()-1)
+    parinfo[4]['limits'][1] = float(arr.size-1) #2 * float(arr.size-1)
     
     parinfo[5]['value'] = A2
     parinfo[5]['limited'][0] = 1
@@ -737,10 +652,10 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
     parinfo[6]['limited'][0] = 1
     parinfo[6]['limits'][0] = 0.5
     parinfo[6]['limited'][1] = 1
-    parinfo[6]['limits'][1] = float(arr.size())/2.0
+    parinfo[6]['limits'][1] = float(arr.size)/2.0
   
   # Setup arrays with the data to fit
-  x = N.arange(float(arr.size())).astype('Int32')
+  x = N.arange(float(arr.size)).astype('Int32')
   y = N.zeros(arr.shape, 'Float32')
   y[:] = arr[:]
   err = N.ones(arr.shape, 'Float32')
@@ -750,7 +665,7 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
   # Fit parameters
   no_converge = False
   if (double==True):
-    m = mpfit(gauss_func_double, parinfo=parinfo, functkw=functkw, quiet=1)
+    m = mpfit(twogauss_overlap, parinfo=parinfo, functkw=functkw, quiet=1)
     params = m.params
     status=m.status
     if (m.perror == None):
@@ -761,7 +676,7 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
   else:
     
     #print parinfo
-    m = mpfit(gauss_func_single, parinfo=parinfo, functkw=functkw, quiet=1)
+    m = mpfit(gauss_overlap, parinfo=parinfo, functkw=functkw, quiet=1)
     params = N.concatenate((m.params,[0,0,1]))
     status=m.status
     if (m.perror == None):
@@ -809,61 +724,9 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
         params, params_error_red = gauss_from_array(arr, double=False)
   
   params[0]+=minshift
-  return params, params_error_red, status
+  return params#, params_error_red, status
 
-def gauss_func_single(p, fjac=None, x=None, y=None, err=None):
-  """This is used by gauss_from_array(). It returnes a status flag and
-      the weighted error of a gaussian fit to a data set.
-      """
-  # Calculate the exponents first
-  arr_len = len(x)
-  limit = -700
-  #print p
-  temp1 = N.maximum( -((x-p[1])**2)/(2*p[3]**2) , limit)
-  temp1_right = N.maximum( -(((x+arr_len)-p[1])**2)/(2*p[3]**2) , limit)
-  temp1_left = N.maximum( -(((x-arr_len)-p[1])**2)/(2*p[3]**2) , limit)
-    
-  # Compute the double gauss
-  arr = p[0] + p[2]*N.exp(temp1)
-  arr_left = p[2]*N.exp(temp1_left)
-  arr_right = p[2]*N.exp(temp1_right)
-  
-  model_y = arr + arr_right + arr_left
-  # We are not using this at the moment, 0 means successful computation
-  status=0
-  #MP.plot(y,'b')
-  #MP.plot(err*(y-model_y),'r')
-  # Return the status and the weighted error in the fit
-  return [status, err*(y-model_y)]
 
-def gauss_func_double(p, fjac=None, x=None, y=None, err=None):
-  """This is used by gauss_from_array(). It returnes a status flag and
-      the weighted error of a gaussian fit to a data set.
-      """
-  # Calculate the exponents first
-  arr_len = len(x)
-  limit = -700
-  
-  temp1 = N.maximum( -((x-p[1])**2)/(2*p[3]**2) , limit)
-  temp2 = N.maximum( -((x-p[4])**2)/(2*p[6]**2) , limit)
-  temp1_right = N.maximum( -(((x+arr_len)-p[1])**2)/(2*p[3]**2) , limit)
-  temp2_right = N.maximum( -(((x+arr_len)-p[4])**2)/(2*p[6]**2) , limit)
-  temp1_left = N.maximum( -(((x-arr_len)-p[1])**2)/(2*p[3]**2) , limit)
-  temp2_left = N.maximum( -(((x-arr_len)-p[4])**2)/(2*p[6]**2) , limit)
-    
-  # Compute the double gauss
-  arr = p[0] + p[2]*Numeric.exp(temp1) + p[5]*Numeric.exp(temp2)
-  arr_left = p[2]*Numeric.exp(temp1_left) + p[5]*Numeric.exp(temp2_left)
-  arr_right = p[2]*Numeric.exp(temp1_right) + p[5]*Numeric.exp(temp2_right)
-  
-  model_y = arr + arr_right + arr_left
-  # We are not using this at the moment, 0 means successful computation
-  status=0
-  
-  # Return the status and the weighted error in the fit
-  return [status, err*(y-model_y)]
-
-  
 def gauss_slit(data, slitname='1', outfile=None, limit=5):
   """Interactive gauss fits along a slit.
       

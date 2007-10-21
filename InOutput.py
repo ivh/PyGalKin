@@ -7,10 +7,9 @@
  
 """
 
-import numarray as N
+import numpy as N
 import pyfits as P
-#import PyCigale
-import PyGalKin
+import PyGalKin as G
 
 import pickle
 
@@ -31,7 +30,6 @@ def load(filename):
   data=pickle.load(file)
   file.close()
   return data
-
 
 def fromPAR(p,filename):
   """ reading my own parameter file with relevant parameters """
@@ -74,25 +72,27 @@ def fromAD(filename, readparams=True):
   """
   reading files from adhoc file format, setting the parameters right. returns adhoc-class
   """
-  tmpF=N.fromfile(filename,'Float32')
-  tmpI=N.fromfile(filename,'Int32')
+  tmpF=N.fromfile(filename,dtype='Float32')
+  tmpI=N.fromfile(filename,dtype='Int32')
   ndim=tmpI[-64]
   nx=tmpI[-61]
   ny=tmpI[-60]
   nz=tmpI[-59]
   
   if ndim == 2:
-    shape=nx,ny
+    shape=(nx,ny)
+    data = N.fromfile(filename,dtype='Float32',count=nx*ny).reshape(shape)
+    data = data[::-1,:]
   elif ndim ==3:
-    shape=nx,ny,nz
+    shape=(nx,ny,nz)
+    data = N.fromfile(filename,dtype='Float32',count=nx*ny*nz).reshape(shape)
+    data = data[::-1,:,:]
   else:
     pass
-     
-  data = PyGalKin.PyCigale.fromfile(filename,'Float32',shape)
-  #print N.sum(data[80,168,:]),N.sum(data[80,-169,:])
-  data = data[::-1,:,:]
-  data.swapaxes(0,1)                          # to be make origin at lower right
-  
+
+
+  data=data.swapaxes(0,1)                          # to be make origin at lower right
+
   # setting some parameters
   p={}     
   p['cen']=nx/2,ny/2
@@ -115,15 +115,15 @@ def fromAD(filename, readparams=True):
     fromADP(p,'par.adp')
     fromPAR(p,'par')
     #data.getsaltzer()
-
-  data.p=p
-  return data
+    
+  data=N.ascontiguousarray(data)
+  return G.adhoc(data,p=p)
 
 def toAD(input,filename=None):
   """ writes ADHOC files. for file format see: adw_what.htm
   by default uses original filename
   """
-  inarr=input.get_copy()
+  inarr=input.copy()
 
   if filename == None:
     if inarr.p['imagename'] == None:
