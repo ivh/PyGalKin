@@ -1,7 +1,7 @@
 # IMPORTS
 #
 from tool import *
-from fitting import *
+from fit import *
 
 from numpy import any
 import os
@@ -255,7 +255,8 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
   # Compute the gauss fits and store them in temp2
   for i in points:
     params, error, status = gauss_from_array(temp[i], double=double, try_double=try_double, do_shift=do_shift)
-    if status != 1: print params, status, count, i
+    if status != 1: print 'status != 1: ',params, status, i
+    print i
         
         #params.astype('Float32').tofile(w)
         #error.astype('Float32').tofile(w)
@@ -315,9 +316,9 @@ def gauss_to_array(p, array_length=None):
   temp2_left = N.maximum( -(((x-arr_len)-p[4])**2)/(2*p[6]**2) , limit)
 
   # Compute the double gauss
-  arr = p[0] + p[2]*Numeric.exp(temp1) + p[5]*Numeric.exp(temp2)
-  arr_left = p[2]*Numeric.exp(temp1_left) + p[5]*Numeric.exp(temp2_left)
-  arr_right = p[2]*Numeric.exp(temp1_right) + p[5]*Numeric.exp(temp2_right)
+  arr = p[0] + p[2]*N.exp(temp1) + p[5]*N.exp(temp2)
+  arr_left = p[2]*N.exp(temp1_left) + p[5]*N.exp(temp2_left)
+  arr_right = p[2]*N.exp(temp1_right) + p[5]*N.exp(temp2_right)
   
   model_y = arr + arr_left + arr_right
   
@@ -529,7 +530,7 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
       Output:
         The gaussian parameters computed from the data array
         """
-  if (double == True):
+  if double:
     # Find distinct peaks
     peaks = find_peaks(arr)
     
@@ -575,7 +576,7 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
     y0=arr.min().astype('int32')
     
     x01 = N.array(arr.argmax(),dtype='int32')
-    print x01,y0
+    #print x01,y0
     A1 = arr[x01]-y0
     sigma1 = 3.0
 
@@ -583,19 +584,19 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
   
   # Shift the spectra so the strongest peak is in the middle of the array
   # Maybe we can remove this as it doesn't affect the fit at all?
-  if (do_shift == True):
-    if (double==True):
+  if do_shift:
+    if double:
       shift_i = int(arr.size/2-peaks[0])
     else:
       shift_i = int(arr.size/2-arr.argmax())
     
     arr = P.shift(arr, shift_i)
     x01 = x01 + shift_i
-    if (double==True):
+    if double:
       x02 = x02 + shift_i
 
   # Set limits on the parameters
-  if (double==True):
+  if double:
     number_of_pars = 7
   else:
     number_of_pars = 4
@@ -634,7 +635,7 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
   parinfo[3]['limited'][1] = 1
   parinfo[3]['limits'][1] = float(arr.size)/2.0
   
-  if (double==True):
+  if double:
     # If this is a double fit, set initial values for the second gauss
     parinfo[4]['value'] = x02
     parinfo[4]['limited'][0] = 1
@@ -664,7 +665,7 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
   
   # Fit parameters
   no_converge = False
-  if (double==True):
+  if double:
     m = mpfit(twogauss_overlap, parinfo=parinfo, functkw=functkw, quiet=1)
     params = m.params
     status=m.status
@@ -691,40 +692,41 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
 
   # If the peaks were shifted, shift back
   # Maybe we can remove this alltogether?
-  if (do_shift == True):
+  if do_shift:
     params[1] = params[1] - shift_i
-    if (double==True):
+    if double:
       params[4] = params[4] - shift_i
-  
+
+  #print 'params: ',params
   # Set the highest peaks parameters to the left
   if (params[2] < params[5]):
-    params = N.concatenate((params[0], params[4:7], params[1:4]))
-  
+    params = params.take([0,4,5,6,1,2,3])
+    
   # If one peak is very weak compared to the other one, 
   # or if the peaks are located close to each other (within half the sigma
   # of the stronger peak), make a single gauss fit.
-  if (double == True):
+  if double:
     # Set limits to use for QA of the fit
     limit_err = 500
     limit_amp = 0.05
     limit_width = 1.0
     
-    if (no_converge == True):
-      params, params_error_red = gauss_from_array(arr, double=False)
+    if no_converge:
+      params, params_error_red,status = gauss_from_array(arr, double=False)
     elif (params[5] < limit_amp*params[2]):
-      params, params_error_red = gauss_from_array(arr, double=False)
+      params, params_error_red,status = gauss_from_array(arr, double=False)
     elif (N.abs(params[1]-params[4]) < N.maximum(limit_width*params[3], limit_width*params[6])):
-      params, params_error_red = gauss_from_array(arr, double=False)
+      params, params_error_red,status = gauss_from_array(arr, double=False)
     else:
       # Compute the sum of squared errors
       temp=(err*(gauss_to_array(params, len(y))-y))**2
       
       # If the error is big, do a single gauss fit
       if (temp.sum() > limit_err):
-        params, params_error_red = gauss_from_array(arr, double=False)
+        params, params_error_red,status = gauss_from_array(arr, double=False)
   
   params[0]+=minshift
-  return params#, params_error_red, status
+  return params, params_error_red, status
 
 
 def gauss_slit(data, slitname='1', outfile=None, limit=5):

@@ -64,7 +64,7 @@ class interactvf:
 		
 		
 		# import and process data cube
-		self.odata = data.get_copy()
+		self.odata = data.copy()
 		self.cdata = data.cliparoundcenter()
 		self.cdata = self.cdata
 		self.cdata.p = self.odata.p
@@ -946,7 +946,7 @@ def tilted_ring_model(data, width):
         scale: The parsec/pixel-scale
       """
   # We do not want to edit a link to the data
-  temp = data.get_copy()
+  temp = data.copy()
   
   # Understandable variables
   dim = temp.nx()
@@ -1485,7 +1485,7 @@ def create_exp_vf(model, pars):
       pars: The parameter dictionary to use
       vf_exp: A velocity field (note: this field is just a pure numarray, so no 
         p-list). If you want to keep the p-list from 'vf' you can do this:
-        vf_exp = vf.get_copy()
+        vf_exp = vf.copy()
         vf_exp[:,:] = create_expansion_vf(pars)
   """
   r_and_phi = arguments_list(pars)
@@ -1508,7 +1508,7 @@ def create_rot_vf(model, pars):
       pars: The parameter dictionary to use
       vf_rot: A velocity field (note: this field is just a pure numarray, so no 
         p-list). If you want to keep the p-list from 'vf' you can do this:
-        vf_rot = vf.get_copy()
+        vf_rot = vf.copy()
         vf_rot[:,:] = create_rot_vf(model, pars)
   """
   r_and_phi = arguments_list(pars)
@@ -1531,7 +1531,7 @@ def create_system_vf(pars):
       pars: The parameter dictionary to use
       vf_sys: A velocity field (note: this field is just a pure numarray, so no 
         p-list). If you want to keep the p-list from 'vf' you can do this:
-        vf_sys = vf.get_copy()
+        vf_sys = vf.copy()
         vf_sys[:,:] = create_system_vf(pars)
   """
   #print pars['v_system']

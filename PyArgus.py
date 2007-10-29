@@ -4,16 +4,8 @@
 # Some functions to handle ARGUS IFU data
 #
 
-import numpy as N
-import pylab as P
-import scipy.stats as S
-from scipy.interpolate import interp1d
-from mpfit import mpfit
 from time import sleep
 from os.path import exists
-import matplotlib.numerix.ma as MA
-import matplotlib.colors as colors
-from InOutput import read_fits,write_fits,dump,load
 from tool import *
 
 
@@ -212,7 +204,7 @@ def contFit(data,order=6,sigmaclip=1.0,plot=False):
     poly=P.polyfit(x,data,order)
     #print poly
     subtr=data-P.polyval(poly,x)
-    flagged=N.where(N.abs(subtr) > (sigmaclip*S.std(subtr)),x=0,y=subtr)
+    flagged=N.where(N.abs(subtr) > (sigmaclip*subtr.std()),x=0,y=subtr)
     corrpoly=P.polyfit(x,flagged,order)
     finalfit=P.polyval(poly,x)+P.polyval(corrpoly,x)
     if plot:

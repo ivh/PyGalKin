@@ -33,6 +33,7 @@ class adhoc(N.ndarray):
       # We use the getattr method to set a default if 'obj' doesn't
       # have the 'p' attribute self.p = getattr(obj, 'p', {}) We could
       # have checked first whether self.p was already defined:
+      self.calcstuff()
       if not hasattr(self, 'p'):
           self.p = getattr(obj, 'p', {})
 
@@ -64,12 +65,17 @@ class adhoc(N.ndarray):
                 for j in N.arange(erg.shape[1]):
                     erg[i,j]=self[i,j,:].min()
         return erg
-    
+
+    def calcstuff(self):
+        try: self.p['fsr']=lamb2vel(self.p['xlbneb'] + (self.p['xil'] / 2)) - lamb2vel(self.p['xlbneb'] - (self.p['xil'] / 2))
+        except: pass
+        
+
     def fsr(self):
       """ calculate the free spectral range from self.xil and self.xlp
           uses lamb2vel
       """
-      return lamb2vel(self.p['xlbneb'] + (self.p['xil'] / 2)) - lamb2vel(self.p['xlbneb'] - (self.p['xil'] / 2))
+      return self.p['fsr']
     
     def vel1st(self):
         """return the velocity of the first channel """
@@ -219,30 +225,30 @@ class adhoc(N.ndarray):
         D = d/2 + 1/2
       
       # Vectors needed for calculations
-      vec=N.array([-N.sin(radians(angle)),N.cos(radians(angle))])
-      perp=N.array([N.cos(radians(angle)),N.sin(radians(angle))])
+      perp=N.array([-N.sin(radians(angle)),N.cos(radians(angle))])
+      vec=-N.array([N.cos(radians(angle)),N.sin(radians(angle))])
       
       # Arrays for the data
-      pos=N.zeros(0,'Float32')
-      vel=N.zeros(0,'Float32')
-      err=N.zeros(0,'Float32')
-      
+      pos=N.zeros(1000,'Float32')
+      vel=N.zeros(1000,'Float32')
+      err=N.zeros(1000,'Float32')
+      count = 0
       for i in N.arange(self.nx()):
         for j in N.arange(self.ny()):
           if (self[i,j] != 0):
             # The points must be within the slit
-            dist=N.innerproduct(perp,N.array([center[0]-i,center[1]-j]))
+            dist=N.inner(perp,N.array([center[0]-i,center[1]-j]))
             if (abs(dist) <= D):
-              pos_temp=N.innerproduct(vec,N.array([center[0]-i,center[1]-j]))
-              pos=N.concatenate((pos, pos_temp))
-              vel=N.concatenate((vel, self[i,j]))
-              err=N.concatenate((err, self.fsr()/self.p['lz']))
+              pos[count]=N.inner(vec,N.array([center[0]-i,center[1]-j]))
+              vel[count]=self[i,j]
+              err[count]=self.fsr()/self.nz()
+              count+=1
       
       # Write rc-outfile if a filename is given
       if (outfile != None):
         write_rc(outfile, pos, vel, err)
       
-      return pos,vel
+      return pos[:count],vel[:count]
     
     def ndim(self):
       """returns the dimension of the cube """

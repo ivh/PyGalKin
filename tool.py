@@ -10,11 +10,15 @@ import scipy as S
 import scipy.interpolate
 import scipy.ndimage
 import scipy.signal as Sig
+import matplotlib.numerix.ma as MA
 from scipy.ndimage import gaussian_filter1d
 from scipy.fftpack import fft
 from filtfilt import filtfilt
+from mpfit import mpfit
+from InOutput import *
 
 import PyGalKin as G
+import PyCigale as C
 
 from math import pi,e,radians
 
@@ -208,23 +212,25 @@ def fwhm(inarr):
 
 
 def doforeachpoint(data, function, *args, **keywords):
-  """Apply a function to all points, one at a time, in an array. The output
-      will have a z-dimension equal to the length of the output from the
-      'function'.
+  """Apply a function (whcih takes a 1d-vector) to all values of x and
+  y of a 3D-matrix. The output will have a z-dimension equal to the
+  length of the output from the 'function'.
       
-      Usage: new_arr = doforeachpoint(arr, function, arguments, keywords)
-      
-      data: The 3D-array input array
-      
-      """
+  Usage: new_arr = doforeachpoint(arr, function, arguments)
+  
+  data: The 3D-array input array
+
+  """
   data=data.copy()
   x,y,z=data.shape
   xy=x*y
   data.shape=(xy,z)
 
   for i in N.arange(xy):
-    tmp=apply(function,(data[i],)+args)
-    if not hasattr(tmp,'__len__'): tmp=N.array([tmp]);
+    #tmp=apply(function,(data[i],)+args)
+    tmp=function(data[i], *args, **keywords)
+    if type(tmp)==type(()): print 'cannot handle tuples yet'; return -1
+    elif not hasattr(tmp,'__len__'): tmp=N.array([tmp]);
     if i == 0:
         erg=N.zeros((xy,len(tmp)),dtype='float64')
         erg[i,:]=tmp
@@ -232,7 +238,7 @@ def doforeachpoint(data, function, *args, **keywords):
 
   erg.shape=(x,y,-1)
   if erg.shape[2]==1: erg.shape=(x,y)
-  if hasattr(data,'p'): return G.adhoc(erg,data.p)
+  if hasattr(data,'p'): return C.adhoc(erg,data.p)
   else: return erg
 
 

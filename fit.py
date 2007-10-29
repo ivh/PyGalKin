@@ -89,14 +89,13 @@ def twogauss_overlap(p, fjac=None, x=None, y=None, err=None):
       """
   # Calculate the exponents first
   arr_len = len(x)
-  limit = -700
   
-  temp1 = N.maximum( -((x-p[1])**2)/(2*p[3]**2) , limit)
-  temp2 = N.maximum( -((x-p[4])**2)/(2*p[6]**2) , limit)
-  temp1_right = N.maximum( -(((x+arr_len)-p[1])**2)/(2*p[3]**2) , limit)
-  temp2_right = N.maximum( -(((x+arr_len)-p[4])**2)/(2*p[6]**2) , limit)
-  temp1_left = N.maximum( -(((x-arr_len)-p[1])**2)/(2*p[3]**2) , limit)
-  temp2_left = N.maximum( -(((x-arr_len)-p[4])**2)/(2*p[6]**2) , limit)
+  temp1 = -((x-p[1])**2)/(2*p[3]**2)
+  temp2 = -((x-p[4])**2)/(2*p[6]**2)
+  temp1_right = -(((x+arr_len)-p[1])**2)/(2*p[3]**2)
+  temp2_right = -(((x+arr_len)-p[4])**2)/(2*p[6]**2)
+  temp1_left = -(((x-arr_len)-p[1])**2)/(2*p[3]**2) 
+  temp2_left = -(((x-arr_len)-p[4])**2)/(2*p[6]**2) 
     
   # Compute the double gauss
   arr = p[0] + p[2]*N.exp(temp1) + p[5]*N.exp(temp2)
@@ -163,7 +162,7 @@ def fitgauss(data,err=None,parinfo=None,prin=False,plot=False,quiet=True):
     return fit
 
 
-def fit2gauss(data,parinfo=None,plot=False,prin=False,quiet=True):
+def fit2gauss(data,parinfo=None,plot=False,prin=False,quiet=True,fitfunc=None):
     if isconstant(data):
         return -1
 
@@ -207,12 +206,14 @@ def fit2gauss(data,parinfo=None,plot=False,prin=False,quiet=True):
       
 
     #print data,x,err,p0,fa,parinfo
+    if fitfunc==None: fitfunc=twogauss
     try:
-        fit=mpfit(twogauss,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet)
+        fit=mpfit(fitfunc,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet)
     except OverflowError:
         return -1
         
     if plot==True:
+        P.clf()
         P.plot(data,'r')
         P.plot(twogauss(fit.params,x=N.arange(len(data)),returnmodel=True),'b')
     if prin==True:

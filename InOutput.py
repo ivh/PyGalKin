@@ -6,12 +6,11 @@
  This file contains the file-in/output functions for the PyCigale package
  
 """
-
-import numpy as N
-import pyfits as P
-import PyGalKin as G
-
 import pickle
+
+from tool import *
+
+import PyGalKin as G
 
 ## SHORTCUTS
 tab='\t'
