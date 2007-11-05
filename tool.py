@@ -18,6 +18,9 @@ from filtfilt import filtfilt
 from mpfit import mpfit
 from InOutput import *
 
+try: from pyIDL import idl as IDL
+except: print 'Could not import IDL'
+
 import PyGalKin as G
 import PyCigale as C
 
@@ -407,17 +410,17 @@ def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=False):
     """ wrapper to do voronoi binning
      CAREFUL: treats 2d-data as two spatial dimensions
     """
-    origshape=copy(data.shape)
+    origshape=data.shape
     if len(data.shape) == 3 and Noise==False:
         X,Y=getXY(data)
         data.shape=(origshape[0]*origshape[1],origshape[2])
-        Signal=S.average(data,axis=1)
-        Noise=S.std(data,axis=1)
+        Signal=data.mean(axis=1)
+        Noise=data.std(axis=1)
         data.shape=origshape
     elif len(data.shape) == 3 and Noise!=False:
         X,Y=getXY(data)
         data.shape=(origshape[0]*origshape[1],origshape[2])
-        Signal=S.average(data,axis=1)
+        Signal=data.mean(axis=1)
         Noise=N.resize(Noise,Signal.shape)
         data.shape=origshape
     elif len(data.shape) == 2:
@@ -474,11 +477,11 @@ def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=False):
     
 def average_bins3(data,BinNumber):
     """BinNumber is of length Npix and contains for each pix the bin-number that it belongs to"""
-    origshape=copy(data.shape)
+    orig=data.copy()
     Nbins=max(BinNumber)+1
-    data=N.reshape(data.copy(),(origshape[0]*origshape[1],origshape[2]))
+    data=N.reshape(data,(orig.shape[0]*orig.shape[1],orig.shape[2]))
 
-    BinValues=N.zeros((Nbins,origshape[2]),'Float32')
+    BinValues=N.zeros((Nbins,orig.shape[2]),'Float32')
     counter=N.zeros((Nbins,))
     
     for i in N.arange(len(BinNumber)):
@@ -488,7 +491,7 @@ def average_bins3(data,BinNumber):
     for i in N.arange(len(BinNumber)):
         data[i,:]=BinValues[BinNumber[i]] / counter[BinNumber[i]]
 
-    data.shape=origshape
+    data.shape=orig.shape
     return data
 
 def average_bins2(data,BinNumber,prin=False):
