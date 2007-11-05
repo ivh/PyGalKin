@@ -6,6 +6,7 @@ ToolBox.py
 
 import numpy as N
 import pylab as P
+import pyfits as F
 import scipy as S
 import scipy.interpolate
 import scipy.ndimage

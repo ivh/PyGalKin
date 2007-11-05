@@ -374,6 +374,11 @@ def getavmin(inarr,n):
     """ average the n lowest value in an array"""
     return N.sort(inarr)[0:n].mean()
 
+def monofromcont(inarr,n=5):
+    csum=sum(inarr,axis=2)
+    cont=contfrommin(inarr,n)
+    return csum-(cont*inarr.nz())
+
 
 def resample_vf(data, m):
   temp = data.copy()
