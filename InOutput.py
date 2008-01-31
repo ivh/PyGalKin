@@ -132,8 +132,8 @@ def toAD(input,filename=None):
       filename=inarr.p['imagename']
 
   file=open(filename,'w')
-  inarr.swapaxes(1,0)   # flipping axes again to be consistent with ADHOC
-  inarr=inarr[::-1,:]
+  inarr=inarr.swapaxes(0,1)   # flipping axes again to be consistent with ADHOC
+  inarr=inarr[::-1,:,:]
   inarr.astype('Float32').tofile(file)                         # the data
   N.array([inarr.ndim()],'Int32').tofile(file) # number of dimensios
   N.array([0],'Int32').tofile(file)          # id1 what is this?

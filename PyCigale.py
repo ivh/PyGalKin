@@ -372,7 +372,7 @@ def peakvel(inarr,n=3):
     erg = doforeachpoint(inarr,calcpeak,n)
     return chan2absvel(erg)
 
-def contfrommin(inarr,n):
+def contfrommin(inarr,n=5):
     """ create a continuum map by averaging the n lowest channels"""
     return doforeachpoint(inarr,getavmin,n)
     

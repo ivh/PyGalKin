@@ -272,7 +272,7 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
       #print 'Error: '+str(error)
 
   print 'Fitting finished.'
-  temp3.shape=(-1,14)
+  #temp3.shape=(-1,14)
   temp2[points]=temp3
   
   # Set all other points to a zero-gauss
