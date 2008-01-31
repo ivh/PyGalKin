@@ -26,6 +26,8 @@ class adhoc(N.ndarray):
       elif hasattr(data, 'p'):
         subarr.p = data.p
 
+      subarr.calcstuff()
+
       # Finally, we must return the newly created object:
       return subarr
 
@@ -33,7 +35,6 @@ class adhoc(N.ndarray):
       # We use the getattr method to set a default if 'obj' doesn't
       # have the 'p' attribute self.p = getattr(obj, 'p', {}) We could
       # have checked first whether self.p was already defined:
-      self.calcstuff()
       if not hasattr(self, 'p'):
           self.p = getattr(obj, 'p', {})
 
@@ -67,7 +68,7 @@ class adhoc(N.ndarray):
         return erg
 
     def calcstuff(self):
-        try: self.p['fsr']=lamb2vel(self.p['xlbneb'] + (self.p['xil'] / 2)) - lamb2vel(self.p['xlbneb'] - (self.p['xil'] / 2))
+        try: self.p['fsr']=lamb2vel(self.p['xl1'] + self.p['xil']) - lamb2vel(self.p['xl1'])
         except: pass
         
 
@@ -81,6 +82,12 @@ class adhoc(N.ndarray):
         """return the velocity of the first channel """
         #return lamb2vel(self.p['xlbneb']) - (self.fsr() / 2.)
         return lamb2vel(self.p['xl1'])
+
+    def wcal(self):
+        """ returns vector of length lz with the velocities for each channel """
+        if  self.nz() != 1:
+            return (N.arange(self.nz(),dtype='f')/self.nz()*self.fsr())+self.p['xl1']
+        
         
     def toADP(self,filename=None):
       """ write parameters to an ADP file
@@ -352,9 +359,8 @@ def VF_firstmom(data, slitname=None):
   return temp
 
 def chan2absvel(inarr):
-    """ convert channels into absolute velocity"""
-    return lamb2vel(((inarr - (inarr.p['lz']/2.)) * inarr.p['xil'] /inarr.p['lz']) + inarr.p['xlbneb'] )
-    #return chan2relvel(inarr) + inarr.vel1st() + inarr.helioc()
+    """ convert channels into absolute velocity.."""
+    return lamb2vel( inarr.p['xl1'] + (inarr*inarr.p['xil']/inarr.p['lz']) )
     
 def chan2relvel(inarr):
     """ convert channels into relative velocity"""

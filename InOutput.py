@@ -134,7 +134,7 @@ def toAD(input,filename=None):
   file=open(filename,'w')
   inarr.swapaxes(1,0)   # flipping axes again to be consistent with ADHOC
   inarr=inarr[::-1,:]
-  inarr.tofile(file)                         # the data
+  inarr.astype('Float32').tofile(file)                         # the data
   N.array([inarr.ndim()],'Int32').tofile(file) # number of dimensios
   N.array([0],'Int32').tofile(file)          # id1 what is this?
   N.array([0],'Int32').tofile(file)          # id2
@@ -153,7 +153,7 @@ def toAD(input,filename=None):
     N.array([1],'Float32').tofile(file)
     N.array([256],'Int32').tofile(file)
     N.array([1],'Int32').tofile(file)
-    N.arange(17,type='Int32').tofile(file) # unsused 68 bytes    
+    N.arange(17,dtype='Int32').tofile(file) # unsused 68 bytes    
     
   elif inarr.ndim() == 3:
     print "Writing 3D file"
@@ -166,12 +166,12 @@ def toAD(input,filename=None):
     N.array([inarr.p['xlneb']],'Float32').tofile(file)
     N.array([inarr.p['v1']],'Float32').tofile(file)
     N.array([inarr.p['interfr_kms']],'Float32').tofile(file)
-    N.arange(13,type='Int32').tofile(file) # unsused 52 bytes    
+    N.arange(13,dtype='Int32').tofile(file) # unsused 52 bytes    
     
   else:
     pass
   
-  N.arange(32,type='Int32').tofile(file) # the 128 byte of comment
+  N.arange(32,dtype='Int32').tofile(file) # the 128 byte of comment
   
   file.close()
   
