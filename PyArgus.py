@@ -33,6 +33,7 @@ Step=0.425
 SpecLenOrg=2715
 #SpecLenOrg=1357
 
+
 dimX=22
 dimY=14
 
@@ -84,6 +85,7 @@ def image2cube(data,tablefile='/home/tom/projekte/PyGalKin/argus-fibres.txt'):
     print str(missing) + ' missing spectra'
     for i in N.arange(missing): file.readline()
 
+    #print data.shape,cube.shape
     
     for line in file.readlines():
         line=line.split()
@@ -100,12 +102,11 @@ def image2cube(data,tablefile='/home/tom/projekte/PyGalKin/argus-fibres.txt'):
             #print x,y,index
             cube[x,y,:]=data[:,index]
         
-
     file.close()
-    sky.setshape(sky.nelements()/SpecLenOrg,SpecLenOrg)
+    sky.shape=(sky.size/SpecLenOrg,SpecLenOrg)
     #badpixels(cube)
     if havesimcal:
-        simcal.setshape(simcal.nelements()/SpecLenOrg,SpecLenOrg)
+        simcal.shape=(simcal.size/SpecLenOrg,SpecLenOrg)
         return cube,sky,simcal
     else: return cube,sky
 
@@ -314,7 +315,6 @@ def fitAllPaschen_old(data,err,velRange=None,guessV=None,PaNumbers=[9,10,11,12,1
         print fit.niter,fit.params,fit.status
     
     return fit.params
-
 
 def funcAllPaschen_old(p, fjac=None, x=None, y=None, err=None, n=None,returnmodel=False):
     model=N.zeros(len(x),'Float32')

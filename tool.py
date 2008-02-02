@@ -674,7 +674,7 @@ def degradeall(data,factor=4.25,quadratic=False):
     return degrad
 
 def sortbins(data,error,wave,start,binwidth=0.85,end=False,log=False):
-    origshape=copy(data.shape)
+    origshape=data.shape
     if len(data.shape) == 3:
         data.shape=(origshape[0]*origshape[1],origshape[2])
         error.shape=(origshape[0]*origshape[1],origshape[2])
