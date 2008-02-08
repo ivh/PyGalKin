@@ -45,7 +45,7 @@ def showsum(data,vmin=1E5,vmax=2E6,range='cat',Z=1.002912,typ='sum'):
     P.imshow(N.transpose(dat),origin='lower',interpolation='nearest',vmin=vmin,vmax=vmax)
 
 
-def plotspec(data,region=None,plotlines=False,Z=1.002912,style=False,linestyle='steps'):
+def plotspec(data,region=None,plotlines=False,Z=1.0207,style=False,linestyle='steps'):
     from PyArgus import SpecLen,Lamb0,Step
     if style:
         P.plot((N.arange(SpecLen)*Step)+Lamb0,data,style,linestyle=linestyle)

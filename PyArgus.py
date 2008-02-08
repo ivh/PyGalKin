@@ -7,7 +7,7 @@
 from time import sleep
 from os.path import exists
 from tool import *
-
+import Gauss as G
 
 #####################################
 #### Wave-cal and dimensions
@@ -39,7 +39,10 @@ dimY=14
 
 #skyregion=N.array([8750,8800])
 #skyregion=N.array([8860,8910])
-skyregion=N.array([8810,8876])
+#skyregion=N.array([8810,8876]) used for He 2-10
+
+#haro 11
+skyregion=N.array([8865,8925])
 
 
 
@@ -110,7 +113,7 @@ def image2cube(data,tablefile='/home/tom/projekte/PyGalKin/argus-fibres.txt'):
         return cube,sky,simcal
     else: return cube,sky
 
-def badpixels(data, value=0):
+def badpixels(data, value=0.0):
     """ sets the known bad spectra in a cube to value"""
 
     if len(data.shape)==3:
@@ -151,7 +154,7 @@ def skysub(data,sky,factor=1.9,region=skyregion):
         data.shape=(shape[0]*shape[1],shape[2])
     sky=medianspec(sky)
     #sky=N.resize(sky,data.shape)
-    factor=skyfit(data,sky,region)
+    factor=skyfit(data,sky,region,quiet=False)
     dataSS=data.copy()
     for i in N.arange(data.shape[0]):
         dataSS[i]=data[i]-(factor[i]*sky)
@@ -161,7 +164,7 @@ def skysub(data,sky,factor=1.9,region=skyregion):
 
 def skyfit(data,sky,region=skyregion,quiet=True):
     factor=N.zeros(data.shape[0],'Float32')
-    region=lamb2pix(region)
+    region=lamb2pix(region,Lamb0,Step)
     parinfo=[]
     for i in range(2):
         parinfo.append({'value':1.0, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0})
@@ -172,6 +175,7 @@ def skyfit(data,sky,region=skyregion,quiet=True):
         #print sdata.shape,ssky.shape
         fa={'data':sdata,'sky':ssky}
         fit=mpfit(skyfunc,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet)
+        print fit.status
         factor[i]=fit.params[1]
     return factor
     
@@ -186,7 +190,7 @@ def skyfunc(p, fjac=None, data=None, sky=None, returnmodel=False):
 
 def contSubtr(data,order=6,sigmaclip=1.0,plot=False):
     if len(data.shape)==1: return contFit(data,order=order,sigmaclip=sigmaclip,plot=plot)
-    origshape=copy(data.shape)
+    origshape=data.shape
     if len(data.shape) == 3:
         data.shape=(origshape[0]*origshape[1],origshape[2])
 
@@ -205,7 +209,7 @@ def contFit(data,order=6,sigmaclip=1.0,plot=False):
     poly=P.polyfit(x,data,order)
     #print poly
     subtr=data-P.polyval(poly,x)
-    flagged=N.where(N.abs(subtr) > (sigmaclip*subtr.std()),x=0,y=subtr)
+    flagged=N.where(N.abs(subtr) > (sigmaclip*N.std(subtr)),0,subtr)
     corrpoly=P.polyfit(x,flagged,order)
     finalfit=P.polyval(poly,x)+P.polyval(corrpoly,x)
     if plot:
@@ -335,23 +339,23 @@ def findLine(data,double=True,velRange=None,guessV=None,restlamb=Sulfur,parinfo=
     
     Left= vel2lamb(guessV-(velRange/2.),restlamb)
     Right= vel2lamb(guessV+(velRange/2.),restlamb)
-    Left,Right=int(lamb2pix(Left)),int(lamb2pix(Right))
+    Left,Right=int(lamb2pix(Left,Lamb0,Step)),int(lamb2pix(Right,Lamb0,Step))
     
     relevant=data[Left:Right]
     if double:
-        fit=fit2gauss(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
+        fit=G.fit2gauss(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
         if fit==-1:
             print "fit went wrong!"
             return fit
-        PeakPos=N.argmax(twogauss(fit.params,x=N.arange(len(relevant)),returnmodel=True))
+        PeakPos=N.argmax(G.twogauss(fit.params,x=N.arange(len(relevant)),returnmodel=True))
     else:
-        fit=fitgauss(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
+        fit=G.fitgauss(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
         if fit==-1: return fit
-        PeakPos=N.argmax(gauss(fit.params,x=N.arange(len(relevant)),returnmodel=True))
+        PeakPos=N.argmax(G.gauss(fit.params,x=N.arange(len(relevant)),returnmodel=True))
 
     if fit.status != 1: print "findLine status:",fit.status
     #Z=pix2lamb(PeakPos+Left) / restlamb
-    Z=pix2lamb(fit.params[1]+Left) / restlamb
+    Z=pix2lamb(fit.params[1]+Left,Lamb0,Step) / restlamb
     #print fit.params,Z,Left
     D1=fit.params[1]-PeakPos
     if double: D2=fit.params[4]-PeakPos
@@ -360,7 +364,7 @@ def findLine(data,double=True,velRange=None,guessV=None,restlamb=Sulfur,parinfo=
                                 
 
 def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,double=False,plot=False):
-    origshape=copy(data.shape)
+    origshape=data.shape
     if len(data.shape) == 3:
         data.shape=(origshape[0]*origshape[1],origshape[2])
 
@@ -388,7 +392,8 @@ def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,double=False,plot=
     
     data.shape=origshape
     EmVF=z2vel(EmVF)
-    Width=pix2relvel(Width,restlamb)
+    Width=pix2relvel(Width,restlamb,Step)
+    print EmVF.shape, origshape
     EmVF.shape=(origshape[0],origshape[1])
     Ampl.shape=(origshape[0],origshape[1])
     Cont.shape=(origshape[0],origshape[1])
@@ -670,13 +675,13 @@ def createPa(paschenparam,Z,double,PaNumb,D1=0.0,D2=0.0):
     for i in N.arange(len(Paschen)):
         para=paschenparam.copy()
         para[2]*=Stren[i]
-        para[1]=lamb2pix(Paschen[i]*Z)+D1
+        para[1]=lamb2pix(Paschen[i]*Z,Lamb0,Step)+D1
         if double:
             para[5]*=Stren[i]
-            para[4]=lamb2pix(Paschen[i]*Z)+D2
-            SynthSpec+=twogauss(para,x=x,returnmodel=True)
+            para[4]=lamb2pix(Paschen[i]*Z,Lamb0,Step)+D2
+            SynthSpec+=G.twogauss(para,x=x,returnmodel=True)
         else:
-            SynthSpec+=gauss(para,x=x,returnmodel=True)
+            SynthSpec+=G.gauss(para,x=x,returnmodel=True)
 
     return SynthSpec
 
@@ -747,7 +752,7 @@ def createPaschenSul(data,velRange=None,guessV=None,plot=False,plotfit=False,PaN
     return SynthSpec
 
 def subtrPaschen(data,velRange=None,guessV=None,PaNumb=9,fromSul=True,double=True):
-    origshape=copy(data.shape)
+    origshape=data.shape
     if len(data.shape) == 3:
         data.shape=(origshape[0]*origshape[1],origshape[2])
 

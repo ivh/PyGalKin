@@ -46,7 +46,7 @@ lambHA=N.array([6562.7797852000003],'Float32')
 sol=N.array([299792.458],'Float32')
 c=sol
 H0=N.array([72.],'Float32')
-G=N.array([6.6726E-11*1.989E30/1000**3],'Float32') ### in solar masses and km
+Grav=N.array([6.6726E-11*1.989E30/1000**3],'Float32') ### in solar masses and km
 pc=N.array([3.086E13],'Float32') ## in km
 
 ## Roberts values
@@ -269,7 +269,8 @@ selav=selective_average
 
 def xcorr(galaxy,star,filtgal=False,filtstar=None,range=N.array([700,1300]),baryN=15,plot=False,offset=50):
 
-    wavecal=pix2lamb(range)
+    from PyArgus import Lamb0,Step,contSubtr
+    wavecal=pix2lamb(range,Lamb0,Step)
 
     if filtstar != None: gaussian_filter1d(star,filtstar)
     origshape=galaxy.shape
@@ -309,7 +310,7 @@ def xcorr(galaxy,star,filtgal=False,filtstar=None,range=N.array([700,1300]),bary
         #if plot: P.clf(); P.plot(xc); sleep(3);P.clf()
         if plot: sleep(4);P.clf()
         xc=xc[fitl:fitr]
-        fit=fitgaussh34(xc+1.0,err=1/xc,plot=plot,prin=True)
+        fit=G.fitgaussh34(xc+1.0,err=1/xc,plot=plot,prin=True)
         #fit=fit2gauss(xc+1.0,plot=True)
         if fit == -1: print "somethings wrong!"
         else:
@@ -614,10 +615,10 @@ def combinecubes(cubes,method='median'):
 def medianspec(data):
     """  """
     if len(data.shape) == 2:
-        medi=S.median(data,axis=0)
+        medi=N.median(data)
     elif len(data.shape) == 3:
         medi=N.reshape(data,(data.shape[0]*data.shape[1],data.shape[2]))
-        medi=S.median(medi,axis=0)
+        medi=N.median(medi)
     else: medi=data
 
     return medi
