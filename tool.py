@@ -497,9 +497,10 @@ def average_bins3(data,BinNumber):
 
 def average_bins2(data,BinNumber,prin=False):
     """BinNumber is of length Npix and contains for each pix the bin-number that it belongs to"""
-    origshape=copy(data.shape)
+    origshape=data.shape
     
     data=N.ravel(data.copy())
+    #sig=N.zeros_like(data)
 
     BinValues=binvalues(data,BinNumber)
     
@@ -508,6 +509,9 @@ def average_bins2(data,BinNumber,prin=False):
 
     data.shape=origshape
     return data
+
+def binsigma(data,BinNumber):
+    pass
 
 def binvalues(data,BinNumber):
 
@@ -711,6 +715,19 @@ def sortbins(data,error,wave,start,binwidth=0.85,end=False,log=False):
     error.shape=origshape
     wave.shape=origshape
     return dat,err
+
+
+def intdegrade(data,n,method=N.average):
+    """ decrease resolution of an image by an integer number"""
+    nx,ny=data.shape
+    x,y=N.arange(nx/n),N.arange(ny/n)
+    erg=N.zeros((nx/n,ny/n),dtype='f')
+    for i in x:
+      for j in y:
+        #print i,j,data[i*n:(i+1)*n,j*n:(j+1)*n]
+        erg[i,j]=method(data[i*n:(i+1)*n,j*n:(j+1)*n])
+    
+    return erg
 
 
 #####################################
