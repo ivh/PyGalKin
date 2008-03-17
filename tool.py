@@ -459,8 +459,8 @@ def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=False):
         idl.eval('set_plot,\'ps\'')
         idl.eval(idlcommand)
         idl.eval('device,/close')
-    except AttributeError:
-        print "something's wrong in running idl"
+    except:
+        print "something went wron while running idl"
         return -1
     
     
