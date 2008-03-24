@@ -500,30 +500,31 @@ def average_bins2(data,BinNumber,prin=False):
     origshape=data.shape
     
     data=N.ravel(data.copy())
-    #sig=N.zeros_like(data)
+    sig=N.zeros_like(data)
+    num=N.zeros_like(data)
 
-    BinValues=binvalues(data,BinNumber)
+    BinValues,BinSigmas,BinNum=binvalues(data,BinNumber)
     
     for i in N.arange(len(BinNumber)):
         data[i]=BinValues[BinNumber[i]]
+        sig[i]=BinSigmas[BinNumber[i]]
+        num[i]=BinNum[BinNumber[i]]
+        
 
     data.shape=origshape
-    return data
+    sig.shape=origshape
+    num.shape=origshape
+    return data,sig,num
 
-def binsigma(data,BinNumber):
-    pass
-
+    
 def binvalues(data,BinNumber):
-
     Nbins=max(BinNumber)+1
-    counter=N.zeros((Nbins,))
-    BinValues=N.zeros(Nbins,'Float32')
+    BinValues=[N.array([])]*Nbins
     #print Nbins, BinValues.shape,data.shape
-    for i in N.arange(len(BinNumber)):
-        BinValues[BinNumber[i]] += data[i]
-        counter[BinNumber[i]] += 1
-    return BinValues / counter
-
+    for i,bin in enumerate(BinNumber):
+        BinValues[bin]= N.hstack((BinValues[bin],data[i]))
+        
+    return map(N.mean,BinValues),map(N.std,BinValues),map(N.size,BinValues)
 
 def rad_profile(data,xbin,ybin,xcen,ycen,BinNumber):
     BinValues=binvalues(data,BinNumber)
