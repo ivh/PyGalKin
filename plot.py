@@ -2,9 +2,59 @@
 plot.py
 """
 
+from matplotlib import rcParams, colors
+LUTSIZE = rcParams['image.lut']
+
 from tool import *
 
-def imshow(X, cmap=None, norm=None, aspect=None, interpolation='nearest', alpha=1.0, vmin=None, vmax=None, origin='lower', extent=None):
+######### SAURON COLORMAP ##############
+#
+# Original format:
+#x = [1.0, 43.5, 86.0, 86.0+20, 128.5-10, 128.5, 128.5+10, 171.0-20, 171.0, 213.5, 256.0]
+#red =   [0.01, 0.0, 0.4,  0.5, 0.3, 0.0, 0.7, 1.0, 1.0,  1.0, 0.9]
+#green = [0.01, 0.0, 0.85, 1.0, 1.0, 0.9, 1.0, 1.0, 0.85, 0.0, 0.9]
+#blue =  [0.01, 1.0, 1.0,  1.0, 0.7, 0.0, 0.0, 0.0, 0.0,  0.0, 0.9]
+
+_sauron_data = {
+    'red': ((0.0,0.01,0.01),
+            (0.169921875,0.0,0.0),
+            (0.3359375,0.4,0.4),
+            (0.4140625,0.5,0.5),
+            (0.462890625,0.3,0.3),
+            (0.501953125,0.0,0.0),
+            (0.541015625,0.7,0.7),
+            (0.58984375,1.0,1.0),
+            (0.66796875,1.0,1.0),
+            (0.833984375,1.0,1.0),
+            (1.0,0.9,0.9)),
+    'green':((0.0,0.01,0.01),
+             (0.169921875,0.0,0.0),
+             (0.3359375,0.85,0.85),
+             (0.4140625,1.0,1.0),
+             (0.462890625,1.0,1.0),
+             (0.501953125,0.9,0.9),
+             (0.541015625,1.0,1.0),
+             (0.58984375,1.0,1.0),
+             (0.66796875,0.85,0.85),
+             (0.833984375,0.0,0.0),
+             (1.0,0.9,0.9)),
+    'blue':((0.0,0.01,0.01),
+            (0.169921875,1.0,1.0),
+            (0.3359375,1.0,1.0),
+            (0.4140625,1.0,1.0),
+            (0.462890625,0.7,0.7),
+            (0.501953125,0.0,0.0),
+            (0.541015625,0.0,0.0),
+            (0.58984375,0.0,0.0),
+            (0.66796875,0.0,0.0),
+            (0.833984375,0.0,0.0),
+            (1.0,0.9,0.9))
+    }
+
+sauron=colors.LinearSegmentedColormap('bone  ', _sauron_data, LUTSIZE)
+
+
+def imshow(X, cmap=sauron, norm=None, aspect=None, interpolation='nearest', alpha=1.0, vmin=None, vmax=None, origin='lower', extent=None):
     P.imshow(N.transpose(X),cmap=cmap, norm=norm, aspect=aspect, interpolation=interpolation, alpha=alpha, vmin=vmin, vmax=vmax, origin=origin, extent=extent)
 
 
