@@ -8,6 +8,7 @@ from time import sleep
 from os.path import exists
 from tool import *
 import Gauss as G
+from plot import plotspec
 
 #####################################
 #### Wave-cal and dimensions
@@ -17,9 +18,9 @@ import Gauss as G
 #SpecLen=1407
 #Step=0.85
 
-Lamb0=8183.425
-SpecLen=1357
-Step=0.85
+#Lamb0=8183.425
+#SpecLen=1357
+#Step=0.85
 
 Lamb0=8183.213
 SpecLen=2715
@@ -271,34 +272,34 @@ def fitAllPaschen(data,guessV=None,plot=False,prin=False,quiet=True):
     
     return fit.params
 
-def fitAllPaschen_old(data,err,velRange=None,guessV=None,PaNumbers=[9,10,11,12,14,17],parinfo=None,plot=False,prin=False,quiet=True):
+def fitAllPaschen_old(data,err,velRange=None,guessV=None,PaNumbers=[10,11,12,14,17],parinfo=None,plot=False,prin=False,quiet=True):
     relevant=N.array([],dtype='Float32')
     relerr=N.array([],dtype='Float32')
     once=False
     for p in PaNumbers:
         p=PaLamb(p)
         Left,Right= vel2lamb(guessV-(velRange/2.),p),vel2lamb(guessV+(velRange/2.),p)
-        Left,Right=int(lamb2pix(Left)),int(lamb2pix(Right))
+        Left,Right=int(lamb2pix(Left,Lamb0,Step)),int(lamb2pix(Right,Lamb0,Step))
         if not once:
             pixels=Right-Left-1
             once=True
         #print Left,Right, pixels
         rel=data[Left:Left+pixels]
+        #print rel
         rele=err[Left:Left+pixels]
         
         #rel-=min(rel)
         relevant=N.concatenate((relevant,rel))
         relerr=N.concatenate((relerr,rele))
 
-    
     nlines=len(PaNumbers)
     if parinfo==None:
         parinfo=[]
         parinfo.append({'value':pixels*0.5, 'fixed':0, 'limited':[0,0],'limits':[0.0, float(pixels)], 'step':0.0})
         parinfo.append({'value':pixels*0.05, 'fixed':0, 'limited':[0,0],'limits':[0.0, pixels*0.5], 'step':0.0})
-        for i in range(nlines):
+        for i in N.arange(nlines):
+            #print i,pixels,relevant.size,relevant[i*pixels:(i+1)*pixels]
             parinfo.append({'value':min(relevant[i*pixels:(i+1)*pixels]), 'fixed':0, 'limited':[0,0],'limits':[min(relevant[i*pixels:(i+1)*pixels]), max(relevant[i*pixels:(i+1)*pixels])], 'step':0.0})
-            #print max(relevant[i*pixels:(i+1)*pixels])
             parinfo.append({'value':max(relevant[i*pixels:(i+1)*pixels])-min(relevant), 'fixed':0, 'limited':[0,0],'limits':[0.0, max(relevant[i*pixels:(i+1)*pixels])*1.2], 'step':0.0})
 
     x=N.arange(len(relevant))
@@ -416,7 +417,7 @@ def interpasch(data,error,velRange=None,guessV=None,PaNumb=9,prefix='intPa'):
     #            sub[i,j,:]=data[i,j,:]
     #            continue
     #        print 'Cuttent pixel: %s %s' % (i,j)
-    inter=interactplot(data,error,prefix=prefix,velRange=velRange,guessV=guessV,i=i,j=j,PaNumb=PaNumb)
+    inter=interactplot(data,error,prefix=prefix,velRange=velRange,guessV=guessV,PaNumb=PaNumb)
     P.show()
     sub[i,j,:]=inter.data - inter.shiftscaled()
 
@@ -440,7 +441,7 @@ class interactplot:
         
         #self.double=double
         self.PaNumb=PaNumb
-        self.osn=selav(self.odata/self.oerror)
+        self.osn=self.odata/self.oerror
         self.step=0.1
         self.fact=1.0
         self.shift=0

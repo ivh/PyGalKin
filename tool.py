@@ -247,14 +247,14 @@ def doforeachpoint(data, function, *args, **keywords):
 
 
 def selective_sum(data,range='cat',Z=1.002912,axis=2):
-    if range=='cat': zmin,zmax=lamb2pix(N.array([8470,8700])*Z)
+    if range=='cat': zmin,zmax=lamb2pix(N.array([8470,8700])*Z,Lamb0,Step)
     else: zmin,zmax=0,data.shape[-1]
     print data.shape
     return N.sum(data[:,:,zmin:zmax],axis)
 selsum=selective_sum
 
 def selective_average(data,range='cat',Z=1.002912,axis=2):
-    if range=='cat': zmin,zmax=lamb2pix(N.array([8470,8700])*Z)
+    if range=='cat': zmin,zmax=lamb2pix(N.array([8470,8700])*Z,Lamb0,Step)
     else: zmin,zmax=0,data.shape[-1]
 
     if len(data.shape)==3: return N.average(data[:,:,zmin:zmax],axis)
