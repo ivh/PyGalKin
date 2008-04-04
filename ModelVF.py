@@ -19,7 +19,8 @@
 """
 
 import numpy as N
-import Scientific.Functions.LeastSquares as LS
+# import Scientific.Functions.LeastSquares as LS # old?
+from scipy.optimize import leastsq as LS
 import math as M
 import os
 import InOutput as IO
