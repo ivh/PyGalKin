@@ -122,6 +122,14 @@ def plotspec(data,region=None,plotlines=False,Z=1.0206,style=False,linestyle='st
     else: pass
 
 
+def fillederrorplot(x,y,e1,e2=None,f='r--',c='r',alpha=0.5,label=None):
+        if e2==None: e2=e1/2.0; e1=e2
+        P.plot(x,y,f,linewidth=2,label=label)
+        P.plot(x,y-e1,c+'-',linewidth=0.5)
+        P.plot(x,y+e2,c+'-',linewidth=0.5)
+        P.fill(N.concatenate((x,x[::-1])),N.concatenate((y+e2,(y-e1)[::-1])),c,alpha=alpha)
+
+
 
 # MATPLOTLIB EVENT HANDLERS
 #
