@@ -113,6 +113,7 @@ def plotspec(data,region=None,plotlines=False,Z=1.0206,style=False,linestyle='st
     if region == 'cat': # legacy
         region=[8470,8700]
     if region != None:
+        print lamb2pix(region[0]*Z,Lamb0,Step),lamb2pix(region[1]*Z,Lamb0,Step),data.size
         relevant=data[lamb2pix(region[0]*Z,Lamb0,Step):lamb2pix(region[1]*Z,Lamb0,Step)]
         print relevant
         vmin,vmax=relevant.min(),relevant.max()
