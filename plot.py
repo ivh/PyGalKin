@@ -95,7 +95,7 @@ def showsum(data,vmin=1E5,vmax=2E6,range='cat',Z=1.002912,typ='sum'):
     P.imshow(N.transpose(dat),origin='lower',interpolation='nearest',vmin=vmin,vmax=vmax)
 
 
-def plotspec(data,region=None,plotlines=False,Z=1.0206,style=False,linestyle='steps'):
+def plotspec(data,region=None,plotlines=False,Z=1.0206,style=False,linestyle='steps',vminmax=None):
     from PyArgus import SpecLen,Lamb0,Step
     if style:
         P.plot((N.arange(SpecLen)*Step)+Lamb0,data,style,linestyle=linestyle)
@@ -113,10 +113,9 @@ def plotspec(data,region=None,plotlines=False,Z=1.0206,style=False,linestyle='st
     if region == 'cat': # legacy
         region=[8470,8700]
     if region != None:
-        print lamb2pix(region[0]*Z,Lamb0,Step),lamb2pix(region[1]*Z,Lamb0,Step),data.size
         relevant=data[lamb2pix(region[0]*Z,Lamb0,Step):lamb2pix(region[1]*Z,Lamb0,Step)]
-        print relevant
-        vmin,vmax=relevant.min(),relevant.max()
+        if vminmax!=None: vmin,vmax=vminmax[0],vminmax[1]
+        else: vmin,vmax=relevant.min(),relevant.max()
         P.axis([region[0]*Z,region[1]*Z,vmin,vmax])
     
     else: pass

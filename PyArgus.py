@@ -231,7 +231,7 @@ def PaModel(p, fjac=None, x=None, y=None, err=None, returnmodel=False):
     
     model=N.zeros(len(x),'Float32')+1.0
     print p
-    PaNumbers=N.array([9,10,11,12,14,17])
+    PaNumbers=N.array([10,11,12,14,17])
     PaLa=PaLamb(PaNumbers)*p[0]
     for i in N.arange(len(PaLa)):
         para=[0.0,lamb2pix(PaLa[i]),p[-6+i],p[1]]
@@ -394,7 +394,7 @@ def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,double=False,plot=
     data.shape=origshape
     EmVF=z2vel(EmVF)
     Width=pix2relvel(Width,restlamb,Step)
-    print EmVF.shape, origshape
+    #print EmVF.shape, origshape
     EmVF.shape=(origshape[0],origshape[1])
     Ampl.shape=(origshape[0],origshape[1])
     Cont.shape=(origshape[0],origshape[1])
@@ -437,7 +437,7 @@ class interactplot:
         self.flag=0
         self.x=data.shape[0]
         self.y=data.shape[1]
-        print self.x,self.y
+        #print self.x,self.y
         
         #self.double=double
         self.PaNumb=PaNumb
@@ -581,13 +581,13 @@ class interactplot:
         
     def plot(self):
         self.fig.clf()
-
+        #print 'currently at %s %s'%(self.i,self.j)
         # Around CaT
         ax=P.axes([0.02,0.68,0.70,0.27])
         P.setp(ax,xticks=[], yticks=[])
         plotspec(self.shiftscaled(),style='-b')
         plotspec(self.data,style='-k')
-        plotspec(self.data-self.shiftscaled(),region=[8470,8700],style='-r')
+        plotspec(self.data-self.shiftscaled(),style='-r',vminmax=N.array([0.9999,1.0001]),Z=vel2z(self.guessV),plotlines=True)
         
         P.title('CaT and Pa 13, 14, 15, 16')
         
@@ -598,10 +598,10 @@ class interactplot:
         P.title('S[III]')
 
         ## Pa 9
-        ax=P.axes([0.02,0.35,0.23,0.27])
-        self.plotaroundline(PaLamb(9))
-        P.setp(ax,xticks=[], yticks=[])
-        P.title('Pa 9')
+        #ax=P.axes([0.02,0.35,0.23,0.27])
+        #self.plotaroundline(PaLamb(9))
+        #P.setp(ax,xticks=[], yticks=[])
+        #P.title('Pa 9')
         ## Pa 10
         ax=P.axes([0.26,0.35,0.23,0.27])
         self.plotaroundline(PaLamb(10))
@@ -626,10 +626,10 @@ class interactplot:
         
         ## PaStren Ratio
         ax=P.axes([0.28,0.02,0.23,0.27])
-        lines=N.array([9,10,11,12,14,17])
+        lines=N.array([10,11,12,14,17])
         meas=N.zeros(len(lines),'Float32')
         j=0
-        for i in N.arange(6)*2 + 3:
+        for i in N.arange(5)*2 + 3:
             meas[j]=self.paparams[i]
             j+=1
             
@@ -640,7 +640,8 @@ class interactplot:
 
         ## values
         ax=P.axes([0.86,0.02,0.10,0.27])
-        P.text(0.1,0.9,'S/N: '+str(int(self.sn)),transform = ax.transAxes)
+        
+        P.text(0.1,0.9,'S/N: '+str(self.sn.mean()),transform = ax.transAxes)
         P.text(0.1,0.8,'X: %s  Y: %s'%(self.i,self.j),transform = ax.transAxes)
         P.text(0.1,0.7,'PaNumb: %s'%(self.PaNumb,),transform = ax.transAxes)
         P.text(0.1,0.6,'Tilt %s'%(self.tiltfac,),transform = ax.transAxes)
