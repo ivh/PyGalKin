@@ -198,16 +198,17 @@ def contSubtr(data,order=6,sigmaclip=1.0,plot=False):
     contSub=N.zeros(data.shape,'Float32')
     for i in N.arange(data.shape[0]):
         contSub[i,:]=data[i,:]-contFit(data[i,:],order=order,sigmaclip=sigmaclip,plot=plot)
-        print str(i)+' done'
+        #print str(i)+' done'
 
     data.shape=origshape
     contSub.shape=origshape
     return contSub
     
 def contFit(data,order=6,sigmaclip=1.0,plot=False):
-
+    data=N.where(N.isnan(data),0.0,data)
     x=N.arange(len(data))
-    poly=P.polyfit(x,data,order)
+    try: poly=P.polyfit(x,data,order)
+    except: print data
     #print poly
     subtr=data-P.polyval(poly,x)
     flagged=N.where(N.abs(subtr) > (sigmaclip*N.std(subtr)),0,subtr)

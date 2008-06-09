@@ -73,6 +73,7 @@ PaschStren=N.array([1.3812, 1.0, 0.7830, 0.6131, 0.4801, 0.3759, 0.2943, 0.2477,
 
 PaschStren=PaschStren[::-1]
 
+#                       SIII   OI  ClII  FeII
 EmissionLines=N.array([9068.6,8446,8579,8617])
 CaT=N.array([8498., 8542., 8662.])
 Sulfur=9068.6

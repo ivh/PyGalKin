@@ -243,7 +243,6 @@ def fitgaussh34(data,err=None,parinfo=None,prin=False,plot=False,quiet=True):
         parinfo=[]
         for i in range(6):
             parinfo.append({'value':0.0, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0})
-
         parinfo[0]['value']=min(data)
         parinfo[0]['limited']=[1,1]
         parinfo[0]['limits']=[min(data),max(data)]
