@@ -343,6 +343,7 @@ def findLine(data,double=True,velRange=None,guessV=None,restlamb=Sulfur,parinfo=
     Left,Right=int(lamb2pix(Left,Lamb0,Step)),int(lamb2pix(Right,Lamb0,Step))
     
     relevant=data[Left:Right]
+    print relevant,Left,Right,restlamb
     if double:
         fit=G.fit2gauss(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
         if fit==-1:
@@ -591,7 +592,7 @@ class interactplot:
         P.setp(ax,xticks=[], yticks=[])
         plotspec(self.shiftscaled(),style='-b')
         plotspec(self.data,style='-k')
-        plotspec(self.data-self.shiftscaled(),style='-r',vminmax=N.array([0.9999,1.0001]),Z=vel2z(self.guessV),plotlines=True)
+        plotspec(self.data-self.shiftscaled(),style='-r',vminmax='sigbased',Z=vel2z(self.guessV),plotlines=True)
         
         P.title('CaT and Pa 13, 14, 15, 16')
         
