@@ -217,8 +217,10 @@ def fit2gauss(data,parinfo=None,plot=False,prin=False,quiet=True,fitfunc=None):
         
     if plot==True:
         P.clf()
-        P.plot(data,'r')
-        P.plot(twogauss(fit.params,x=N.arange(len(data)),returnmodel=True),'b')
+        P.plot(data,'r',linestyle='steps')
+        P.plot(twogauss(fit.params,x=N.arange(len(data)),returnmodel=True),'g')
+        P.plot(gauss(fit.params,x=N.arange(len(data)),returnmodel=True),'b')
+        P.plot(gauss(fit.params[[0,4,5,6]],x=N.arange(len(data)),returnmodel=True),'r')
     if prin==True:
         print fit.niter,fit.params,fit.status
     return fit

@@ -198,7 +198,7 @@ def contSubtr(data,order=6,sigmaclip=1.0,plot=False):
     contSub=N.zeros(data.shape,'Float32')
     for i in N.arange(data.shape[0]):
         contSub[i,:]=data[i,:]-contFit(data[i,:],order=order,sigmaclip=sigmaclip,plot=plot)
-        #print str(i)+' done'
+        print str(i)+' done'
 
     data.shape=origshape
     contSub.shape=origshape
@@ -364,7 +364,7 @@ def findLine(data,double=True,velRange=None,guessV=None,restlamb=Sulfur,parinfo=
     return Z,fit.params,D1,D2
                                 
 
-def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,double=False,plot=False):
+def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,double=False,plot=False,parinfo=None):
     origshape=data.shape
     if len(data.shape) == 3:
         data.shape=(origshape[0]*origshape[1],origshape[2])
@@ -373,15 +373,17 @@ def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,double=False,plot=
     Cont=N.zeros(data.shape[0],'Float32')
     Ampl=N.zeros(data.shape[0],'Float32')
     Width=N.zeros(data.shape[0],'Float32')
+    allparams=N.zeros((data.shape[0],7),'Float32')
     for i in N.arange(len(EmVF)):
         
-        results=findLine(data[i,:],restlamb=restlamb,velRange=velRange,guessV=guessV,double=double,plot=plot)
+        results=findLine(data[i,:],restlamb=restlamb,velRange=velRange,guessV=guessV,double=double,plot=plot,parinfo=parinfo)
         if results==-1:
-            Z,params,D1,D2=0.0,[0.0,0.0,0.0,0.0],0.0,0.0
+            Z,params,D1,D2=0.0,N.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0]),0.0,0.0
         else:
             Z,params,D1,D2=results
 
-        #print Z
+        #print params.shape
+        allparams[i,:]=params
         EmVF[i]=Z
         Cont[i]=params[0]
         if len(params)==4:
@@ -399,10 +401,12 @@ def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,double=False,plot=
     Ampl.shape=(origshape[0],origshape[1])
     Cont.shape=(origshape[0],origshape[1])
     Width.shape=(origshape[0],origshape[1])
+    allparams.shape=(origshape[0],origshape[1],-1)
     
     #print data.shape,EmVF.shape
     #P.matshow(EmVF)
-    return EmVF,Width,Ampl,Cont
+    #return EmVF,Width,Ampl,Cont
+    return allparams
 
 
 
