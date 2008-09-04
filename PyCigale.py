@@ -195,19 +195,10 @@ class adhoc(N.ndarray):
           pos: A vector of positions
           vel: A vector of corresponding velocities
           """
-      vec=N.array([-N.sin(radians(self.p['pa'])),N.cos(radians(self.p['pa']))])
-      
-      pos=N.zeros(0,'Float32')
-      vel=N.zeros(0,'Float32')
-      
-      for i in N.arange(self.nx()):
-        for j in N.arange(self.ny()):
-          if self[i,j] != 0 :
-            pos_temp=N.innerproduct(vec,N.array([self.p['dyncen'][0]-i,self.p['dyncen'][1]-j]))
-            pos=N.concatenate((pos, pos_temp*self.scale()/1000))
-            vel=N.concatenate((vel, self[i,j]))
-      
-      return pos,vel
+
+      pos,vel=posvel(self,pa=self.p['pa']),dyncen=self.p['dyncen'])
+      return pos*self.scale()/1000
+
     
     def RCslit(self, slitname='1', outfile=None):
       """Calculate the position-velocity diagram along a slit from a velocity field.

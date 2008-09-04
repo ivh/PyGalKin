@@ -262,8 +262,28 @@ def selective_average(data,range='cat',Z=1.002912,axis=2):
     elif len(data.shape)==1: return N.average(data[zmin:zmax])
 selav=selective_average
 
+def posvel(vf,dyncen,pa):
+    vec=N.array([-N.sin(radians(pa)),N.cos(radians(pa))])
+    x,y=N.indices(vf.shape)
+             
+    pos=N.inner(vec,N.array([dyncen[0]-x,dyncen[1]-y]))
+    vel=N.flatten(vf)
+#      pos=N.flatten(N.zeros_like(vf,'Float32'))
+#      vel=N.zeros(0,'Float32')
+      
+#      for i in N.arange(vf.nx()):
+#        for j in N.arange(vf.ny()):
+#          if self[i,j] != 0 :
+#            pos[i,j]=N.innerproduct(vec,N.array([dyncen[0]-i,dyncen[1]-j]))
+#            pos[]=N.concatenate((pos, ))
+#            vel=N.concatenate((vel, self[i,j]))
+      
+    return pos,vel
 
-
+def rotcur(vf,cen,pa,incl,wedge):
+    """ calculate a rotation curve from a VF"""
+    
+    
 #########################
 ####  Cross correlation
 #########################
@@ -476,7 +496,34 @@ def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=False):
     nPixels=N.array(idl.get('nPixels'))
     
     return BinNumber, xBin, yBin, xBar, yBar, SN, nPixels
+
+def avbins2(data,BinNumber):
+    """ average the data accordng to BinNumber, but return a 1d-vector instead of the same shape as data"""
+    n=BinNumber.max()+1
+    data=data.flatten()
+    result=N.zeros(n,dtype='Float32')
+    for i in N.arange(n):
+      result[i]=N.sum(N.where(BinNumber==i,data,0.0))
+    return result
+
+def avbins3(data,BinNumber):
+    """ average the data accordng to BinNumber, but return a 1d-vector instead of the same shape as data"""
+    n=BinNumber.max()+1
+    os=data.shape
+    data=data.copy()
+    data.shape=(os[0]*os[1],os[2])
+    result=N.zeros((n,os[2]),dtype='Float32')
+    for i in N.arange(n):
+      result[i,:]=N.sum(data[N.where(BinNumber==i),:],axis=1)
+    return result
+
+def spreadbins2(data,BinNumber,shape=None):
+    if not shape: shape=(sqrt(BinNumber.shape).astype('i'),sqrt(BinNumber.shape).astype('i'))
+    result=N.zeros(shape,dtype='Float32').flatten()
+    result[where()]
     
+  
+
 def average_bins3(data,BinNumber):
     """BinNumber is of length Npix and contains for each pix the bin-number that it belongs to"""
     orig=data.copy()
