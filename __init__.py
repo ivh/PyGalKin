@@ -18,4 +18,4 @@ from Gauss import *
 from fit import *
 from tool import *
 from plot import *
-from db import *
+#from db import *

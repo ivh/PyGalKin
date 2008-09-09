@@ -196,7 +196,7 @@ class adhoc(N.ndarray):
           vel: A vector of corresponding velocities
           """
 
-      pos,vel=posvel(self,pa=self.p['pa']),dyncen=self.p['dyncen'])
+      pos,vel=posvel(self,pa=self.p['pa'],dyncen=self.p['dyncen'])
       return pos*self.scale()/1000
 
     

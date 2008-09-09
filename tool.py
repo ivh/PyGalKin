@@ -654,6 +654,9 @@ def smooth_gauss(data,sigma):
     gauss=Sig.gaussian(10*sigma,sigma)
     return Sig.convolve(data,gauss/N.sum(gauss),mode='same')
 
+def smooth_box(data,npix):
+    return Sig.convolve(data,N.ones(npix)/npix,mode='same')
+
 def fourier_CC(data,templ):
     return Sig.correlate(fft(data),fft(templ),mode='same')
 
