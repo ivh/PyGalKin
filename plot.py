@@ -171,6 +171,53 @@ def on_click_float(event):
 # END: MATPLOTLIB EVENT HANDLERS
 
 
+class inspectdata():
+    def __init__(self,data):
+        self.data=data
+        self.shape=self.data.shape
+        if len(self.data.shape)>2:
+            self.data.shape=(self.shape[0]*self.shape[1],self.shape[2])
+        self.nx=self.data.shape[0]
+        self.nz=self.data.shape[1]
+
+        self.ngauss=N.zeros(self.nx,'i')+1
+        self.cur=-1
+
+        self.gauss1=N.zeros(self.nx,'i')
+
+        self.fig1=P.figure()
+        self.fig1.canvas.mpl_connect('key_press_event',self.keyhandler)     
+        self.next()
+        
+        
+    def init1(self):
+        self.fig1.clf()
+        self.ax1=self.fig1.add_subplot(1,1,1)
+        self.ax1.set_xlabel('chanel')
+        self.ax1.set_ylabel('intensity')
+        self.ax1.set_title('Spectrum %d out of %d'%(self.cur,self.nx))
+
+    def next(self):
+        self.cur+=1
+        self.init1()
+        self.ax1.plot(self.data[self.cur,:],color='k',linestyle='steps')
+        self.fig1.canvas.draw()
+    
+    def fit(self):
+        
+
+    def keyhandler(self,event):
+        if event.key=='s':
+            print "Pick the point"
+            self.clickconn=self.fig1.canvas.mpl_connect('pick_event',self.plotpicked)
+        if event.key=='1': self.ngauss[self.cur]=1;self.next()
+        if event.key=='2': self.ngauss[self.cur]=2;self.next()
+        if event.key=='3': self.ngauss[self.cur]=3;self.next()
+        if event.key=='b': self.ngauss[self.cur]=0;self.next()
+        if event.key=='q': self.fig1.canvas.mpl_disconnect(self.clickconn)
+ 
+
+
 
 ##################################
 

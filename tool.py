@@ -11,7 +11,7 @@ import scipy as S
 import scipy.interpolate
 import scipy.ndimage
 import scipy.signal as Sig
-import matplotlib.numerix.ma as MA
+from numpy.ma import masked_where
 from scipy.ndimage import gaussian_filter1d
 from scipy.fftpack import fft
 from filtfilt import filtfilt
@@ -483,9 +483,7 @@ def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=False):
     except:
         print "something went wron while running idl"
         return -1
-    
-    
-    
+        
     # collect the output
     BinNumber=N.array(idl.get('BinNumber'))
     xBin=N.array(idl.get('xBin'))
@@ -502,9 +500,13 @@ def avbins2(data,BinNumber):
     n=BinNumber.max()+1
     data=data.flatten()
     result=N.zeros(n,dtype='Float32')
+    num=N.zeros(n,dtype='Int32')
+    sig=N.zeros(n,dtype='Float32')
     for i in N.arange(n):
       result[i]=N.sum(N.where(BinNumber==i,data,0.0))
-    return result
+      num[i]=N.sum(N.where(BinNumber==i,1,0))
+      sig[i]=masked_where(BinNumber!=i,data).std()
+    return result/num,sig,num
 
 def avbins3(data,BinNumber):
     """ average the data accordng to BinNumber, but return a 1d-vector instead of the same shape as data"""
@@ -513,14 +515,19 @@ def avbins3(data,BinNumber):
     data=data.copy()
     data.shape=(os[0]*os[1],os[2])
     result=N.zeros((n,os[2]),dtype='Float32')
+    num=N.zeros(n,dtype='Int32')
     for i in N.arange(n):
       result[i,:]=N.sum(data[N.where(BinNumber==i),:],axis=1)
-    return result
+      num[i]=N.sum(N.where(BinNumber==i,1,0))
+    return result,num
 
 def spreadbins2(data,BinNumber,shape=None):
-    if not shape: shape=(sqrt(BinNumber.shape).astype('i'),sqrt(BinNumber.shape).astype('i'))
+    if not shape: shape=(N.sqrt(BinNumber.shape).astype('i'),N.sqrt(BinNumber.shape).astype('i'))
     result=N.zeros(shape,dtype='Float32').flatten()
-    result[where()]
+    for i,bin in enumerate(BinNumber):
+      result[i]=data[bin]
+    result.shape=shape
+    return result
     
   
 
@@ -558,7 +565,6 @@ def average_bins2(data,BinNumber,prin=False):
         sig[i]=BinSigmas[BinNumber[i]]
         num[i]=BinNum[BinNumber[i]]
         
-
     data.shape=origshape
     sig.shape=origshape
     num.shape=origshape
