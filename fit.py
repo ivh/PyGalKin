@@ -275,7 +275,7 @@ def fitgaussh34(data,err=None,parinfo=None,prin=False,plot=False,quiet=True):
     try:
         fit=mpfit(gaussh34,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet)
     except OverflowError:
-        return -1
+        fit.params=array([0,0,0,0,0,0],dtype='f')
     
     if plot==True:
         P.plot(data,'r',linestyle='steps')
@@ -283,5 +283,5 @@ def fitgaussh34(data,err=None,parinfo=None,prin=False,plot=False,quiet=True):
     if prin==True:
         print fit.niter,fit.params,fit.status
     
-    return fit
+    return fit.params
 

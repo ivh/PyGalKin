@@ -459,11 +459,10 @@ class interactplot:
         self.file=open(prefix+'.dat','a')
         self.fig=P.figure(1)#,figsize=(14,10))
         
-        canvas = self.fig.canvas
-        canvas.mpl_connect('key_press_event', self.key_press_callback)
-        canvas.mpl_connect('button_press_event', self.button_press_callback)
-        self.canvas = canvas
-
+        self.canvas = self.fig.canvas
+        self.canvas.mpl_connect('key_press_event', self.key_press_callback)
+        self.canvas.mpl_connect('button_press_event', self.button_press_callback)
+        
         #first one
         self.nextone()
         

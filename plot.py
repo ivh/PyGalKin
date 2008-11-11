@@ -50,9 +50,44 @@ _sauron_data = {
             (0.833984375,0.0,0.0),
             (1.0,0.9,0.9))
     }
+_sauron_inv_data = {
+    'red': ((0.0,1.0,1.0),
+            (0.169921875,1.0,1.0),
+            (0.3359375,1.0,1.0),
+            (0.4140625,0.4,0.4),
+            (0.462890625,0.7,0.7),
+            (0.501953125,0.0,0.0),
+            (0.541015625,0.3,0.3),
+            (0.58984375,0.5,0.5),
+            (0.66796875,0.0,0.0),
+            (0.833984375,1.0,1.0),
+            (1.0,0.01,0.01)),
+    'green':((0.0,1.0,1.0),
+             (0.169921875,0.0,0.0),
+             (0.3359375,0.85,0.85),
+             (0.4140625,1.0,1.0),
+             (0.462890625,1.0,1.0),
+             (0.501953125,0.9,0.9),
+             (0.541015625,1.0,1.0),
+             (0.58984375,1.0,1.0),
+             (0.66796875,0.85,0.85),
+             (0.833984375,0.0,0.0),
+             (1.0,0.01,0.01)),
+    'blue':((0.0,1.0,1.0),
+            (0.169921875,0.0,0.0),
+            (0.3359375,0.0,0.0),
+            (0.4140625,0.0,0.0),
+            (0.462890625,0.0,0.0),
+            (0.501953125,0.0,0.0),
+            (0.541015625,0.7,0.7),
+            (0.58984375,1.0,1.0),
+            (0.66796875,1.0,1.0),
+            (0.833984375,1.0,1.0),
+            (1.0,0.01,0.01))
+    }
 
 sauron=colors.LinearSegmentedColormap('bone  ', _sauron_data, LUTSIZE)
-
+sauron_inv=colors.LinearSegmentedColormap('bone  ', _sauron_inv_data, LUTSIZE)
 
 def imshow(X, cmap=sauron, norm=None, aspect=None, interpolation='nearest', alpha=1.0, vmin=None, vmax=None, origin='lower', extent=None):
     P.imshow(N.transpose(X),cmap=cmap, norm=norm, aspect=aspect, interpolation=interpolation, alpha=alpha, vmin=vmin, vmax=vmax, origin=origin, extent=extent)
@@ -204,7 +239,7 @@ class inspectdata():
         self.fig1.canvas.draw()
     
     def fit(self):
-        
+        pass
 
     def keyhandler(self,event):
         if event.key=='s':
@@ -250,3 +285,22 @@ def plotbadpix(color='w'):
     P.plot([20,21],[10,9],color)
     P.plot([20,21],[11,10],color)
   
+
+def plotonpix(data3,data2=None,layout='argus',line='k-',range=None):
+    if not data2: data2=N.sum(data3,axis=2)
+    if layout=='argus': x=22;y=14
+    f=P.figure()
+    P.imshow(N.transpose(data2))
+    corn=P.gca().figbox.corners()
+    sx,sy=corn[0,0],corn[0,1]
+    lx,ly=corn[-1,0]-sx,corn[-1,1]-sy 
+    xl,yl=lx/x,ly/y
+    xs,ys=sx,sy
+    for i in N.arange(x):
+        for j in N.arange(y):
+            ax=P.axes([xs,ys,xl,yl],frameon=False)
+            P.setp(ax, xticks=[], yticks=[])
+            P.plot(data3[j,i,:],line)
+            ys+=yl
+        ys=sy
+        xs+=xl

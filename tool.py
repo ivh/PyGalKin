@@ -428,7 +428,7 @@ def ppxf():
 
     
 
-def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=False):
+def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=True,returnall=False):
     """ wrapper to do voronoi binning
      CAREFUL: treats 2d-data as two spatial dimensions
     """
@@ -493,7 +493,8 @@ def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=False):
     SN=N.array(idl.get('SN'))
     nPixels=N.array(idl.get('nPixels'))
     
-    return BinNumber, xBin, yBin, xBar, yBar, SN, nPixels
+    if returnall: return BinNumber, xBin, yBin, xBar, yBar, SN, nPixels
+    else: return BinNumber
 
 def avbins2(data,BinNumber):
     """ average the data accordng to BinNumber, but return a 1d-vector instead of the same shape as data"""
@@ -517,8 +518,8 @@ def avbins3(data,BinNumber):
     result=N.zeros((n,os[2]),dtype='Float32')
     num=N.zeros(n,dtype='Int32')
     for i in N.arange(n):
-      result[i,:]=N.sum(data[N.where(BinNumber==i),:],axis=1)
       num[i]=N.sum(N.where(BinNumber==i,1,0))
+      result[i,:]=N.sum(data[N.where(BinNumber==i),:],axis=1) / num[i]
     return result,num
 
 def spreadbins2(data,BinNumber,shape=None):
