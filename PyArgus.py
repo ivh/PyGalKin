@@ -412,24 +412,6 @@ def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,double=False,plot=
 
 
 
-def interpasch(data,error,velRange=None,guessV=None,PaNumb=9,prefix='intPa'):
-    #sub=data.copy()
-    #for i in range(data.shape[0]):
-    #    for j in range(data.shape[1]):
-    #        dat=data[i,j,:].copy()
-    #        err=error[i,j,:].copy()
-    #        if isconstant(dat):
-    #            print 'skipping '+str(i)+' '+str(j)
-    #            sub[i,j,:]=data[i,j,:]
-    #            continue
-    #        print 'Cuttent pixel: %s %s' % (i,j)
-    inter=interactplot(data,error,prefix=prefix,velRange=velRange,guessV=guessV,PaNumb=PaNumb)
-    P.show()
-    sub[i,j,:]=inter.data - inter.shiftscaled()
-
-    return sub
-            
-
 class interactplot:
     def __init__(self,data,error,velRange,guessV,prefix='intPa',PaNumb=9 ):
         self.odata=data
@@ -476,6 +458,7 @@ class interactplot:
             self.quit()
             
         self.currdata()
+
         if isconstant(self.data):
             print "skipping",self.i,self.j
             self.nextone()
