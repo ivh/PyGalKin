@@ -337,36 +337,38 @@ def funcAllPaschen_old(p, fjac=None, x=None, y=None, err=None, n=None,returnmode
         return([status, (y-model)/err])
 
 
-def findLine(data,double=True,velRange=None,guessV=None,restlamb=Sulfur,parinfo=None,plot=False,prin=False,quiet=True):
+def findLine(data,type='single',velRange=None,guessV=None,restlamb=Sulfur,parinfo=None,plot=False,prin=False,quiet=True):
     
     Left= vel2lamb(guessV-(velRange/2.),restlamb)
     Right= vel2lamb(guessV+(velRange/2.),restlamb)
     Left,Right=int(lamb2pix(Left,Lamb0,Step)),int(lamb2pix(Right,Lamb0,Step))
     
     relevant=data[Left:Right]
-    print relevant,Left,Right,restlamb
-    if double:
-        fit=G.fit2gauss(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
-        if fit==-1:
-            print "fit went wrong!"
-            return fit
-        PeakPos=N.argmax(G.twogauss(fit.params,x=N.arange(len(relevant)),returnmodel=True))
-    else:
+    #print relevant,Left,Right,restlamb
+    if type=='single':
         fit=G.fitgauss(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
-        if fit==-1: return fit
-        PeakPos=N.argmax(G.gauss(fit.params,x=N.arange(len(relevant)),returnmodel=True))
+    elif type=='double':
+        fit=G.fit2gauss(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
+        PeakPos=N.argmax(G.twogauss(fit.params,x=N.arange(len(relevant)),returnmodel=True))
+        D1=fit.params[1]-PeakPos
+        Z=pix2lamb(fit.params[1]+Left,Lamb0,Step) / restlamb
+    elif type=='h34':
+        fit=G.fitgaussh34(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
+    else:
+        print 'Unknown type of fit'
+        return -1
 
-    if fit.status != 1: print "findLine status:",fit.status
-    #Z=pix2lamb(PeakPos+Left) / restlamb
-    Z=pix2lamb(fit.params[1]+Left,Lamb0,Step) / restlamb
-    #print fit.params,Z,Left
-    D1=fit.params[1]-PeakPos
-    if double: D2=fit.params[4]-PeakPos
+    if fit==-1:
+        print "fit went wrong!"
+        return fit
+        
+    
+    if type=='double': D2=fit.params[4]-PeakPos
     else: D2=PeakPos
     return Z,fit.params,D1,D2
                                 
 
-def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,double=False,plot=False,parinfo=None):
+def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,type='single',plot=False,parinfo=None):
     origshape=data.shape
     if len(data.shape) == 3:
         data.shape=(origshape[0]*origshape[1],origshape[2])
@@ -375,12 +377,24 @@ def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,double=False,plot=
     Cont=N.zeros(data.shape[0],'Float32')
     Ampl=N.zeros(data.shape[0],'Float32')
     Width=N.zeros(data.shape[0],'Float32')
-    allparams=N.zeros((data.shape[0],7),'Float32')
+
+    if type=='single':
+        allparams=N.zeros((data.shape[0],4),'Float32')
+    elif type=='double':
+        allparams=N.zeros((data.shape[0],7),'Float32')
+    elif type=='h34':
+        allparams=N.zeros((data.shape[0],6),'Float32')
+    else:
+        print 'Unknown type of fit'
+        return -1
+
+
     for i in N.arange(len(EmVF)):
         
-        results=findLine(data[i,:],restlamb=restlamb,velRange=velRange,guessV=guessV,double=double,plot=plot,parinfo=parinfo)
+        results=findLine(data[i,:],restlamb=restlamb,velRange=velRange,guessV=guessV,type=type,plot=plot,parinfo=parinfo)
         if results==-1:
-            Z,params,D1,D2=0.0,N.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0]),0.0,0.0
+            Z,params,D1,D2=0.0,\
+                N.array([0.0,0.0,0.0,0.0]),0.0,0.0
         else:
             Z,params,D1,D2=results
 
@@ -407,250 +421,12 @@ def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,double=False,plot=
     
     #print data.shape,EmVF.shape
     #P.matshow(EmVF)
-    #return EmVF,Width,Ampl,Cont
-    return allparams
+    if type=='single': return EmVF,Width,Ampl,Cont
+    else: return allparams
 
 
 
-class interactplot:
-    def __init__(self,data,error,velRange,guessV,prefix='intPa',PaNumb=9 ):
-        self.odata=data
-        self.oerror=error
-        self.velRange=velRange
-        self.guessV=guessV
-        self.prefix=prefix
-        self.i=-1
-        self.j=0
-        self.tiltfac=0.0
-        self.flag=0
-        self.x=data.shape[0]
-        self.y=data.shape[1]
-        #print self.x,self.y
-        
-        #self.double=double
-        self.PaNumb=PaNumb
-        self.osn=self.odata/self.oerror
-        self.step=0.1
-        self.fact=1.0
-        self.shift=0
 
-        if exists(prefix+'.pick'): self.subtracted=load(prefix+'.pick')
-        else: self.subtracted=N.zeros(data.shape,'Float32')
-
-        self.currdata()
-        self.file=open(prefix+'.dat','a')
-        self.fig=P.figure(1)#,figsize=(14,10))
-        
-        self.canvas = self.fig.canvas
-        self.canvas.mpl_connect('key_press_event', self.key_press_callback)
-        self.canvas.mpl_connect('button_press_event', self.button_press_callback)
-        
-        #first one
-        self.nextone()
-        
-    def nextone(self):
-        if self.i+1 < self.x: self.i +=1
-        elif self.j+1 < self.y:
-            self.i=0
-            self.j +=1
-        else:
-            print "DONE!"
-            self.quit()
-            
-        self.currdata()
-
-        if isconstant(self.data):
-            print "skipping",self.i,self.j
-            self.nextone()
-        elif not isconstant(self.subtr):
-            print "This one has already been subtracted."
-            get=raw_input('Redo (y/N): ')
-            if get != 'y': self.nextone()
-            else: self.startover()
-        else:
-            self.startover()
-
-    def update(self):
-        self.currdata()
-        self.measurePa()
-        self.makesynt()
-        self.plot()
-
-    def currdata(self):
-        self.data=self.odata[self.i,self.j,:]
-        self.error=self.oerror[self.i,self.j,:]
-        self.sn=self.osn[self.i,self.j]
-        self.subtr=self.subtracted[self.i,self.j,:]
-
-    def save(self):
-        dump(self.subtracted,self.prefix+'.pick')
-        self.file.write('%s %s %s %s %s %s %s\n'%(self.i,self.j,self.PaNumb,self.fact,self.shift,self.tiltfac, self.flag))
-        
-    def choosepix(self):
-        self.i=int(raw_input('i: '))
-        self.j=int(raw_input('j: '))
-        self.update()
-
-    def makesynt(self):
-        if self.PaNumb == 8:
-            self.osynt=createPaschenSul(self.data+1,velRange=self.velRange,guessV=self.guessV,plotfit=False)
-        else:
-            self.osynt=createPaschen(self.data+1,double=True,velRange=self.velRange,guessV=self.guessV,PaNumb=self.PaNumb,plotfit=False)
-        self.synt=self.osynt.copy()
- 
-        
-    def measurePa(self):
-        params=fitAllPaschen_old(self.data,self.error,velRange=self.velRange,guessV=self.guessV,plot=False,prin=False)
-        #print params
-        self.paparams=params
-        
-
-    def shiftscaled(self):
-        return shift(self.synt,self.shift)*self.fact * self.tilt()
-
-    def tilt(self):
-        return N.ones(len(self.data),'Float32') + (self.tiltfac *N.arange(-1.,1.,2.0/len(self.data)))
-        
-    def accept(self):
-        self.subtracted[self.i,self.j,:]=self.data - self.shiftscaled()
-        self.save()
-        self.nextone()
-
-    def quit(self):
-        self.file.close()
-        P.close(self.fig)
-
-    def reject(self):
-        self.file.write('%s %s %s\n'%(self.i,self.j,'R'))
-        self.nextone()
-    
-    def startover(self):
-        #self.fact=1.0
-        #self.shift=0
-        self.flag=0
-        #self.tiltfac=0.0
-        self.update()
-        
-
-    def chooseline(self,key):
-        self.PaNumb=int(key)
-        if self.PaNumb < 8: self.PaNumb +=10
-        self.update()
-
-    def smooth(self):
-        pass
-
-    def toggleflag(self):
-        if self.flag == 0: self.flag = 1
-        else: self.flag = 0
-        self.accept()
-        
-    def key_press_callback(self,event):
-        
-        if event.key == '+': self.fact += self.step
-        elif event.key == '-': self.fact -= self.step 
-        elif event.key == 'l': self.shift -= 1
-        elif event.key == 'r': self.shift += 1
-        elif event.key == 's': self.smooth()
-        elif event.key == 'o': self.startover()
-        elif event.key == 'a': self.accept()
-        elif event.key == 'x': self.reject()
-        elif event.key == 'c': self.choosepix()
-        elif event.key == 'q': self.quit()
-        elif event.key == 'u': self.update()
-        elif event.key == 'b': self.toggleflag()
-        elif event.key == 'm': self.tiltfac += 0.1
-        elif event.key == 'n': self.tiltfac -= 0.1
-        
-        
-        elif event.key in '0123456789': self.chooseline(event.key)
-        else: print "Unknown key pressed, doing nothing"
-        self.plot()
-        
-    def plot(self):
-        self.fig.clf()
-        #print 'currently at %s %s'%(self.i,self.j)
-        # Around CaT
-        ax=P.axes([0.02,0.68,0.70,0.27])
-        P.setp(ax,xticks=[], yticks=[])
-        plotspec(self.shiftscaled(),style='-b')
-        plotspec(self.data,style='-k')
-        plotspec(self.data-self.shiftscaled(),style='-r',vminmax='sigbased',Z=vel2z(self.guessV),plotlines=True)
-        
-        P.title('CaT and Pa 13, 14, 15, 16')
-        
-        # SIII
-        ax=P.axes([0.74,0.68,0.23,0.27])
-        self.plotaroundline(Sulfur)
-        P.setp(ax,xticks=[], yticks=[])
-        P.title('S[III]')
-
-        ## Pa 9
-        #ax=P.axes([0.02,0.35,0.23,0.27])
-        #self.plotaroundline(PaLamb(9))
-        #P.setp(ax,xticks=[], yticks=[])
-        #P.title('Pa 9')
-        ## Pa 10
-        ax=P.axes([0.26,0.35,0.23,0.27])
-        self.plotaroundline(PaLamb(10))
-        P.setp(ax,xticks=[], yticks=[])
-        P.title('Pa 10')
-        ## Pa 11
-        ax=P.axes([0.50,0.35,0.23,0.27])
-        self.plotaroundline(PaLamb(11))
-        P.setp(ax,xticks=[], yticks=[])
-        P.title('Pa 11')
-        ## Pa 12
-        ax=P.axes([0.74,0.35,0.23,0.27])
-        self.plotaroundline(PaLamb(12))
-        P.setp(ax,xticks=[], yticks=[])
-        P.title('Pa 12')
-        
-        ## Pa 17
-        ax=P.axes([0.02,0.02,0.23,0.27])
-        self.plotaroundline(PaLamb(17))
-        P.setp(ax,xticks=[], yticks=[])
-        P.title('Pa 17')
-        
-        ## PaStren Ratio
-        ax=P.axes([0.28,0.02,0.23,0.27])
-        lines=N.array([10,11,12,14,17])
-        meas=N.zeros(len(lines),'Float32')
-        j=0
-        for i in N.arange(5)*2 + 3:
-            meas[j]=self.paparams[i]
-            j+=1
-            
-        ratio=meas / PaschStren[19-lines]
-        P.plot(lines[::-1],ratio/ratio[-2],'bo')
-        P.setp(ax,xticks=[9,10,11,12,14,17])
-        P.title('Pa Strength Ratio')
-
-        ## values
-        ax=P.axes([0.86,0.02,0.10,0.27])
-        
-        P.text(0.1,0.9,'S/N: '+str(self.sn.mean()),transform = ax.transAxes)
-        P.text(0.1,0.8,'X: %s  Y: %s'%(self.i,self.j),transform = ax.transAxes)
-        P.text(0.1,0.7,'PaNumb: %s'%(self.PaNumb,),transform = ax.transAxes)
-        P.text(0.1,0.6,'Tilt %s'%(self.tiltfac,),transform = ax.transAxes)
-        P.text(0.1,0.5,'Fact: %s'%(self.fact),transform = ax.transAxes)
-        P.text(0.1,0.4,'Shift: %s'%(self.shift),transform = ax.transAxes)
-        P.text(0.1,0.3,'Flag: %s'%(self.flag),transform = ax.transAxes)
-        
-        P.setp(ax,xticks=[], yticks=[])
-        P.title('Some Values')
-        
-        self.canvas.draw()
-
-    def plotaroundline(self,lamb):
-        region=[vel2lamb(-self.velRange /2.,lamb),vel2lamb(self.velRange /2.,lamb)]
-        #print lamb,region, self.velRange, self.guessV
-        plotspec(self.shiftscaled(),region=region,style='r',linestyle='steps')
-        plotspec(self.data,region=region,style='k',linestyle='steps')
-
-    def button_press_callback(self,event):
-        pass
-        
 def createPa(paschenparam,Z,double,PaNumb,D1=0.0,D2=0.0):
     Pasch=Paschen * Z
 
@@ -676,7 +452,7 @@ def createPa(paschenparam,Z,double,PaNumb,D1=0.0,D2=0.0):
     return SynthSpec
 
 
-def createPaschen(data,double=True,velRange=None,guessV=None,plot=False,plotfit=False,PaNumb=9):
+def createPaschen(data,double=True,velRange=None,guessV=None,plot=False,plotfit=False,PaNumb=10):
     fitresults=findLine(data,double=double,velRange=velRange,guessV=guessV,restlamb=PaLamb(PaNumb),plot=plotfit)
     #print fitresults
     if fitresults==-1:
@@ -693,7 +469,7 @@ def createPaschen(data,double=True,velRange=None,guessV=None,plot=False,plotfit=
     
     return SynthSpec
 
-def createPaschenSul(data,velRange=None,guessV=None,plot=False,plotfit=False,PaNumb=9):
+def createPaschenSul(data,velRange=None,guessV=None,plot=False,plotfit=False,PaNumb=10):
 
     
     fitresults=findLine(data,velRange=velRange,guessV=guessV,plot=plotfit)
@@ -724,7 +500,8 @@ def createPaschenSul(data,velRange=None,guessV=None,plot=False,plotfit=False,PaN
 
     parinfo[6]['value']=fitpara[6]
     parinfo[6]['fixed']=1
-
+    
+    print "second fit"
     fitresults=findLine(data,velRange=velRange,guessV=z2vel(Z),restlamb=PaLamb(PaNumb),parinfo=parinfo,plot=plotfit)
     if fitresults==-1:
         return N.zeros(SpecLen,'Float32')

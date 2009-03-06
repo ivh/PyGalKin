@@ -149,7 +149,6 @@ def fitgauss(data,err=None,parinfo=None,prin=False,plot=False,quiet=True):
         parinfo[3]['limits']=[0.0,len(data)/2.]
         
 
-    #print parinfo
     try:
         fit=mpfit(gauss,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet)
     except OverflowError:
@@ -208,7 +207,7 @@ def fit2gauss(data,parinfo=None,plot=False,prin=False,quiet=True,fitfunc=None):
         parinfo[4]['value']+=len(data)/2
       
 
-    #print data,x,err,p0,fa,parinfo
+    print data,x,err,parinfo
     if fitfunc==None: fitfunc=twogauss
     try:
         fit=mpfit(fitfunc,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet)

@@ -149,9 +149,11 @@ def plotspec(data,region=None,plotlines=False,Z=1.0206,style=False,linestyle='st
         region=[8470,8700]
     if region != None:
         relevant=data[lamb2pix(region[0]*Z,Lamb0,Step):lamb2pix(region[1]*Z,Lamb0,Step)]
-        if vminmax=='sigbased': vmin,vmax=([-1,1]*0.2*relevant.std())+relevant.mean(); print 'huhuuu'
+        if vminmax=='sigbased': 
+            vmax=relevant.mean() + 4*relevant.std()
+            vmin=relevant.mean() - 4*relevant.std()
         else: vmin,vmax=relevant.min(),relevant.max()
-        P.axis([region[0]*Z,region[1]*Z,vmin,vmax])
+        P.axis([float(region[0]*Z),float(region[1]*Z),vmin,vmax])
     
     else: pass
 

@@ -25,8 +25,8 @@ import PyGalKin as G
 import PyCigale as C
 
 from math import pi,e,radians
+from time import sleep
 
-#from pyIDL import idl as IDL
 
 # SHORTCUTS
 #
@@ -328,7 +328,7 @@ def xcorr(galaxy,star,filtgal=False,filtstar=None,range=N.array([700,1300]),bary
             gal=bandfilt(gal)
         
         xc=Sig.correlate(gal,star,'same')
-        #if plot: P.clf(); P.plot(xc); sleep(3);P.clf()
+        if plot: P.clf(); P.plot(xc); sleep(3);P.clf()
         if plot: sleep(4);P.clf()
         xc=xc[fitl:fitr]
         fit=G.fitgaussh34(xc+1.0,err=1/xc,plot=plot,prin=True)
@@ -425,7 +425,7 @@ def ppxf():
     #;       BESTFIT=bestFit, BIAS=bias, /CLEAN, DEGREE=degree, ERROR=error, $
     #;       GOODPIXELS=goodPixels, MDEGREE=mdegree, MOMENTS=moments, $
     #;       /OVERSAMPLE, /PLOT, /QUIET, VSYST=vsyst, WEIGHTS=weights
-
+    
     
 
 def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=True,returnall=False):
