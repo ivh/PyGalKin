@@ -254,7 +254,109 @@ class inspectdata():
         if event.key=='q': self.fig1.canvas.mpl_disconnect(self.clickconn)
  
 
+class rotcur_int():
+    def __init__(self,vf,cen=False,pa=90.0,wedge=10.0,incl=45.0,rbin=1.0):
+        if not cen: cen=N.array(vf.shape)/2.0
+        self.vf=vf
+        self.cen=N.array(cen)
+        self.pa=pa
+        self.wedge=wedge
+        self.incl=incl
+        self.rbin=rbin
 
+        self.fig=P.figure(1)
+        self.canvas=self.fig.canvas
+        self.ax1=self.fig.add_subplot(2,2,1)
+        self.ax2=self.fig.add_subplot(2,1,2)
+        self.ax3=self.fig.add_subplot(2,2,2)
+        
+        self.canvas.mpl_connect('key_press_event',self.keyhandler)
+        self.canvas.mpl_connect('button_press_event',self.mousehandler)
+        
+        self.flip=True
+        self.showindiv=True
+        
+        self.update()
+
+    def update(self):
+        self.ax1.clear()
+        self.ax2.clear()
+        self.ax3.clear()
+        self.calc()
+        self.plot()
+        self.canvas.draw()
+
+    def plot(self):
+        self.ax1.imshow(N.transpose(self.vf),interpolation='nearest',origin='lower',cmap=sauron)
+        vec=N.array([-N.sin(N.radians(self.pa)),N.cos(N.radians(self.pa))])
+        len=15
+        x=[self.cen[0]-len*vec[0],self.cen[0]+len*vec[0]]
+        y=[self.cen[1]-len*vec[1],self.cen[1]+len*vec[1]]
+        self.ax1.plot(x,y,'-k')
+        vec=N.array([-N.sin(N.radians(self.pa - self.wedge)),N.cos(N.radians(self.pa - self.wedge))])
+        x=[self.cen[0]-len*vec[0],self.cen[0]+len*vec[0]]
+        y=[self.cen[1]-len*vec[1],self.cen[1]+len*vec[1]]
+        self.ax1.plot(x,y,'--k')
+        vec=N.array([-N.sin(N.radians(self.pa+self.wedge)),N.cos(N.radians(self.pa+self.wedge))])
+        x=[self.cen[0]-len*vec[0],self.cen[0]+len*vec[0]]
+        y=[self.cen[1]-len*vec[1],self.cen[1]+len*vec[1]]
+        self.ax1.plot(x,y,'--k')
+        self.ax1.axis([-0.5,self.vf.shape[0]-0.5,-0.5,self.vf.shape[1]-0.5])
+
+        if self.showindiv:
+            self.ax2.plot(self.r1,self.v1,'r1')
+            self.ax2.plot(self.r2,self.v2,'g1')
+        self.ax2.errorbar(self.rr,self.vr,self.sr,fmt='go')
+        self.ax2.errorbar(self.rl,self.vl,self.sl,fmt='ro')
+        self.ax2.grid(alpha=0.2,ls='--')
+
+        self.ax3.text(0.05,0.9,'cen: %.1f %.1f'%(self.cen[0],self.cen[1]))
+        self.ax3.text(0.05,0.8,'pa: %d'%self.pa)
+        self.ax3.text(0.05,0.7,'wedge: %d'%self.wedge)
+        self.ax3.text(0.05,0.6,'incl: %d'%self.incl)
+        self.ax3.text(0.05,0.5,'rbin: %.1f'%self.rbin)
+        self.ax3.text(0.05,0.4,'vsys: %.1f'%self.vsys)
+        self.ax3.set_xticks([])
+        self.ax3.set_yticks([])
+        
+
+    def calc(self):
+        self.r1,self.r2,self.v1,self.v2=\
+            rotcur(self.vf,self.cen,self.pa,\
+                       self.wedge,self.incl)
+        self.rl,self.vl,self.sl=binRC(self.r1,self.v1,self.rbin)
+        self.rr,self.vr,self.sr=binRC(self.r2,self.v2,self.rbin)
+        if self.flip:
+            self.rl*=-1
+            self.r1*=-1
+        else:
+            self.vl*=-1
+            self.v1*=-1
+        
+        self.vsys=self.vf[self.cen[0],self.cen[1]]
+
+    def keyhandler(self,event):
+        if event.key=='c': self.pa+=2; self.update()
+        elif event.key=='v': self.pa-=2; self.update()
+        elif event.key=='i': self.incl+=5; self.update()
+        elif event.key=='o': self.incl-=5; self.update()
+        elif event.key=='w': self.wedge+=5; self.update()
+        elif event.key=='e': self.wedge-=5; self.update()
+        elif event.key=='b': self.rbin*=1.5; self.update()
+        elif event.key=='n': self.rbin/=1.5; self.update()
+        elif event.key=='l': self.flip=not self.flip; self.update()
+        elif event.key=='k': self.showindiv=not self.showindiv; self.update()
+        elif event.key=='left': self.cen[0]-=1; self.update()
+        elif event.key=='right': self.cen[0]+=1; self.update()
+        elif event.key=='up': self.cen[1]+=1; self.update()
+        elif event.key=='down': self.cen[1]-=1; self.update()
+        else: pass#print event.key
+
+     
+
+    def mousehandler(self,event):
+        self.cen=N.array([event.xdata,event.ydata])
+        self.update()
 
 ##################################
 

@@ -272,8 +272,8 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
       #print 'Error: '+str(error)
 
   print 'Fitting finished.'
-  temp3.shape=(-1,14)
-  temp2[points]=temp3
+  #temp3.shape=(-1,14)
+  #temp2[points]=temp3
   
   # Set all other points to a zero-gauss
   if (len(nopoints) > 0):
@@ -590,7 +590,7 @@ def gauss_from_array(arr, double=False, try_double=False, do_shift=False):
     else:
       shift_i = int(arr.size/2-arr.argmax())
     
-    arr = P.shift(arr, shift_i)
+    arr = shift(arr, shift_i)
     x01 = x01 + shift_i
     if double:
       x02 = x02 + shift_i

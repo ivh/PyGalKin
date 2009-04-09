@@ -11,7 +11,7 @@ import scipy as S
 import scipy.interpolate
 import scipy.ndimage
 import scipy.signal as Sig
-from numpy.ma import masked_where
+from numpy.ma import masked_where,masked_array,mask_or
 from scipy.ndimage import gaussian_filter1d
 from scipy.fftpack import fft
 from filtfilt import filtfilt
@@ -106,7 +106,7 @@ def massKepler(r,v):
    input in pc and km/s
    mind the factors 1/2 !!
   """
-  return ((v/2)**2)*(r/2)*pc/G
+  return ((v/2)**2)*(r/2)*pc/Grav
 
 def lamb2vel(l):
   """ converts a wavelength in A wrt HA into a radial velocity """
@@ -280,8 +280,83 @@ def posvel(vf,dyncen,pa):
       
     return pos,vel
 
-def rotcur(vf,cen,pa,incl,wedge):
+def m2masks(angmap,pa,wedge):
+    pa2=pa+pi
+    mask1=angmap < pa-wedge
+    if pa-wedge<0:
+      mask1=mask_or(mask1, (angmap < 2*pi+pa-wedge) & (angmap>pi))
+      mask1=mask_or(mask1, (angmap > pa+wedge) & (angmap<pi))
+    else:
+      mask1=mask_or(mask1, angmap > pa+wedge)
+    
+    mask2=angmap > pa2+wedge
+    if pa2+wedge>2*pi:
+      mask2=mask_or(mask2, (angmap > pa2-2*pi+wedge) & (angmap<pi))
+      mask2=mask_or(mask2, (angmap < pa2-wedge) & (angmap>pi))
+    else:
+      mask2=mask_or(mask2, angmap < pa2-wedge)
+    
+    return mask1,mask2
+
+def Angmap(x,y,pa):
+    angmap=N.arctan(x/y)*(-1)
+    angmap=N.where(y<0.0,angmap+pi,angmap)
+    angmap=N.where(angmap<0.0,angmap+(2*pi),angmap)
+    angmap-=pa
+    angmap=N.where(angmap<0.0,angmap+(2*pi),angmap)
+    angmap=N.where(N.isnan(angmap),pi,angmap)
+    return angmap
+
+def Dismap(x,y,pa,incl):
+    vec=N.array([-N.sin(pa),N.cos(pa)])
+    perp=N.array([N.cos(pa),N.sin(pa)])
+    perp/=N.cos(incl)
+    d1=(x*vec[0])+(y*vec[1])
+    d2=(x*perp[0])+(y*perp[1])
+    return N.sqrt(d1**2 + d2**2)
+
+
+def binRC(rin,vin,rbin=1.0):
+    n=N.ceil(rin.max()/rbin)
+    R=(N.arange(n))*rbin
+    V=N.zeros_like(R)
+    S=N.zeros_like(R)
+    for i,r in enumerate(R):
+      vt=masked_where((rin<r)|(rin>r+rbin),vin)
+      V[i]=vt.mean()
+      S[i]=vt.std()
+      
+    return R+(rbin/2.0),V,S
+
+def rotcur(vf,cen,pa,wedge,incl):
     """ calculate a rotation curve from a VF"""
+    while pa < 0.0: pa+=180.0
+    while pa >= 180.0: pa-=180.0
+    pa,wedge,incl=map(N.radians,(pa,wedge,incl))
+    x,y=G.getXY(vf)
+    x.shape=vf.shape
+    y.shape=vf.shape
+    x=x.astype('f') - cen[0]
+    y=y.astype('f') - cen[1]
+    
+    angmap=Angmap(x,y,pa)
+    dismap=Dismap(x,y,pa,incl)
+
+    vf=vf.copy()
+    vf-=vf[cen[0],cen[1]]
+    vf=vf/N.abs(N.cos(angmap))/N.sin(incl)
+    
+    #mask1,mask2=m2masks(angmap,pa,wedge)
+    mask1=(angmap>wedge) & (angmap<2*pi-wedge)
+    mask2=mask_or(angmap<pi-wedge,angmap>pi+wedge,copy=True)
+    r1=masked_array(dismap,mask1).flatten()
+    r2=masked_array(dismap,mask2).flatten()
+    v1=masked_array(vf,mask1).flatten()
+    v2=masked_array(vf,mask2).flatten()
+    
+    #return vf,masked_array(N.cos(angmap),mask1&mask2)
+    return r1,r2,v1,v2
+    
     
     
 #########################
@@ -786,6 +861,21 @@ def intdegrade(data,n,method=N.average):
         #print i,j,data[i*n:(i+1)*n,j*n:(j+1)*n]
         erg[i,j]=method(data[i*n:(i+1)*n,j*n:(j+1)*n])
     
+    return erg
+
+def intdegradespec(data,n,method=N.average):
+    """ decrease resolution of spectra by an integer number"""
+    nx,ny,nz=data.shape
+    x=N.arange(nx)
+    y=N.arange(ny)
+    z=N.arange(nz//n)
+    erg=N.zeros((nx,ny,nz//n),dtype='f')
+    print erg.shape
+    for i in x:
+      for j in y:
+        for k in z:
+          erg[i,j,k]=method(data[i,j,k*n:(k+1)*n])
+          #print method(data[i,j,k*n:(k+1)*n]),erg[i,j,k]
     return erg
 
 

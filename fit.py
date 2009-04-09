@@ -9,6 +9,14 @@ from mpfit import mpfit
 
 from tool import *
 
+## wrappers before fit:
+def shiftnfit(data,fitfunc):
+    s=int(data.size/2-data.argmax())
+    dat=shift(data,s)
+    fit=fitfunc(dat)
+    return N.concatenate((fit,N.array([s])))
+
+
 ## FUNCTIONS TO FIT
 
 def gauss(p, fjac=None, x=None, y=None, err=None, returnmodel=False):
@@ -277,6 +285,7 @@ def fitgaussh34(data,err=None,parinfo=None,prin=False,plot=False,quiet=True):
         fit.params=array([0,0,0,0,0,0],dtype='f')
     
     if plot==True:
+        P.clf()
         P.plot(data,'r',linestyle='steps')
         P.plot(gaussh34(fit.params,x=N.arange(len(data)),returnmodel=True),'b')
     if prin==True:

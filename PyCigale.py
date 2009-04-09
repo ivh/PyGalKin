@@ -179,11 +179,11 @@ class adhoc(N.ndarray):
       outarr.p['dyncen']=outarr.p['cen']+(self.p['dyncen']-self.p['cen'])
       return outarr
     
-    def maskwith(self,Mask,lower=None,upper=None,value=0):
+    def mask(self,cond):
       """ wrapper for mask-funktion
           works inplace!
       """
-      mask(self,Mask,lower,upper,value)
+      self=masked_where(cond,self)
     
    
     def PVdiag(self):
@@ -451,9 +451,6 @@ def LPfilter_vf(data):
   return temp
 
 
-def fixsaturation():
-    """ Henize 2-10 is saturated. The idea is to fit the wings only to recover the data """
-    pass
 
 #
 # END: TOOLS

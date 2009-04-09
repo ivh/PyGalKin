@@ -344,39 +344,25 @@ def findLine(data,type='single',velRange=None,guessV=None,restlamb=Sulfur,parinf
     Left,Right=int(lamb2pix(Left,Lamb0,Step)),int(lamb2pix(Right,Lamb0,Step))
     
     relevant=data[Left:Right]
-    #print relevant,Left,Right,restlamb
+    print relevant,Left,Right,restlamb
     if type=='single':
         fit=G.fitgauss(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
     elif type=='double':
         fit=G.fit2gauss(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
-        PeakPos=N.argmax(G.twogauss(fit.params,x=N.arange(len(relevant)),returnmodel=True))
-        D1=fit.params[1]-PeakPos
-        Z=pix2lamb(fit.params[1]+Left,Lamb0,Step) / restlamb
+        
     elif type=='h34':
         fit=G.fitgaussh34(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
     else:
         print 'Unknown type of fit'
         return -1
 
-    if fit==-1:
-        print "fit went wrong!"
-        return fit
-        
-    
-    if type=='double': D2=fit.params[4]-PeakPos
-    else: D2=PeakPos
-    return Z,fit.params,D1,D2
-                                
+    return fit
+                            
 
 def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,type='single',plot=False,parinfo=None):
     origshape=data.shape
     if len(data.shape) == 3:
         data.shape=(origshape[0]*origshape[1],origshape[2])
-
-    EmVF=N.zeros(data.shape[0],'Float32')
-    Cont=N.zeros(data.shape[0],'Float32')
-    Ampl=N.zeros(data.shape[0],'Float32')
-    Width=N.zeros(data.shape[0],'Float32')
 
     if type=='single':
         allparams=N.zeros((data.shape[0],4),'Float32')
@@ -389,40 +375,17 @@ def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,type='single',plot
         return -1
 
 
-    for i in N.arange(len(EmVF)):
+    for i in N.arange(data.shape[0]):
         
         results=findLine(data[i,:],restlamb=restlamb,velRange=velRange,guessV=guessV,type=type,plot=plot,parinfo=parinfo)
-        if results==-1:
-            Z,params,D1,D2=0.0,\
-                N.array([0.0,0.0,0.0,0.0]),0.0,0.0
-        else:
-            Z,params,D1,D2=results
-
-        #print params.shape
-        allparams[i,:]=params
-        EmVF[i]=Z
-        Cont[i]=params[0]
-        if len(params)==4:
-            Ampl[i]=params[2]
-            Width[i]=params[3]
-        else:
-            Ampl[i]=params[2]+params[5]
-        #print i,EmVF[i]
-    
+        allparams[i,:]=results
+        
     data.shape=origshape
-    EmVF=z2vel(EmVF)
-    Width=pix2relvel(Width,restlamb,Step)
-    #print EmVF.shape, origshape
-    EmVF.shape=(origshape[0],origshape[1])
-    Ampl.shape=(origshape[0],origshape[1])
-    Cont.shape=(origshape[0],origshape[1])
-    Width.shape=(origshape[0],origshape[1])
     allparams.shape=(origshape[0],origshape[1],-1)
     
     #print data.shape,EmVF.shape
     #P.matshow(EmVF)
-    if type=='single': return EmVF,Width,Ampl,Cont
-    else: return allparams
+    return allparams
 
 
 
