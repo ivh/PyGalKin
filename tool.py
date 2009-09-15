@@ -45,7 +45,7 @@ null='\0'
 lambHA=N.array([6562.7797852000003],'Float32')
 sol=N.array([299792.458],'Float32')
 c=sol
-H0=N.array([72.],'Float32')
+H0=N.array([70.],'Float32')
 Grav=N.array([6.6726E-11*1.989E30/1000**3],'Float32') ### in solar masses and km
 pc=N.array([3.086E13],'Float32') ## in km
 
@@ -108,9 +108,9 @@ def massKepler(r,v):
   """
   return ((v/2)**2)*(r/2)*pc/Grav
 
-def lamb2vel(l):
+def lamb2vel(l,rest=lambHA):
   """ converts a wavelength in A wrt HA into a radial velocity """
-  return ((l/lambHA)-1)*sol
+  return ((l/rest)-1)*sol
 
 def flux2mag(f):
   return -2.5*(M.log10(f))
@@ -179,6 +179,13 @@ def vel2z(vel):
 
 def z2vel(z):
     return (z-1)*c
+
+def vel2dis(v):
+    return v/H0
+
+def scalefromvarc(arcsecperpix,v):
+    """ returns pc/pix"""
+    return arcsecperpix/3600/360*2*pi * vel2dis(v)*1E6
 
 def isconstant(data):
     return S.std(data)==0.0
@@ -797,7 +804,7 @@ def degrade(data,factor=4.25,quadratic=False):
     return degr
 
 def degradeall(data,factor=4.25,quadratic=False):
-    origshape=copy(data.shape)
+    origshape=data.shape
     if len(data.shape) == 3:
         data.shape=(origshape[0]*origshape[1],origshape[2])
 

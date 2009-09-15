@@ -12,7 +12,7 @@ from tool import *
 class adhoc(N.ndarray):
     """ docstringtest"""
     def __new__(subtype, data, p=None, dtype=None, copy=False):
-      print "__new__ received %s" % type(data)
+      #print "__new__ received %s" % type(data)
       # Make sure we are working with an array, and copy the data if requested
       subarr = N.array(data, dtype=dtype, copy=copy)
 
@@ -111,7 +111,7 @@ class adhoc(N.ndarray):
     
     def distance(self):
       """ returns the distance (Mpc) to the object using Hubble's law"""
-      return self.p['vr0']/H0
+      return vel2dis(self.p['vr0'])
   
     def helioc(self):
       """ return the value for helocentric correction"""
@@ -119,7 +119,7 @@ class adhoc(N.ndarray):
     
     def scale(self):
       """returns the physical scale for the object (pc/pix) """
-      return self.p['echelle']/3600/360*2*pi * self.distance()*1E6
+      return scalefromvarc(self.p['echelle'],self.p['vr0'])
     
     def M(self,m=None):
       """ returns absolute magnitute"""

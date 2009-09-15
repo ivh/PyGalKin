@@ -40,10 +40,10 @@ dimY=14
 
 #skyregion=N.array([8750,8800])
 #skyregion=N.array([8860,8910])
-#skyregion=N.array([8810,8876]) used for He 2-10
+skyregion=N.array([8810,8876]) #used for He 2-10
 
 #haro 11
-skyregion=N.array([8865,8925])
+#skyregion=N.array([8865,8925])
 
 
 
@@ -232,11 +232,12 @@ def PaModel(p, fjac=None, x=None, y=None, err=None, returnmodel=False):
     
     model=N.zeros(len(x),'Float32')+1.0
     print p
-    PaNumbers=N.array([10,11,12,14,17])
+    PaNumbers=N.array([10,11,12,13,14,15,16,17])
     PaLa=PaLamb(PaNumbers)*p[0]
     for i in N.arange(len(PaLa)):
-        para=[0.0,lamb2pix(PaLa[i]),p[-6+i],p[1]]
-        model+=gauss(para,x=x,returnmodel=True)
+        para=[0.0,PaLa[i],p[-8+i],p[1]]
+        #para=[0.0,lamb2pix(PaLa[i],Lamb0,Step),p[-8+i],p[1]]
+        model+=G.gauss(para,x=x,returnmodel=True)
 
     if returnmodel==True:
         return model
@@ -415,13 +416,14 @@ def createPa(paschenparam,Z,double,PaNumb,D1=0.0,D2=0.0):
     return SynthSpec
 
 
-def createPaschen(data,double=True,velRange=None,guessV=None,plot=False,plotfit=False,PaNumb=10):
-    fitresults=findLine(data,double=double,velRange=velRange,guessV=guessV,restlamb=PaLamb(PaNumb),plot=plotfit)
-    #print fitresults
+def createPaschen(data,type='double',velRange=None,guessV=None,plot=False,plotfit=False,PaNumb=10):
+    fitresults=findLine(data,type=type,velRange=velRange,guessV=guessV,restlamb=PaLamb(PaNumb),plot=plotfit)
+
     if fitresults==-1:
         return N.zeros(SpecLen,'Float32')
     else:
-        Z,paschenparam,D1,D2=fitresults
+        fit=fitresults.params
+        print fit
 
     SynthSpec=createPa(paschenparam,Z,D1=0.0,D2=0.0,double=double,PaNumb=PaNumb)
     

@@ -43,7 +43,12 @@ def fromPAR(p,filename):
     elif line[0] == 'monocuts':  p['monocuts']=N.array([int(line[1]),int(line[2])])
     elif line[0] == 'contcuts':  p['contcuts']=N.array([int(line[1]),int(line[2])])
     elif line[0] == 'velcuts':  p['velcuts']=N.array([int(line[1]),int(line[2])])
+    elif line[0] == 'sigcuts':  p['sigcuts']=N.array([int(line[1]),int(line[2])])
     elif line[0] == 'minmask':  p['minmask']=float(line[1])
+    elif line[0] == 'incl':  p['incl']=float(line[1])
+    elif line[0] == 'wedge':  p['wedge']=float(line[1])
+    elif line[0] == 'gid':  p['gid']=line[1]
+    
 
 def toPAR(inarr,filename=None):
   """ writing my own parameter file with relevant parameters """

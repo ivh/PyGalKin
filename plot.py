@@ -93,6 +93,23 @@ def imshow(X, cmap=sauron, norm=None, aspect=None, interpolation='nearest', alph
     P.imshow(N.transpose(X),cmap=cmap, norm=norm, aspect=aspect, interpolation=interpolation, alpha=alpha, vmin=vmin, vmax=vmax, origin=origin, extent=extent)
 
 
+
+def noticks():
+  P.setp(P.gca(),'xticks',[])
+  P.setp(P.gca(),'yticks',[])
+
+def plotscale(p,left=0.65,right=0.9,frombottom=0.1,kpc=False):
+  axi=N.array(P.gca().axis())
+  y=axi[2]+frombottom*(axi[3]-axi[2])
+  x1=axi[0]+left*(axi[1]-axi[0])
+  x2=axi[0]+right*(axi[1]-axi[0])
+  P.plot([x1,x2],[y,y],'k-')
+  arcs=(x2-x1)*p['echelle']
+  if not kpc:
+      kpc=(x2-x1)*arcsec2kpc(arcs,p['vr0'])/1.E3
+  P.text(x1-0.01,y+0.01,r'$%.1f^{\prime\prime}\approx %.1fkpc$'%(arcs,kpc),fontsize=9)
+  
+
 def setYaxis_pc(inarr):
   """ set the plotting-axes to parsec """
   
@@ -255,8 +272,8 @@ class inspectdata():
  
 
 class rotcur_int():
-    def __init__(self,vf,cen=False,pa=90.0,wedge=10.0,incl=45.0,rbin=1.0):
-        if not cen: cen=N.array(vf.shape)/2.0
+    def __init__(self,vf,cen=[],pa=90.0,wedge=10.0,incl=45.0,rbin=1.0):
+        if cen==[]: cen=N.array(vf.shape)/2.0
         self.vf=vf
         self.cen=N.array(cen)
         self.pa=pa
@@ -289,7 +306,7 @@ class rotcur_int():
     def plot(self):
         self.ax1.imshow(N.transpose(self.vf),interpolation='nearest',origin='lower',cmap=sauron)
         vec=N.array([-N.sin(N.radians(self.pa)),N.cos(N.radians(self.pa))])
-        len=15
+        len=self.vf.shape[0]/2
         x=[self.cen[0]-len*vec[0],self.cen[0]+len*vec[0]]
         y=[self.cen[1]-len*vec[1],self.cen[1]+len*vec[1]]
         self.ax1.plot(x,y,'-k')
