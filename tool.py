@@ -117,10 +117,10 @@ def lamb2vel(l,rest=lambHA):
   return ((l/rest)-1)*sol
 
 def flux2mag(f):
-  return -2.5*(M.log10(f))
+  return -2.5*(N.log10(f))
 
 def mag2flux(m):
-  return M.pow(10,((m)/2.5))
+  return 10**(m/2.5)
 
 def z2vel(z):
   return z*sol
