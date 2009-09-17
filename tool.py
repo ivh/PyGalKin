@@ -7,11 +7,15 @@ ToolBox.py
 import numpy as N
 import pylab as P
 import pyfits as F
+import os
+import sys
+import os.path as path
 import scipy as S
 import scipy.interpolate
 import scipy.ndimage
 import scipy.signal as Sig
 from numpy.ma import masked_where,masked_array,mask_or
+from copy import copy
 from scipy.ndimage import gaussian_filter1d
 from scipy.fftpack import fft
 from filtfilt import filtfilt
@@ -190,6 +194,8 @@ def scalefromvarc(arcsecperpix,v):
 def isconstant(data):
     return S.std(data)==0.0
 
+def relz(v): 
+    return sqrt((1+(v/c))/(1-(v/c)))-1
 
 # Handy general functions
 

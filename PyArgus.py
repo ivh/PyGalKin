@@ -357,7 +357,8 @@ def findLine(data,type='single',velRange=None,guessV=None,restlamb=Sulfur,parinf
         print 'Unknown type of fit'
         return -1
 
-    return fit
+    Z=pix2lamb(fit.params[1]+Left,Lamb0,Step) / restlamb
+    return fit,Z
                             
 
 def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,type='single',plot=False,parinfo=None):
@@ -391,7 +392,7 @@ def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,type='single',plot
 
 
 
-def createPa(paschenparam,Z,double,PaNumb,D1=0.0,D2=0.0):
+def createPa(paschenparam,Z,type,PaNumb,D1=0.0,D2=0.0):
     Pasch=Paschen * Z
 
     # don't subtract continuum
@@ -406,7 +407,7 @@ def createPa(paschenparam,Z,double,PaNumb,D1=0.0,D2=0.0):
         para=paschenparam.copy()
         para[2]*=Stren[i]
         para[1]=lamb2pix(Paschen[i]*Z,Lamb0,Step)+D1
-        if double:
+        if type=='double':
             para[5]*=Stren[i]
             para[4]=lamb2pix(Paschen[i]*Z,Lamb0,Step)+D2
             SynthSpec+=G.twogauss(para,x=x,returnmodel=True)
@@ -422,10 +423,11 @@ def createPaschen(data,type='double',velRange=None,guessV=None,plot=False,plotfi
     if fitresults==-1:
         return N.zeros(SpecLen,'Float32')
     else:
-        fit=fitresults.params
-        print fit
+        fit,Z=fitresults
+        fit=fit.params
+        print fit,Z
 
-    SynthSpec=createPa(paschenparam,Z,D1=0.0,D2=0.0,double=double,PaNumb=PaNumb)
+    SynthSpec=createPa(fit,Z,D1=0.0,D2=0.0,type=type,PaNumb=PaNumb)
     
     if plot:    
         plotspec(SynthSpec)
@@ -441,7 +443,7 @@ def createPaschenSul(data,velRange=None,guessV=None,plot=False,plotfit=False,PaN
     if fitresults==-1:
         return N.zeros(SpecLen,'Float32')
     else:
-        Z,fitpara,D1,D2=fitresults
+        fit,Z=fitresults
             
     Pasch=Paschen * Z
 
