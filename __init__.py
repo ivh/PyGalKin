@@ -2,9 +2,6 @@
 Doc-String for the __init__.py file.
 look into the doc string for the PyCigale submodule 
 for more information.
-
-test
-
 """
 
 __author__ = 'T. Marquart, J. Staabis, A. Zien'
