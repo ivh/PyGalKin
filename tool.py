@@ -274,8 +274,7 @@ def doforeachpoint(data, function, *args, **keywords):
 
     erg.shape=(x,y,-1)
     if erg.shape[2]==1: erg.shape=(x,y)
-    if hasattr(data,'p'): return C.adhoc(erg,data.p)
-    else: return erg
+    return erg
 
 
 def selective_sum(data,range='cat',Z=1.002912,axis=2):

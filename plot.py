@@ -4,9 +4,12 @@ plot.py
 
 from pylab import *
 from PyGalKin import *
-
+import matplotlib
 from matplotlib import rcParams, colors
 LUTSIZE = rcParams['image.lut']
+
+#matplotlib.use('Agg')
+#matplotlib.rc('text', usetex = True)
 
 ######### SAURON COLORMAP ##############
 #
