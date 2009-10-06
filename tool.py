@@ -86,6 +86,49 @@ Sulfur=9068.6
 # END CONSTANTS
 
 
+#
+# BASE CLASSES
+#
+
+
+class numpdict(N.ndarray):
+    def __new__(subtype, data, p=None, dtype=None, copy=False):
+        # Make sure we are working with an array, and copy the data if requested
+        subarr = N.array(data, dtype=dtype, copy=copy)
+
+        # Transform 'subarr' from an ndarray to our new subclass.
+        subarr = subarr.view(subtype)
+      
+        # Use the specified 'p' parameter if given
+        if p is not None:
+            subarr.p = p
+        # Otherwise, use data's p attribute if it exists
+        elif hasattr(data, 'p'):
+            subarr.p = data.p
+
+        # Finally, we must return the newly created object:
+        return subarr
+
+    def __array_finalize__(self,obj):
+        if not hasattr(self, 'p'):
+          self.p = getattr(obj, 'p', {})
+
+    def __repr__(self):
+        desc="""array(data=%(data)s,p=%(p)s)"""
+        return desc % {'data': str(self), 'p':self.p }
+
+class spec(numpdict):
+    def __new__(subtype, data, p=None, dtype=None, copy=False):
+        subarr=numpdict.__new__(subtype, data, p, dtype, copy)
+        if p.has_key('l0'):
+            subarr.l0=p['l0']
+            if p.has_key('dl'):
+                subarr.dl=p['dl']
+                subarr.wave=N.arange(subarr.shape[-1])*subarr.dl + subarr.l0
+        return subarr
+
+
+
 # physical functions
 def dis(arr1,arr2):
   """ returns the distance between two points""" 

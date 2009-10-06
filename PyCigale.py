@@ -8,40 +8,11 @@
 
 from tool import *
 
-
-class adhoc(N.ndarray):
-    """ docstringtest"""
+class adhoc(numpdict):
     def __new__(subtype, data, p=None, dtype=None, copy=False):
-      #print "__new__ received %s" % type(data)
-      # Make sure we are working with an array, and copy the data if requested
-      subarr = N.array(data, dtype=dtype, copy=copy)
-
-      # Transform 'subarr' from an ndarray to our new subclass.
-      subarr = subarr.view(subtype)
-      
-      # Use the specified 'p' parameter if given
-      if p is not None:
-        subarr.p = p
-      # Otherwise, use data's p attribute if it exists
-      elif hasattr(data, 'p'):
-        subarr.p = data.p
-
-      subarr.calcstuff()
-
-      # Finally, we must return the newly created object:
-      return subarr
-
-    def __array_finalize__(self,obj):
-      # We use the getattr method to set a default if 'obj' doesn't
-      # have the 'p' attribute self.p = getattr(obj, 'p', {}) We could
-      # have checked first whether self.p was already defined:
-      if not hasattr(self, 'p'):
-          self.p = getattr(obj, 'p', {})
-
-    def __repr__(self):
-      desc="""array(data=%(data)s,p=%(p)s)"""
-      return desc % {'data': str(self), 'p':self.p }
-
+        subarr=numpdict.__new__(subtype, data, p, dtype, copy)
+        subarr.calcstuff()
+        return subarr
 
     def cenx(self):
         return self.p['cen'][0]
