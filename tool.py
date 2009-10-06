@@ -1,39 +1,13 @@
 """
+tool.py
 
-ToolBox.py
+general toolbox
 
 """
 
-import numpy as N
-import pylab as P
-import pyfits as F
-import os
-import sys
-import os.path as path
-import scipy as S
-import scipy.interpolate
-import scipy.ndimage
-import scipy.signal as Sig
-from numpy.ma import masked_where,masked_array,mask_or
-from copy import copy
-from scipy.ndimage import gaussian_filter1d
-from scipy.fftpack import fft
-from filtfilt import filtfilt
-from mpfit import mpfit
-from InOutput import *
-
-try: from pyIDL import idl as IDL
-except: print 'Could not import IDL'
-
-import PyGalKin as G
-import PyCigale as C
-
-from math import pi,e,radians
-from time import sleep
-
+from PyGalKin import *
 
 # SHORTCUTS
-#
 tab='\t'
 nl='\n'
 bs='\\'
@@ -239,6 +213,11 @@ def relz(v):
 
 # Handy general functions
 
+
+def getXY(data):
+    i=N.indices((data.shape[0],data.shape[1]))
+    return N.ravel(i[0]),N.ravel(i[1])
+
 def shift(vec,i):
     """ Shift a vector.
     Usage: new_vec = shift(vec, i)
@@ -385,7 +364,7 @@ def rotcur(vf,cen,pa,wedge,incl):
     while pa < 0.0: pa+=180.0
     while pa >= 180.0: pa-=180.0
     pa,wedge,incl=map(N.radians,(pa,wedge,incl))
-    x,y=G.getXY(vf)
+    x,y=getXY(vf)
     x.shape=vf.shape
     y.shape=vf.shape
     x=x.astype('f') - cen[0]
@@ -417,7 +396,7 @@ def rotcur(vf,cen,pa,wedge,incl):
 
 def xcorr(galaxy,star,filtgal=False,filtstar=None,range=N.array([700,1300]),baryN=15,plot=False,offset=50):
 
-    from PyArgus import Lamb0,Step,contSubtr
+    Lamb0,Step,contSubtr=A.Lamb0,A.Step,A.contSubtr
     wavecal=pix2lamb(range,Lamb0,Step)
 
     if filtstar != None: gaussian_filter1d(star,filtstar)
@@ -751,39 +730,6 @@ def hpfilt(data):
 ####  HELPER FUNCTIONS
 #########################
 
-def getXY(data):
-    i=N.indices((data.shape[0],data.shape[1]))
-    return N.ravel(i[0]),N.ravel(i[1])
-
-## def getXY_old(data):
-##     #t0=time.time()
-##     #X=N.sort(N.resize(N.arange(data.shape[0]),data.shape[0]*data.shape[1]))
-##     X=N.reshape(N.transpose(N.reshape(N.resize(N.arange(data.shape[0]),data.shape[0]*data.shape[1]),(data.shape[1],data.shape[0]))),(data.shape[0]*data.shape[1]))
-##     Y=N.resize(N.arange(data.shape[1]),data.shape[0]*data.shape[1])
-##     #print time.time()-t0
-##     return X,Y
-## def getXY_old2(data):
-##     t0=time.time()
-##     Y=N.resize(N.arange(data.shape[1]),data.shape[0]*data.shape[1])
-##     X=N.array([])
-##     for i in N.arange(data.shape[0]):
-##         X=N.concatenate((X,N.zeros(data.shape[1])+i))
-##     print time.time()-t0
-##     return X,Y
-## def getXY_old1(data):
-##     t0=time.time()
-##     X=N.zeros(data.shape[0]*data.shape[1])
-##     Y=N.zeros(data.shape[0]*data.shape[1])
-##     count=0
-##     for x in N.arange(data.shape[0]):
-##         for y in N.arange(data.shape[1]):
-##            X[count]=x
-##            Y[count]=y
-##            count+=1
-##     print time.time()-t0
-##     return X,Y
-
-
 def smooth_gauss(data,sigma):
     gauss=Sig.gaussian(10*sigma,sigma)
     return Sig.convolve(data,gauss/N.sum(gauss),mode='same')
@@ -955,112 +901,13 @@ def blur_image(im, n, ny=None) :
     return(improc)
 
 
-def congrid(a, newdims, method='linear', centre=False, minusone=False):
-    '''Arbitrary resampling of source array to new dimension sizes.
-    Currently only supports maintaining the same number of dimensions.
-    To use 1-D arrays, first promote them to shape (x,1).
-    
-    Uses the same parameters and creates the same co-ordinate lookup points
-    as IDL''s congrid routine, which apparently originally came from a VAX/VMS
-    routine of the same name.
-
-    method:
-    neighbour - closest value from original data
-    nearest and linear - uses n x 1-D interpolations using
-                         scipy.interpolate.interp1d
-    (see Numerical Recipes for validity of use of n 1-D interpolations)
-    spline - uses ndimage.map_coordinates
-
-    centre:
-    True - interpolation points are at the centres of the bins
-    False - points are at the front edge of the bin
-
-    minusone:
-    For example- inarray.shape = (i,j) & new dimensions = (x,y)
-    False - inarray is resampled by factors of (i/x) * (j/y)
-    True - inarray is resampled by(i-1)/(x-1) * (j-1)/(y-1)
-    This prevents extrapolation one element beyond bounds of input array.
-    '''
-    if not a.dtype in [N.float64, N.float32]:
-        a = N.cast[float](a)
-
-    m1 = N.cast[int](minusone)
-    ofs = N.cast[int](centre) * 0.5
-    old = N.array( a.shape )
-    ndims = len( a.shape )
-    if len( newdims ) != ndims:
-        print "[congrid] dimensions error. " \
-              "This routine currently only support " \
-              "rebinning to the same number of dimensions."
-        return None
-    newdims = N.asarray( newdims, dtype=float )
-    dimlist = []
-
-    if method == 'neighbour':
-        for i in range( ndims ):
-            base = N.indices(newdims)[i]
-            dimlist.append( (old[i] - m1) / (newdims[i] - m1) \
-                            * (base + ofs) - ofs )
-        cd = N.array( dimlist ).round().astype(int)
-        newa = a[list( cd )]
-        return newa
-
-    elif method in ['nearest','linear']:
-        # calculate new dims
-        for i in range( ndims ):
-            base = N.arange( newdims[i] )
-            dimlist.append( (old[i] - m1) / (newdims[i] - m1) \
-                            * (base + ofs) - ofs )
-        # specify old dims
-        olddims = [N.arange(i, dtype = N.float) for i in list( a.shape )]
-
-        # first interpolation - for ndims = any
-        mint = scipy.interpolate.interp1d( olddims[-1], a, kind=method )
-        newa = mint( dimlist[-1] )
-
-        trorder = [ndims - 1] + range( ndims - 1 )
-        for i in range( ndims - 2, -1, -1 ):
-            newa = newa.transpose( trorder )
-
-            mint = scipy.interpolate.interp1d( olddims[i], newa, kind=method )
-            newa = mint( dimlist[i] )
-
-        if ndims > 1:
-            # need one more transpose to return to original dimensions
-            newa = newa.transpose( trorder )
-
-        return newa
-    elif method in ['spline']:
-        oslices = [ slice(0,j) for j in old ]
-        oldcoords = N.ogrid[oslices]
-        nslices = [ slice(0,j) for j in list(newdims) ]
-        newcoords = N.mgrid[nslices]
-
-        newcoords_dims = range(N.rank(newcoords))
-        #make first index last
-        newcoords_dims.append(newcoords_dims.pop(0))
-        newcoords_tr = newcoords.transpose(newcoords_dims)
-        # makes a view that affects newcoords
-
-        newcoords_tr += ofs
-
-        deltas = (N.asarray(old) - m1) / (newdims - m1)
-        newcoords_tr *= deltas
-
-        newcoords_tr -= ofs
-
-        newa = scipy.ndimage.map_coordinates(a, newcoords)
-        return newa
-    else:
-        print "Congrid error: Unrecognized interpolation type.\n", \
-              "Currently only \'neighbour\', \'nearest\',\'linear\',", \
-              "and \'spline\' are supported."
-        return None
-
-
 
 def sortout(inarr,banned=0):
-    """ gives back three vectors: the values in inarr that are != value and the corresponding x and y coordinates. this is old and ugly, use masked arrays instead! """
+    """
+    gives back three vectors: the values in inarr that are !=
+    value and the corresponding x and y coordinates. this is old and
+    ugly, use masked arrays instead!
+    """
     nx,ny=inarr.nx(),inarr.ny()
     xaxis=N.array([])
     yaxis=N.array([])

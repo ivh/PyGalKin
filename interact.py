@@ -9,7 +9,6 @@ using matplotlibs key- and mouse-bindings.
 
 from PyGalKin import *
 
-
 class gauss3p:
     def __init__(self,a,v,s):
         if a.shape != v.shape: print "NO!"
@@ -126,10 +125,11 @@ class doublecomp:
 
     def redo2(self):
         pass
+    
     def all1(self):
         for i in N.arange(self.cube.shape[0]):
             for j in N.arange(self.cube.shape[1]):
-                
+                pass
     def all2(self):
         pass
     

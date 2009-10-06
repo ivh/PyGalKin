@@ -7,17 +7,7 @@
  macro files (.adm) and distribute them in the data
  directories
 """
-
-import os
-import PyCigale
-
-# SHORTCUTS
-tab='\t'
-nl='\n'
-bs='\\'
-sp=' '
-null='\0'
-
+from PyGalKin import *
 
 ## WHERE WILL ADHOC FIND THE DATA?
 pathprefix='C:\\data\\CIGALE-2002\\'
@@ -49,7 +39,7 @@ def doreductions():
             globalmacro.write(reductname)
             globalcounter+=1
 
-            par=PyCigale.ADP(paramname)
+            par=C.ADP(paramname)
             workingdir= pathprefix + i + bs
             print workingdir
             reduc(reductname,workingdir,par)

@@ -3,12 +3,10 @@ db.py
 
 """
 
-from os.path import exists
-from sqlite3 import dbapi2 as sqlite
-import numpy as N
-from sdss import sqlcl
+from PyGalKin import *
 
 DBNAME='/data/cigale.db'
+exists=path.exists
 
 def setupdb(dbname=DBNAME):
     if not exists(dbname): return "Database not there!"

@@ -18,10 +18,7 @@
  This file needs better integration into the package PyCigale!!
 """
 
-from tool import *
-
-from scipy.optimize import leastsq as LS
-
+from PyGalKin import *
 
 def interact_model_linear(r, pars):
 	# calculate velocities from gradient and radius

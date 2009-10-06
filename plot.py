@@ -2,10 +2,11 @@
 plot.py
 """
 
+from pylab import *
+from PyGalKin import *
+
 from matplotlib import rcParams, colors
 LUTSIZE = rcParams['image.lut']
-
-from tool import *
 
 ######### SAURON COLORMAP ##############
 #

@@ -1,13 +1,11 @@
 """
-fitting.py
+fit.py
 
 contains functions to fit and other functions that do it.
 
 """
 
-from mpfit import mpfit
-
-from tool import *
+from PyGalKin import *
 
 ## wrappers before fit:
 def shiftnfit(data,fitfunc):

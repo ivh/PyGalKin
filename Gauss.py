@@ -1,13 +1,9 @@
-# IMPORTS
-#
-from tool import *
-from fit import *
+"""
+Gauss.py
 
-from numpy import any
-import os
+"""
 
-#from InOutput import 
-from PyCigale import adhoc
+from PyGalKin import *
 
 
 def find_peaks(data):
@@ -283,7 +279,7 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
 
   temp2.shape=(length_x,length_y,14)
   #make temp2 an adhoc object
-  temp2=adhoc(temp2,temp.p.copy())
+  temp2=C.adhoc(temp2,temp.p.copy())
   # Object is in gaussian form
   temp2.p['is_gauss']=True
   # Reshape

@@ -1,14 +1,12 @@
 #!/usr/bin/env python
+"""
+PyArgus.py
 
-#
-# Some functions to handle ARGUS IFU data
-#
+Stuff to handle ARGUS IFU data
 
-from time import sleep
-from os.path import exists
-from tool import *
-import Gauss as G
-from plot import plotspec
+"""
+
+from PyGalKin import *
 
 #####################################
 #### Wave-cal and dimensions
@@ -430,9 +428,9 @@ def createPaschen(data,type='double',velRange=None,guessV=None,plot=False,plotfi
     SynthSpec=createPa(fit,Z,D1=0.0,D2=0.0,type=type,PaNumb=PaNumb)
     
     if plot:    
-        plotspec(SynthSpec)
-        plotspec(data)
-        plotspec(data-SynthSpec,Z=Z,region='cat',plotlines=False)
+        P.plotspec(SynthSpec)
+        P.plotspec(data)
+        P.plotspec(data-SynthSpec,Z=Z,region='cat',plotlines=False)
     
     return SynthSpec
 
@@ -479,9 +477,9 @@ def createPaschenSul(data,velRange=None,guessV=None,plot=False,plotfit=False,PaN
     SynthSpec=createPa(paschenparam,Z,D1=0.0,D2=0.0,double=True,PaNumb=PaNumb)
     
     if plot:    
-        plotspec(SynthSpec)
-        plotspec(data)
-        plotspec(data-SynthSpec,Z=Z,region='cat',plotlines=True)
+        P.plotspec(SynthSpec)
+        P.plotspec(data)
+        P.plotspec(data-SynthSpec,Z=Z,region='cat',plotlines=True)
     
     return SynthSpec
 

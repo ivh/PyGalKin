@@ -1,12 +1,9 @@
 """
- PyCigale
+PyCigale.py
 
 """
 
-
-# IMPORTS
-
-from tool import *
+from PyGalKin import *
 
 class adhoc(numpdict):
     def __new__(subtype, data, p=None, dtype=None, copy=False):

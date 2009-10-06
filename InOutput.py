@@ -6,11 +6,7 @@
  This file contains the file-in/output functions for the PyCigale package
  
 """
-import pickle
-
-from tool import *
-
-import PyGalKin as G
+from PyGalKin import *
 
 ## SHORTCUTS
 tab='\t'
@@ -121,7 +117,7 @@ def fromAD(filename, readparams=True):
     #data.getsaltzer()
     
   data=N.ascontiguousarray(data)
-  return G.adhoc(data,p=p)
+  return C.adhoc(data,p=p)
 
 def toAD(input,filename=None):
   """ writes ADHOC files. for file format see: adw_what.htm
