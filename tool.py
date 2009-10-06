@@ -80,17 +80,13 @@ PaschStren=PaschStren[::-1]
 #                       SIII   OI  ClII  FeII
 EmissionLines=N.array([9068.6,8446,8579,8617])
 CaT=N.array([8498., 8542., 8662.])
-Sulfur=9068.6
+Sulfur=9068.87
 
-#
-# END CONSTANTS
 
 
 #
 # BASE CLASSES
 #
-
-
 class numpdict(N.ndarray):
     def __new__(subtype, data, p=None, dtype=None, copy=False):
         # Make sure we are working with an array, and copy the data if requested
@@ -131,51 +127,51 @@ class spec(numpdict):
 
 # physical functions
 def dis(arr1,arr2):
-  """ returns the distance between two points""" 
-  arr=(arr2-arr1)**2
-  return N.sqrt(arr.sum())
+    """ returns the distance between two points""" 
+    arr=(arr2-arr1)**2
+    return N.sqrt(arr.sum())
 
 def app2abs(dist,m):
-  """ convert apparent to absolute magnitudes, takes distance in Mpc"""
-  return (-5*N.log10(dist*1000000.))+5+m
+    """ convert apparent to absolute magnitudes, takes distance in Mpc"""
+    return (-5*N.log10(dist*1000000.))+5+m
 
 def balmer(m):
-  """ caculate m'th balmer line"""
-  return hydrogen(2,m+2)
+    """ caculate m'th balmer line"""
+    return hydrogen(2,m+2)
   
 def hydrogen(n,m):
-  """ calculate rydberg wavelengths of hydrogen"""
-  m,n=float(m),float(n)
-  return (n**2 * m**2 / (m**2 - n**2)) / 1.0967758E7
+    """ calculate rydberg wavelengths of hydrogen"""
+    m,n=float(m),float(n)
+    return (n**2 * m**2 / (m**2 - n**2)) / 1.0967758E7
 
 def massKepler(r,v):
-  """ returns the mass from keplers law: M(<r)=r*(v**2)*G
-   input in pc and km/s
-   mind the factors 1/2 !!
-  """
-  return ((v/2)**2)*(r/2)*pc/Grav
+    """ returns the mass from keplers law: M(<r)=r*(v**2)*G
+    input in pc and km/s
+    mind the factors 1/2 !!
+    """
+    return ((v/2)**2)*(r/2)*pc/Grav
 
 def lamb2vel(l,rest=lambHA):
-  """ converts a wavelength in A wrt HA into a radial velocity """
-  return ((l/rest)-1)*sol
+    """ converts a wavelength in A wrt HA into a radial velocity """
+    return ((l/rest)-1)*sol
 
 def flux2mag(f):
-  return -2.5*(N.log10(f))
+    return -2.5*(N.log10(f))
 
 def mag2flux(m):
-  return 10**(m/2.5)
+    return 10**(m/2.5)
 
 def z2vel(z):
-  return z*sol
+    return z*sol
 
 def vel2z(v):
-  return v/sol
+    return v/sol
 
 def lamb2freq(l):
-  return 1.0E3*sol/l
+    return 1.0E3*sol/l
 
 def freq2lamb(f):
-  return 1.0E3*sol/f
+    return 1.0E3*sol/f
 
 def Ghz2micron(f):
     return freq2lamb(f)*1.0E-3
@@ -196,14 +192,15 @@ def hubbledist(v):
     return v/H0*1000
 
 def units(have,want,number=''):
-  """
-  uses the external procram "units" to convert units :-)
-  """
-  out=commands.getoutput('units -q -s ' + str(number) + have + ' ' + want + '| head -1 | cut -d " " -f2')
-  return N.array([float(out)])
+    """
+    uses the external procram "units" to convert units :-)
+    """
+    out=commands.getoutput('units -q -s ' + str(number) + have + ' ' + want + '| head -1 | cut -d " " -f2')
+    return N.array([float(out)])
 
 def lamb2pix(data,Lamb0,Step):
-    if type(data) == type(1) or type(data) == type(1.0): return int(N.around((data-Lamb0)/Step).astype('Int32'))
+    if type(data) == type(1) or type(data) == type(1.0): 
+        return int(N.around((data-Lamb0)/Step).astype('Int32'))
     else: return N.around((data-Lamb0)/Step).astype('Int32')
 
 def dlamb2vel(data,lamb0):
@@ -243,15 +240,15 @@ def relz(v):
 # Handy general functions
 
 def shift(vec,i):
-  """ Shift a vector.
-      Usage: new_vec = shift(vec, i)
-      
-      vec:  The vector to be shifted
-      i:  The steps to shift the vector with
-      """
-  n= vec.size
-  i %= n
-  return N.concatenate((vec[n-i:n],vec[0:n-i]))
+    """ Shift a vector.
+    Usage: new_vec = shift(vec, i)
+    
+    vec:  The vector to be shifted
+    i:  The steps to shift the vector with
+    """
+    n= vec.size
+    i %= n
+    return N.concatenate((vec[n-i:n],vec[0:n-i]))
 
 def calcpeak(inarr,n):
     """ calculate the barycenter-velociy of the n highest pixels"""
@@ -273,34 +270,33 @@ def fwhm(inarr):
 
 
 def doforeachpoint(data, function, *args, **keywords):
-  """Apply a function (whcih takes a 1d-vector) to all values of x and
-  y of a 3D-matrix. The output will have a z-dimension equal to the
-  length of the output from the 'function'.
-      
-  Usage: new_arr = doforeachpoint(arr, function, arguments)
-  
-  data: The 3D-array input array
+    """Apply a function (whcih takes a 1d-vector) to all values of x and
+    y of a 3D-matrix. The output will have a z-dimension equal to the
+    length of the output from the 'function'.
+    
+    Usage: new_arr = doforeachpoint(arr, function, arguments)
+    
+    data: The 3D-array input array
 
-  """
-  data=data.copy()
-  x,y,z=data.shape
-  xy=x*y
-  data.shape=(xy,z)
+    """
+    data=data.copy()
+    x,y,z=data.shape
+    xy=x*y
+    data.shape=(xy,z)
 
-  for i in N.arange(xy):
-    #tmp=apply(function,(data[i],)+args)
-    tmp=function(data[i], *args, **keywords)
-    if type(tmp)==type(()): print 'cannot handle tuples yet'; return -1
-    elif not hasattr(tmp,'__len__'): tmp=N.array([tmp]);
-    if i == 0:
-        erg=N.zeros((xy,len(tmp)),dtype='float64')
-        erg[i,:]=tmp
-    else: erg[i,:]=tmp
+    for i in N.arange(xy):
+        tmp=function(data[i], *args, **keywords)
+        if type(tmp)==type(()): print 'cannot handle tuples yet'; return -1
+        elif not hasattr(tmp,'__len__'): tmp=N.array([tmp]);
+        if i == 0:
+            erg=N.zeros((xy,len(tmp)),dtype='float64')
+            erg[i,:]=tmp
+        else: erg[i,:]=tmp
 
-  erg.shape=(x,y,-1)
-  if erg.shape[2]==1: erg.shape=(x,y)
-  if hasattr(data,'p'): return C.adhoc(erg,data.p)
-  else: return erg
+    erg.shape=(x,y,-1)
+    if erg.shape[2]==1: erg.shape=(x,y)
+    if hasattr(data,'p'): return C.adhoc(erg,data.p)
+    else: return erg
 
 
 def selective_sum(data,range='cat',Z=1.002912,axis=2):
@@ -340,17 +336,17 @@ def m2masks(angmap,pa,wedge):
     pa2=pa+pi
     mask1=angmap < pa-wedge
     if pa-wedge<0:
-      mask1=mask_or(mask1, (angmap < 2*pi+pa-wedge) & (angmap>pi))
-      mask1=mask_or(mask1, (angmap > pa+wedge) & (angmap<pi))
+        mask1=mask_or(mask1, (angmap < 2*pi+pa-wedge) & (angmap>pi))
+        mask1=mask_or(mask1, (angmap > pa+wedge) & (angmap<pi))
     else:
-      mask1=mask_or(mask1, angmap > pa+wedge)
+        mask1=mask_or(mask1, angmap > pa+wedge)
     
     mask2=angmap > pa2+wedge
     if pa2+wedge>2*pi:
-      mask2=mask_or(mask2, (angmap > pa2-2*pi+wedge) & (angmap<pi))
-      mask2=mask_or(mask2, (angmap < pa2-wedge) & (angmap>pi))
+        mask2=mask_or(mask2, (angmap > pa2-2*pi+wedge) & (angmap<pi))
+        mask2=mask_or(mask2, (angmap < pa2-wedge) & (angmap>pi))
     else:
-      mask2=mask_or(mask2, angmap < pa2-wedge)
+        mask2=mask_or(mask2, angmap < pa2-wedge)
     
     return mask1,mask2
 
@@ -378,9 +374,9 @@ def binRC(rin,vin,rbin=1.0):
     V=N.zeros_like(R)
     S=N.zeros_like(R)
     for i,r in enumerate(R):
-      vt=masked_where((rin<r)|(rin>r+rbin),vin)
-      V[i]=vt.mean()
-      S[i]=vt.std()
+        vt=masked_where((rin<r)|(rin>r+rbin),vin)
+        V[i]=vt.mean()
+        S[i]=vt.std()
       
     return R+(rbin/2.0),V,S
 
@@ -635,9 +631,9 @@ def avbins2(data,BinNumber):
     num=N.zeros(n,dtype='Int32')
     sig=N.zeros(n,dtype='Float32')
     for i in N.arange(n):
-      result[i]=N.sum(N.where(BinNumber==i,data,0.0))
-      num[i]=N.sum(N.where(BinNumber==i,1,0))
-      sig[i]=masked_where(BinNumber!=i,data).std()
+        result[i]=N.sum(N.where(BinNumber==i,data,0.0))
+        num[i]=N.sum(N.where(BinNumber==i,1,0))
+        sig[i]=masked_where(BinNumber!=i,data).std()
     return result/num,sig,num
 
 def avbins3(data,BinNumber):
@@ -649,15 +645,15 @@ def avbins3(data,BinNumber):
     result=N.zeros((n,os[2]),dtype='Float32')
     num=N.zeros(n,dtype='Int32')
     for i in N.arange(n):
-      num[i]=N.sum(N.where(BinNumber==i,1,0))
-      result[i,:]=N.sum(data[N.where(BinNumber==i),:],axis=1) / num[i]
+        num[i]=N.sum(N.where(BinNumber==i,1,0))
+        result[i,:]=N.sum(data[N.where(BinNumber==i),:],axis=1) / num[i]
     return result,num
 
 def spreadbins2(data,BinNumber,shape=None):
     if not shape: shape=(N.sqrt(BinNumber.shape).astype('i'),N.sqrt(BinNumber.shape).astype('i'))
     result=N.zeros(shape,dtype='Float32').flatten()
     for i,bin in enumerate(BinNumber):
-      result[i]=data[bin]
+        result[i]=data[bin]
     result.shape=shape
     return result
     
@@ -913,10 +909,9 @@ def intdegrade(data,n,method=N.average):
     x,y=N.arange(nx/n),N.arange(ny/n)
     erg=N.zeros((nx/n,ny/n),dtype='f')
     for i in x:
-      for j in y:
-        #print i,j,data[i*n:(i+1)*n,j*n:(j+1)*n]
-        erg[i,j]=method(data[i*n:(i+1)*n,j*n:(j+1)*n])
-    
+        for j in y:
+            #print i,j,data[i*n:(i+1)*n,j*n:(j+1)*n]
+            erg[i,j]=method(data[i*n:(i+1)*n,j*n:(j+1)*n])
     return erg
 
 def intdegradespec(data,n,method=N.average):
@@ -928,10 +923,10 @@ def intdegradespec(data,n,method=N.average):
     erg=N.zeros((nx,ny,nz//n),dtype='f')
     print erg.shape
     for i in x:
-      for j in y:
-        for k in z:
-          erg[i,j,k]=method(data[i,j,k*n:(k+1)*n])
-          #print method(data[i,j,k*n:(k+1)*n]),erg[i,j,k]
+        for j in y:
+            for k in z:
+                erg[i,j,k]=method(data[i,j,k*n:(k+1)*n])
+                #print method(data[i,j,k*n:(k+1)*n]),erg[i,j,k]
     return erg
 
 
