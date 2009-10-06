@@ -1,16 +1,15 @@
-#!/usr/bin/env python
-
 """
+interact.py
+
 A few classes that allow interaction with data
 using matplotlibs key- and mouse-bindings.
 
 """
 
-import wx
 
 from PyGalKin import *
 
-############################################
+
 class gauss3p:
     def __init__(self,a,v,s):
         if a.shape != v.shape: print "NO!"
@@ -19,22 +18,28 @@ class gauss3p:
         self.v=v
         self.s=s
 
-    def __getitem__(self,obj,type=None):
-        return gauss3p(self.a[obj],self.v[obj],self.s[obj])
+    def __getitem__(self,slice):
+        return gauss3p(self.a[slice],self.v[slice],self.s[slice])
 
     def __setitem__(self,key,value):
         self.a[key],self.v[key],self.s[key]=value.a,value.v,value.s
 
 
 class doublecomp:
-    def __init__(self,a1,v1,s1,a2,v2,s2,cube=None,z=None,vmin=None,vmax=None,\
+    def __init__(self,fitresults=None,cube=None,z=None,vmin=None,vmax=None,\
                      clipcube=True,extra=1.1,restl=A.Sulfur):
+        if fitresults != None:
+            a1,v1,s1,a2,v2,s2=fitresults
+            self.d1=gauss3p(a1,v1,s1)
+            self.d2=gauss3p(masked_array(a2),masked_array(v2),masked_array(s2))
+        else:
+            self.all1()
 
-        self.d1=gauss3p(a1,v1,s1)
-        self.d2=gauss3p(masked_array(a2),masked_array(v2),masked_array(s2))
         self.mask=N.zeros_like(a1).astype('bool')
         self.cx=0
         self.cy=0
+        self.extra=extra
+        self.restl=restl
 
         if (vmin and vmax):
             self.vmin=vmin
@@ -43,11 +48,14 @@ class doublecomp:
             self.vmin=self.d1.v.min()
             self.vmax=self.d1.v.max()
 
+        self.l0=vel2lamb(vmin/extra,restl)
+        self.l1=vel2lamb(vmax*extra,restl)
+
         if cube!=None:
             if clipcube:
-                l0=lamb2pix(vel2lamb(vmin/extra,restl),A.Lamb0,A.Step)-1
-                l1=lamb2pix(vel2lamb(vmax*extra,restl),A.Lamb0,A.Step)
-                cube=cube[:,:,l0:l1]
+                p0=lamb2pix(self.l0,cube.l0,cube.dl)-1
+                p1=lamb2pix(self.l0,cube.l0,cube.dl)
+                cube=cube[:,:,p0:p1]
                 
             self.z=cube.shape[-1]
             cont=C.contfrommin(cube,10)
@@ -99,17 +107,32 @@ class doublecomp:
             self.maskregion()
         if event.key=='u': 
             self.unmaskregion()
-        if event.key=='up': 
+        if event.key=='i': 
             self.cy+=1; self.update()
-        if event.key=='down': 
+        if event.key=='k': 
             self.cy-=1; self.update()
-        if event.key=='left': 
+        if event.key=='j': 
             self.cx-=1; self.update()
-        if event.key=='right': 
+        if event.key=='l': 
             self.cx+=1; self.update()
-        
+        if event.key=='1': 
+            self.onlyone()
+        if event.key=='2':
+            self.redo2()
         self.update()
 
+    def redo1(self):
+        pass
+
+    def redo2(self):
+        pass
+    def all1(self):
+        for i in N.arange(self.cube.shape[0]):
+            for j in N.arange(self.cube.shape[1]):
+                
+    def all2(self):
+        pass
+    
     def setregion(self,x,y):
         self.rx=[x,self.cx]
         self.ry=[y,self.cy]
