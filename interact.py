@@ -27,14 +27,6 @@ class gauss3p:
 class doublecomp:
     def __init__(self,fitresults=None,cube=None,z=None,vmin=None,vmax=None,\
                      clipcube=True,extra=1.1,restl=A.Sulfur):
-        if fitresults != None:
-            a1,v1,s1,a2,v2,s2=fitresults
-            self.d1=gauss3p(a1,v1,s1)
-            self.d2=gauss3p(masked_array(a2),masked_array(v2),masked_array(s2))
-        else:
-            self.all1()
-
-        self.mask=N.zeros_like(a1).astype('bool')
         self.cx=0
         self.cy=0
         self.extra=extra
@@ -68,7 +60,16 @@ class doublecomp:
         self.zv=N.arange(self.z,dtype='f')/self.z
         self.zv*=self.vmax*extra - self.vmin/extra
         self.zv+=self.vmin/extra
-                
+
+        if fitresults != None:
+            a1,v1,s1,a2,v2,s2=fitresults
+            self.d1=gauss3p(a1,v1,s1)
+            self.d2=gauss3p(masked_array(a2),masked_array(v2),masked_array(s2))
+        else:
+            self.all1()
+            
+        self.mask=N.zeros_like(v2).astype('bool')
+                        
         self.sortbyamp()
 
         self.fig=P.figure(1)
@@ -127,9 +128,19 @@ class doublecomp:
         pass
     
     def all1(self):
+        tmp=N.zeros((self.cube.shape[0],self.cube.shape[1],3),dtype='f')
         for i in N.arange(self.cube.shape[0]):
             for j in N.arange(self.cube.shape[1]):
-                pass
+                fit=F.fitgauss(self.cube[i,j,:])
+                if fit != -1:
+                    c,a,v,s=fit
+                    tmp[i,j,:]=a,v,s
+                else: tmp[i,j,:]=0,0,0
+        self.d1=gauss3p(tmp[:,:,0],tmp[:,:,1],tmp[:,:,2])
+        z=N.zeros((self.cube.shape[0],self.cube.shape[1]),dtype='f')
+        self.d2=gauss3p(z,z,z)
+        
+
     def all2(self):
         pass
     
