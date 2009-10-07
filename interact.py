@@ -26,7 +26,7 @@ class gauss3p:
 
 class doublecomp:
     def __init__(self,fitresults=None,cube=None,z=None,vmin=None,vmax=None,\
-                     clipcube=True,extra=1.1,restl=A.Sulfur):
+                     clipcube=True,extra=1.1,restl=Sulfur):
         self.cx=0
         self.cy=0
         self.extra=extra
@@ -38,14 +38,13 @@ class doublecomp:
         else:
             self.vmin=self.d1.v.min()
             self.vmax=self.d1.v.max()
-
         self.l0=vel2lamb(vmin/extra,restl)
         self.l1=vel2lamb(vmax*extra,restl)
 
         if cube!=None:
             if clipcube:
                 p0=lamb2pix(self.l0,cube.l0,cube.dl)-1
-                p1=lamb2pix(self.l0,cube.l0,cube.dl)
+                p1=lamb2pix(self.l1,cube.l0,cube.dl)
                 cube=cube[:,:,p0:p1]
                 
             self.z=cube.shape[-1]
@@ -54,8 +53,6 @@ class doublecomp:
             self.cube=cube - cont
         elif z: self.z=z
         else: self.z=100
-
-        
 
         self.zv=N.arange(self.z,dtype='f')/self.z
         self.zv*=self.vmax*extra - self.vmin/extra
@@ -67,8 +64,9 @@ class doublecomp:
             self.d2=gauss3p(masked_array(a2),masked_array(v2),masked_array(s2))
         else:
             self.all1()
-            
-        self.mask=N.zeros_like(v2).astype('bool')
+        
+
+        self.mask=N.zeros_like(self.d1.a).astype('bool')
                         
         self.sortbyamp()
 
@@ -131,14 +129,15 @@ class doublecomp:
         tmp=N.zeros((self.cube.shape[0],self.cube.shape[1],3),dtype='f')
         for i in N.arange(self.cube.shape[0]):
             for j in N.arange(self.cube.shape[1]):
-                fit=F.fitgauss(self.cube[i,j,:])
+                print('Fitting %d %d'%(i,j))
+                fit=F.fitgauss(self.cube[i,j,:],x=self.zv,prin=True,plot=True)
                 if fit != -1:
-                    c,a,v,s=fit
-                    tmp[i,j,:]=a,v,s
+                    c,a,v,s=fit.params
+                    tmp[i,j,:]=v,a,s
                 else: tmp[i,j,:]=0,0,0
         self.d1=gauss3p(tmp[:,:,0],tmp[:,:,1],tmp[:,:,2])
         z=N.zeros((self.cube.shape[0],self.cube.shape[1]),dtype='f')
-        self.d2=gauss3p(z,z,z)
+        self.d2=gauss3p(masked_array(z),masked_array(z),masked_array(z))
         
 
     def all2(self):
@@ -212,8 +211,8 @@ class doublecomp:
         self.ax2.set_title('VF 2')
         
     def newgausses(self):
-        self.g1=gauss([0.0,self.c1.v,self.c1.a,self.c1.s],x=self.zv,returnmodel=True)
-        self.g2=gauss([0.0,self.c2.v,self.c2.a,self.c2.s],x=self.zv,returnmodel=True)
+        self.g1=F.gauss([0.0,self.c1.v,self.c1.a,self.c1.s],x=self.zv,returnmodel=True)
+        self.g2=F.gauss([0.0,self.c2.v,self.c2.a,self.c2.s],x=self.zv,returnmodel=True)
         self.g=self.g1+self.g2
 
     def applymask(self):
