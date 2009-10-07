@@ -170,15 +170,16 @@ def fitgauss(data,err=None,parinfo=None,prin=False,plot=False,quiet=True):
     return fit
 
 
-def fit2gauss(data,parinfo=None,plot=False,prin=False,quiet=True,fitfunc=None):
+def fit2gauss(data,parinfo=None,plot=False,prin=False,quiet=True,fitfunc=None,x=None,):
     if isconstant(data):
         return -1
 
     data=data.astype('Float64')
     #data-=min(data)
-    x=N.arange(len(data),dtype='Float64')
     #err=N.zeros(len(data))+1
     err=1/N.sqrt(data)
+    
+    if x == None: x=N.arange(len(data),dtype='Float64')
     
     fa = {'x':x, 'y':data, 'err':err}
 
