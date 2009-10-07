@@ -9,21 +9,6 @@ using matplotlibs key- and mouse-bindings.
 
 from PyGalKin import *
 
-class gauss3p:
-    def __init__(self,a,v,s):
-        if a.shape != v.shape: print "NO!"
-        elif s.shape != a.shape: print "NO!"
-        self.a=a
-        self.v=v
-        self.s=s
-
-    def __getitem__(self,slice):
-        return gauss3p(self.a[slice],self.v[slice],self.s[slice])
-
-    def __setitem__(self,key,value):
-        self.a[key],self.v[key],self.s[key]=value.a,value.v,value.s
-
-
 class doublecomp:
     def __init__(self,fitresults=None,cube=None,z=None,vmin=None,vmax=None,\
                      clipcube=True,extra=1.1,restl=Sulfur):
@@ -51,22 +36,27 @@ class doublecomp:
             cont=C.contfrommin(cube,10)
             cont.shape=(cube.shape[0],cube.shape[1],1)
             self.cube=cube - cont
+            
         elif z: self.z=z
         else: self.z=100
 
-        self.zv=N.arange(self.z,dtype='f')/self.z
+        self.zv=N.arange(self.z,dtype='float64')/self.z
         self.zv*=self.vmax*extra - self.vmin/extra
         self.zv+=self.vmin/extra
 
         if fitresults != None:
             a1,v1,s1,a2,v2,s2=fitresults
-            self.d1=gauss3p(a1,v1,s1)
-            self.d2=gauss3p(masked_array(a2),masked_array(v2),masked_array(s2))
+            self.a1,self.v1,self.s1=masked_array(a1),masked_array(v1),masked_array(s1)
+            self.a2,self.v2,self.s2=masked_array(a2),masked_array(v2),masked_array(s2)
         else:
-            self.all1()
+            z=N.zeros((self.cube.shape[0],self.cube.shape[1]),dtype='float64')
+            self.a1,self.v1,self.s1=masked_array(z,copy=True),masked_array(z,copy=True),masked_array(z,copy=True)
+            self.a2,self.v2,self.s2=masked_array(z,copy=True),masked_array(z,copy=True),masked_array(z,copy=True)
+            self.all2()
         
 
-        self.mask=N.zeros_like(self.d1.a).astype('bool')
+        self.mask1=N.zeros_like(self.a1).astype('bool')
+        self.mask2=N.zeros_like(self.a2).astype('bool')
                         
         self.sortbyamp()
 
@@ -84,18 +74,23 @@ class doublecomp:
         self.update()
 
     def button(self,event):
-        if event.inaxes not in [self.ax1,self.ax2]: return
-        x,y=int(round(event.xdata)),int(round(event.ydata))
-        
-        if event.button==1:
-            self.cx,self.cy=x,y
-            self.update()
-        elif event.button==2: 
-            self.setregion(x,y)
-            self.update()
-        elif event.button==3:
-            self.mask[x,y]= not self.mask[x,y]
-            self.update()
+        if event.inaxes in [self.ax1,self.ax2]:
+            x,y=int(round(event.xdata)),int(round(event.ydata))
+            if event.button==1:
+                self.cx,self.cy=x,y
+                self.update()
+            elif event.button==2: 
+                self.setregion(x,y)
+                self.update()
+            elif event.button==3:
+                self.mask[x,y]= not self.mask[x,y]
+                self.update()
+        elif event.inaxes in [self.ax3]:
+            x,y=event.xdata,event.ydata
+            if event.button==1:
+                self.vcl1,self.acl1=x,y
+            elif event.button==3: 
+                self.vcl2,self.acl2=x,y
 
     def key(self,event):
         print event.key
@@ -114,34 +109,72 @@ class doublecomp:
         if event.key=='l': 
             self.cx+=1; self.update()
         if event.key=='1': 
-            self.onlyone()
+            self.fit1(); self.update()
         if event.key=='2':
-            self.redo2()
+            self.fit2(); self.update()
         self.update()
 
-    def redo1(self):
-        pass
+    def fit1(self,x=None,y=None):
+        if not x: x=self.cx
+        if not y: y=self.cy
+        data=N.array(self.cube[x,y,:])+1
+        fit=F.fitgauss(data,x=self.zv,parinfo=self.parinfo(self.zv,data))
+        if fit != -1:
+            c,v,a,s,c,c,c=fit.params
+        else: a,v,s=0,0,0
+        self.a1[x,y]=a
+        self.v1[x,y]=v
+        self.s1[x,y]=s
+        self.a2[x,y]=0
+        self.v2[x,y]=0
+        self.s2[x,y]=0
+        print('Fitted x:%d y:%d with a:%e v:%e s:%e'%(x,y,a,v,s))
 
-    def redo2(self):
-        pass
-    
-    def all1(self):
-        tmp=N.zeros((self.cube.shape[0],self.cube.shape[1],3),dtype='f')
-        for i in N.arange(self.cube.shape[0]):
-            for j in N.arange(self.cube.shape[1]):
-                print('Fitting %d %d'%(i,j))
-                fit=F.fitgauss(self.cube[i,j,:],x=self.zv,prin=True,plot=True)
-                if fit != -1:
-                    c,a,v,s=fit.params
-                    tmp[i,j,:]=v,a,s
-                else: tmp[i,j,:]=0,0,0
-        self.d1=gauss3p(tmp[:,:,0],tmp[:,:,1],tmp[:,:,2])
-        z=N.zeros((self.cube.shape[0],self.cube.shape[1]),dtype='f')
-        self.d2=gauss3p(masked_array(z),masked_array(z),masked_array(z))
+    def fit2(self,x=None,y=None):
+        if not x: x=self.cx
+        if not y: y=self.cy
+        data=N.array(self.cube[x,y,:])+1
+        fit=F.fit2gauss(data,x=self.zv,parinfo=self.parinfo(self.zv,data))
+        if fit != -1:
+            c,v1,a1,s1,v2,a2,s2=fit.params
+        else: v1,a1,s1,v2,a2,s2=(0.0,)*6
+        self.a1[x,y]=a1
+        self.v1[x,y]=v1
+        self.s1[x,y]=s1
+        self.a2[x,y]=a2
+        self.v2[x,y]=v2
+        self.s2[x,y]=s2
+        print('Fitted x:%d y:%d with a1:%e v1:%e s1:%e a2:%e v2:%e s2:%e'%(x,y,a1,v1,s1,a2,v2,s2))
         
 
+    def parinfo(self,x,data):
+        parinfo=[]
+        for i in range(7):
+            parinfo.append({'value':0.0, 'fixed':0, 'limited':[1,0],'limits':[0.0, 0.0], 'step':0.0})
+        parinfo[0]['value']=data.min()
+        parinfo[1]['value']=x[data.argmax()]
+        parinfo[2]['value']=data.max()
+        parinfo[3]['value']=(x.max()-x.min())/10.
+        parinfo[4]['value']=x[data.argmax()]
+        parinfo[5]['value']=data.max()/2
+        parinfo[6]['value']=(x.max()-x.min())/5.
+        
+        if hasattr(self,'vcl1'): parinfo[1]['value']=self.vcl1
+        if hasattr(self,'acl1'): parinfo[2]['value']=self.acl1
+        if hasattr(self,'vcl2'): parinfo[4]['value']=self.vcl2
+        if hasattr(self,'acl2'): parinfo[5]['value']=self.acl2
+        
+        return parinfo
+    
+    def all1(self):
+        for i in N.arange(self.cube.shape[0]):
+            for j in N.arange(self.cube.shape[1]):
+                self.fit1(i,j)
+
     def all2(self):
-        pass
+        for i in N.arange(self.cube.shape[0]):
+            for j in N.arange(self.cube.shape[1]):
+                self.fit2(i,j)
     
     def setregion(self,x,y):
         self.rx=[x,self.cx]
@@ -164,25 +197,24 @@ class doublecomp:
         self.update()
 
     def sortbyamp(self):
-        self.switchbymask(self.d1.a<self.d2.a)
+        self.switchbymask(self.a1<self.a2)
 
-    def switchcurrent(self):
-        self.d1[self.cx,self.cy],self.d2[self.cx,self.cy]= \
-            self.d2[self.cx,self.cy],self.d1[self.cx,self.cy]
-
-        self.update()
 
     def switchbymask(self,mask):
-        o1=copy(self.d1)
-        o2=copy(self.d2)
-        self.d1.a=N.where(mask,o2.a,o1.a)
-        self.d2.a=N.where(mask,o1.a,o2.a)
-        self.d1.v=N.where(mask,o2.v,o1.v)
-        self.d2.v=N.where(mask,o1.v,o2.v)
-        self.d1.s=N.where(mask,o2.s,o1.s)
-        self.d2.s=N.where(mask,o1.s,o2.s)
-        print self.d1
-  
+        self.a1,self.a2=N.where(mask,self.a2,self.a1),N.where(mask,self.a1,self.a2)
+        self.v1,self.v2=N.where(mask,self.v2,self.v1),N.where(mask,self.v1,self.v2)
+        self.s1,self.s2=N.where(mask,self.s2,self.s1),N.where(mask,self.s1,self.s2)
+        
+    def switchcurrent(self):
+        self.a1[self.cx,self.cy],self.a2[self.cx,self.cy]= \
+            self.a2[self.cx,self.cy],self.a1[self.cx,self.cy]
+        self.v1[self.cx,self.cy],self.v2[self.cx,self.cy]= \
+            self.v2[self.cx,self.cy],self.v1[self.cx,self.cy]
+        self.s1[self.cx,self.cy],self.s2[self.cx,self.cy]= \
+            self.s2[self.cx,self.cy],self.s1[self.cx,self.cy]
+        
+        self.update()
+
     def plotcurspec(self,x=0,y=0):
         self.ax3.clear()
         self.ax3.set_title('Current pixel')
@@ -198,8 +230,8 @@ class doublecomp:
     def plotvfs(self):
         self.ax1.clear()
         self.ax2.clear()
-        self.ax1.imshow(N.transpose(self.d1.v),interpolation='nearest',vmin=self.vmin,vmax=self.vmax)
-        self.ax2.imshow(N.transpose(self.d2.v),interpolation='nearest',vmin=self.vmin,vmax=self.vmax)
+        self.ax1.imshow(N.transpose(self.v1),interpolation='nearest',vmin=self.vmin,vmax=self.vmax)
+        self.ax2.imshow(N.transpose(self.v2),interpolation='nearest',vmin=self.vmin,vmax=self.vmax)
         ax=self.ax2.axis()
         self.ax1.plot([self.cx-0.5,self.cx+0.5],[self.cy-0.5,self.cy+0.5],'k-')
         self.ax1.plot([self.cx-0.5,self.cx+0.5],[self.cy+0.5,self.cy-0.5],'w-')
@@ -211,20 +243,21 @@ class doublecomp:
         self.ax2.set_title('VF 2')
         
     def newgausses(self):
-        self.g1=F.gauss([0.0,self.c1.v,self.c1.a,self.c1.s],x=self.zv,returnmodel=True)
-        self.g2=F.gauss([0.0,self.c2.v,self.c2.a,self.c2.s],x=self.zv,returnmodel=True)
+        self.g1=F.gauss([0.0,self.v1[self.cx,self.cy],self.a1[self.cx,self.cy],self.s1[self.cx,self.cy]],x=self.zv,returnmodel=True)
+        self.g2=F.gauss([0.0,self.v2[self.cx,self.cy],self.a2[self.cx,self.cy],self.s2[self.cx,self.cy]],x=self.zv,returnmodel=True)
         self.g=self.g1+self.g2
 
     def applymask(self):
-        self.d2.a.mask=self.mask
-        self.d2.v.mask=self.mask
-        self.d2.s.mask=self.mask
+        self.a1.mask=self.mask1
+        self.v1.mask=self.mask1
+        self.s1.mask=self.mask1
+        self.a2.mask=self.mask2
+        self.v2.mask=self.mask2
+        self.s2.mask=self.mask2
         
 
     def update(self):
         self.applymask()
-        self.c1=self.d1[self.cx,self.cy]
-        self.c2=self.d2[self.cx,self.cy]
         self.newgausses()
         self.plotvfs()
         self.plotcurspec()
