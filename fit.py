@@ -18,19 +18,8 @@ def shiftnfit(data,fitfunc):
 ## FUNCTIONS TO FIT
 
 def gauss(p, fjac=None, x=None, y=None, err=None, returnmodel=False):
-    """p0=cont p1=ampl p2=center p3=sigma """
     model = p[0] + (p[2] * N.exp( -1* ((x-p[1])**2) / (2*(p[3]**2)) ) ) 
 
-    #nomin=(x-p[2])**2
-    #denom=(p[3]**2) * 2
-    #expo=N.exp(-1*nomin/denom)
-    #model=expo * p[1]
-    #model+=p[0]
-
-    # Non-negative status value means MPFIT should continue, negative means
-    # stop the calculation.
-    #print p
-    #P.plot(model)
     if returnmodel==True:
         return model
     else:
@@ -39,10 +28,8 @@ def gauss(p, fjac=None, x=None, y=None, err=None, returnmodel=False):
  
 
 def twogauss(p, fjac=None, x=None, y=None, err=None, returnmodel=False):
-    """p0=cont p1=ampl p2=center p3=sigma """
     model = p[0] + (p[2] * N.exp( -1* ((x-p[1])**2) / (2*(p[3]**2)) ) )  + (p[5] * N.exp( -1* ((x-p[4])**2) / (2*(p[6]**2)) ) )
 
-    #P.plot(model)
     if returnmodel==True:
         return model
     else:
@@ -58,13 +45,12 @@ def gaussh34(p, fjac=None, x=None, y=None, err=None, returnmodel=False):
     G= N.exp( -1*(X**2) /2) * p[2] 
     model = p[0]+ G*(1 + (p[4] * h3) + (p[5]*h4))
 
-    #print model.shape,x.shape,y.shape
     if returnmodel==True:
         return model
     else:
         status = 0
-        return([status, (y-model)/err]) # for mpfit
-        #return y-model
+        return([status, (y-model)/err])
+        
 
 def gauss_overlap(p, fjac=None, x=None, y=None, err=None):
   """This is used by gauss_from_array(). It returnes a status flag and
@@ -141,21 +127,20 @@ def fitgauss(data,err=None,parinfo=None,prin=False,plot=False,quiet=True,x=None)
             parinfo.append({'value':0.0, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0})
 
 #        parinfo[0]['value']=min(data)
-        parinfo[0]['value']=1.0
+        parinfo[0]['value']=data.min()
         parinfo[0]['fixed']=0
         parinfo[0]['limited']=[0,0]
         parinfo[0]['limits']=[min(data),max(data)]
-        parinfo[1]['value']=N.argmax(data)
+        parinfo[1]['value']=x[N.argmax(data)]
         parinfo[1]['limited']=[0,0]
-        parinfo[1]['limits']=[0.0,len(data)]
+        parinfo[1]['limits']=[x.min(),x.max()]
         parinfo[2]['value']=(max(data)-min(data))
         parinfo[2]['limited']=[0,0]
         parinfo[2]['limits']=[0.0,max(data)]
-        parinfo[3]['value']=len(data)/16.
+        parinfo[3]['value']=(x.max()-x.min())/10.
         parinfo[3]['limited']=[0,0]
         parinfo[3]['limits']=[0.0,len(data)/2.]
         
-
     try:
         fit=mpfit(gauss,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet)
     except OverflowError:
@@ -163,8 +148,8 @@ def fitgauss(data,err=None,parinfo=None,prin=False,plot=False,quiet=True,x=None)
     
     if plot==True:
         P.clf()
-        P.plot(data,'r',linestyle='steps')
-        P.plot(gauss(fit.params,x=N.arange(len(data)),returnmodel=True),'b')
+        P.plot(x,data,'r',linestyle='steps')
+        P.plot(x,gauss(fit.params,x=x,returnmodel=True),'b')
     if prin==True:
         print fit.niter,fit.params,fit.status
     
@@ -188,32 +173,28 @@ def fit2gauss(data,parinfo=None,plot=False,prin=False,quiet=True,fitfunc=None,x=
             parinfo.append({'value':0.0, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0})
 
         parinfo[0]['value']=min(data)
-        parinfo[0]['limited']=[1,1]
+        parinfo[0]['limited']=[0,0]
         parinfo[0]['limits']=[min(data),max(data)]
-        parinfo[1]['value']=N.argmax(data)
-        parinfo[1]['limited']=[1,1]
+        parinfo[1]['value']=x[N.argmax(data)]
+        parinfo[1]['limited']=[0,0]
         parinfo[1]['limits']=[0.0,len(data)]
         parinfo[2]['value']=(max(data)-min(data))
-        parinfo[2]['limited']=[1,1]
+        parinfo[2]['limited']=[0,0]
         parinfo[2]['limits']=[0.0,max(data)]
-        parinfo[3]['value']=len(data)/6.
-        parinfo[3]['limited']=[1,1]
+        parinfo[3]['value']=(x.max()-x.min())/10.
+        parinfo[3]['limited']=[0,0]
         parinfo[3]['limits']=[0.0,len(data)/2.]
-        parinfo[4]['value']=N.argmax(data)
-        parinfo[4]['limited']=[1,1]
+        parinfo[4]['value']=x[N.argmax(data)]
+        parinfo[4]['limited']=[0,0]
         parinfo[4]['limits']=[0.0,len(data)]
         parinfo[5]['value']=0.0
-        parinfo[5]['limited']=[1,1]
+        parinfo[5]['limited']=[0,0]
         parinfo[5]['limits']=[0,max(data)]
-        parinfo[6]['value']=len(data)/2.
-        parinfo[6]['limited']=[1,1]
+        parinfo[6]['value']=(x.max()-x.min())/2.
+        parinfo[6]['limited']=[0,0]
         parinfo[6]['limits']=[0.0,len(data)/2.]
-    else:
-        parinfo[1]['value']+=len(data)/2
-        parinfo[4]['value']+=len(data)/2
-      
 
-    print data,x,err,parinfo
+    #print data,x,err,parinfo
     if fitfunc==None: fitfunc=twogauss
     try:
         fit=mpfit(fitfunc,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet)
@@ -222,10 +203,10 @@ def fit2gauss(data,parinfo=None,plot=False,prin=False,quiet=True,fitfunc=None,x=
         
     if plot==True:
         P.clf()
-        P.plot(data,'r',linestyle='steps')
-        P.plot(twogauss(fit.params,x=N.arange(len(data)),returnmodel=True),'g')
-        P.plot(gauss(fit.params,x=N.arange(len(data)),returnmodel=True),'b')
-        P.plot(gauss(fit.params[[0,4,5,6]],x=N.arange(len(data)),returnmodel=True),'r')
+        P.plot(x,data,'r',linestyle='steps')
+        P.plot(x,twogauss(fit.params,x=N.arange(len(data)),returnmodel=True),'g')
+        P.plot(x,gauss(fit.params,x=N.arange(len(data)),returnmodel=True),'b')
+        P.plot(x,gauss(fit.params[[0,4,5,6]],x=N.arange(len(data)),returnmodel=True),'r')
     if prin==True:
         print fit.niter,fit.params,fit.status
     return fit
