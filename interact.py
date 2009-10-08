@@ -10,12 +10,13 @@ using matplotlibs key- and mouse-bindings.
 from PyGalKin import *
 
 class doublecomp:
-    def __init__(self,fitresults=None,cube=None,z=None,vmin=None,vmax=None,\
-                     clipcube=True,extra=1.1,restl=Sulfur):
-        self.cx=0
-        self.cy=0
+    def __init__(self,fitresults=None,masks=None,cube=None,z=None,vmin=None,vmax=None,\
+                     clipcube=True,extra=1.1,restl=Sulfur,savefile='Haro11-doublecomp.pick'):
+        self.cx=12
+        self.cy=9
         self.extra=extra
         self.restl=restl
+        self.savefile=savefile
 
         if (vmin and vmax):
             self.vmin=vmin
@@ -54,9 +55,12 @@ class doublecomp:
             self.a2,self.v2,self.s2=masked_array(z,copy=True),masked_array(z,copy=True),masked_array(z,copy=True)
             self.all2()
         
-
-        self.mask1=N.zeros_like(self.a1).astype('bool')
-        self.mask2=N.zeros_like(self.a2).astype('bool')
+        if masks==None:
+            self.mask1=N.zeros_like(self.a1).astype('bool')
+            self.mask2=N.zeros_like(self.a2).astype('bool')
+        else:
+            self.mask1=masks[0]
+            self.mask2=masks[1]
                         
         self.sortbyamp()
 
@@ -71,8 +75,12 @@ class doublecomp:
         self.canvas.mpl_connect('key_press_event', self.key)
         self.canvas.mpl_connect('button_press_event', self.button)
 
-        self.update()
-
+        self.setregion()
+        self.applymask()
+        self.newgausses()
+        self.plotvfs()
+        self.plotcurspec()
+        
     def button(self,event):
         if event.inaxes in [self.ax1,self.ax2]:
             x,y=int(round(event.xdata)),int(round(event.ydata))
@@ -94,12 +102,14 @@ class doublecomp:
 
     def key(self,event):
         print event.key
+        if event.key=='x':
+            IO.dump((a.mask1,a.mask2,a.a1,a.v1,a.s1,a.a2,a.v2,a.s2),savefile)
         if event.key=='w': 
             self.switchcurrent()
         if event.key=='m': 
-            self.maskregion()
+            self.maskregion(); self.update()
         if event.key=='u': 
-            self.unmaskregion()
+            self.unmaskregion(); self.update()
         if event.key=='i': 
             self.cy+=1; self.update()
         if event.key=='k': 
@@ -109,9 +119,9 @@ class doublecomp:
         if event.key=='l': 
             self.cx+=1; self.update()
         if event.key=='1': 
-            self.fit1(); self.update()
+            self.fit1(); self.maskregion(2); self.unmaskregion(1); self.update()
         if event.key=='2':
-            self.fit2(); self.update()
+            self.fit2(); self.unmaskregion(); self.update()
         self.update()
 
     def fit1(self,x=None,y=None):
@@ -176,24 +186,26 @@ class doublecomp:
             for j in N.arange(self.cube.shape[1]):
                 self.fit2(i,j)
     
-    def setregion(self,x,y):
+    def setregion(self,x=None,y=None):
+        if not x: x=self.cx
+        if not y: y=self.cy
         self.rx=[x,self.cx]
         self.ry=[y,self.cy]
         self.rx.sort()
         self.ry.sort()
 
-    def maskregion(self):
-        if not hasattr(self,'rx'):
-            self.rx=[self.cx,self.cx]
-            self.ry=[self.cy,self.cy]
-        self.mask[self.rx[0]:self.rx[1]+1,self.ry[0]:self.ry[1]+1]=True
+    def maskregion(self,what=3):
+        if what%2 ==1:
+            self.mask1[self.rx[0]:self.rx[1]+1,self.ry[0]:self.ry[1]+1]=True
+        if what >=2:
+            self.mask2[self.rx[0]:self.rx[1]+1,self.ry[0]:self.ry[1]+1]=True
         self.update()
         
-    def unmaskregion(self):
-        if not hasattr(self,'rx'):
-            self.rx=[self.cx,self.cx]
-            self.ry=[self.cy,self.cy]
-        self.mask[self.rx[0]:self.rx[1]+1,self.ry[0]:self.ry[1]+1]=False
+    def unmaskregion(self,what=3):
+        if what%2 ==1:
+            self.mask1[self.rx[0]:self.rx[1]+1,self.ry[0]:self.ry[1]+1]=False
+        if what >=2:
+            self.mask2[self.rx[0]:self.rx[1]+1,self.ry[0]:self.ry[1]+1]=False
         self.update()
 
     def sortbyamp(self):
@@ -220,23 +232,27 @@ class doublecomp:
         self.ax3.set_title('Current pixel')
         if hasattr(self,'cube'):
             cub=self.cube[self.cx,self.cy,:]
-            self.ax3.plot(self.zv,cub,'k-',linestyle='steps',label='meas')
-        self.ax3.plot(self.zv,self.g1,'b-',label='1')
-        self.ax3.plot(self.zv,self.g2,'g-',label='2')
-        self.ax3.plot(self.zv,self.g,'r-',label='sum')
-        self.ax3.legend(loc=2)
+            self.meas,=self.ax3.plot(self.zv,cub,'k-',linestyle='steps',label='meas')
+        self.gauss1,=self.ax3.plot(self.zv,self.g1,'b-',label='1')
+        self.gauss2,=self.ax3.plot(self.zv,self.g2,'g-',label='2')
+        self.gauss,=self.ax3.plot(self.zv,self.g,'r-',label='sum')
+        self.ax3.set_yticks([])
+        #self.ax3.legend(loc=2)
         
-
+    def plotcross(self):
+        self.cross1a,=self.ax1.plot([self.cx-0.5,self.cx+0.5],[self.cy-0.5,self.cy+0.5],'k-')
+        self.cross2a,=self.ax1.plot([self.cx-0.5,self.cx+0.5],[self.cy+0.5,self.cy-0.5],'w-')
+        self.cross1b,=self.ax2.plot([self.cx-0.5,self.cx+0.5],[self.cy-0.5,self.cy+0.5],'k-')
+        self.cross2b,=self.ax2.plot([self.cx-0.5,self.cx+0.5],[self.cy+0.5,self.cy-0.5],'w-')
+        
+        
     def plotvfs(self):
         self.ax1.clear()
         self.ax2.clear()
-        self.ax1.imshow(N.transpose(self.v1),interpolation='nearest',vmin=self.vmin,vmax=self.vmax)
-        self.ax2.imshow(N.transpose(self.v2),interpolation='nearest',vmin=self.vmin,vmax=self.vmax)
+        self.vf1=self.ax1.imshow(N.transpose(self.v1),interpolation='nearest',vmin=self.vmin,vmax=self.vmax)
+        self.vf2=self.ax2.imshow(N.transpose(self.v2),interpolation='nearest',vmin=self.vmin,vmax=self.vmax)
         ax=self.ax2.axis()
-        self.ax1.plot([self.cx-0.5,self.cx+0.5],[self.cy-0.5,self.cy+0.5],'k-')
-        self.ax1.plot([self.cx-0.5,self.cx+0.5],[self.cy+0.5,self.cy-0.5],'w-')
-        self.ax2.plot([self.cx-0.5,self.cx+0.5],[self.cy-0.5,self.cy+0.5],'k-')
-        self.ax2.plot([self.cx-0.5,self.cx+0.5],[self.cy+0.5,self.cy-0.5],'w-')
+        self.plotcross()
         self.ax1.axis(ax)
         self.ax2.axis(ax)
         self.ax1.set_title('VF 1')
@@ -246,7 +262,7 @@ class doublecomp:
         self.g1=F.gauss([0.0,self.v1[self.cx,self.cy],self.a1[self.cx,self.cy],self.s1[self.cx,self.cy]],x=self.zv,returnmodel=True)
         self.g2=F.gauss([0.0,self.v2[self.cx,self.cy],self.a2[self.cx,self.cy],self.s2[self.cx,self.cy]],x=self.zv,returnmodel=True)
         self.g=self.g1+self.g2
-
+        
     def applymask(self):
         self.a1.mask=self.mask1
         self.v1.mask=self.mask1
@@ -255,12 +271,29 @@ class doublecomp:
         self.v2.mask=self.mask2
         self.s2.mask=self.mask2
         
+    def updateplots(self):
+        self.cross1a.set_data([self.cx-0.5,self.cx+0.5],[self.cy-0.5,self.cy+0.5])
+        self.cross2a.set_data([self.cx-0.5,self.cx+0.5],[self.cy+0.5,self.cy-0.5])
+        self.cross1b.set_data([self.cx-0.5,self.cx+0.5],[self.cy-0.5,self.cy+0.5])
+        self.cross2b.set_data([self.cx-0.5,self.cx+0.5],[self.cy+0.5,self.cy-0.5])
+        self.vf1.set_data(N.transpose(self.v1))
+        self.vf2.set_data(N.transpose(self.v2))
+        #self.amp1.set_data(N.transpose(self.a1))
+        #self.amp2.set_data(N.transpose(self.a2))
+        #self.sig1.set_data(N.transpose(self.s1))
+        #self.sig2.set_data(N.transpose(self.s2))
+        meas=self.cube[self.cx,self.cy]
+        self.meas.set_ydata(meas)
+        self.gauss1.set_ydata(masked_array(self.g1))
+        self.gauss2.set_ydata(masked_array(self.g2))
+        self.gauss.set_ydata(masked_array(self.g))
+        self.ax3.set_ylim(meas.min()/1.15,meas.max()*1.05)
 
     def update(self):
+        self.setregion()
         self.applymask()
         self.newgausses()
-        self.plotvfs()
-        self.plotcurspec()
+        self.updateplots()
         self.canvas.draw()
 
 
