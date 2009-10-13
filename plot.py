@@ -6,7 +6,9 @@ from pylab import *
 from PyGalKin import *
 import matplotlib
 from matplotlib import rcParams, colors
-LUTSIZE = rcParams['image.lut']
+from mpl_toolkits.axes_grid import AxesGrid
+
+#LUTSIZE = rcParams['image.lut']
 
 #matplotlib.use('Agg')
 #matplotlib.rc('text', usetex = True)
@@ -90,8 +92,11 @@ _sauron_inv_data = {
             (1.0,0.01,0.01))
     }
 
-sauron=colors.LinearSegmentedColormap('bone  ', _sauron_data, LUTSIZE)
-sauron_inv=colors.LinearSegmentedColormap('bone  ', _sauron_inv_data, LUTSIZE)
+sauron=colors.LinearSegmentedColormap('sauron', _sauron_data)
+sauron_inv=colors.LinearSegmentedColormap('sauron_inv', _sauron_inv_data)
+register_cmap(cmap=sauron)
+register_cmap(cmap=sauron_inv)
+rcParams['image.cmap']='sauron'
 
 def imshow(X, cmap=sauron, norm=None, aspect=None, interpolation='nearest', alpha=1.0, vmin=None, vmax=None, origin='lower', extent=None):
     P.imshow(N.transpose(X),cmap=cmap, norm=norm, aspect=aspect, interpolation=interpolation, alpha=alpha, vmin=vmin, vmax=vmax, origin=origin, extent=extent)
