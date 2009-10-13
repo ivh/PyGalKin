@@ -17,7 +17,7 @@ class doublecomp:
         self.extra=extra
         self.restl=restl
         self.savefile=savefile
-
+        
         if (vmin and vmax):
             self.vmin=vmin
             self.vmax=vmax
@@ -96,21 +96,25 @@ class doublecomp:
                 self.setregion(x,y)
                 self.update()
             elif event.button==3:
-                self.mask[x,y]= not self.mask[x,y]
+                self.setregion(x,y)
                 self.update()
-        elif event.inaxes in [self.ax3]:
+        elif event.inaxes in [self.ax7]:
             x,y=event.xdata,event.ydata
             if event.button==1:
                 self.vcl1,self.acl1=x,y
+                self.parinfo[1]['value']=x
+                self.parinfo[2]['value']=y
             elif event.button==3: 
                 self.vcl2,self.acl2=x,y
+                self.parinfo[4]['value']=x
+                self.parinfo[5]['value']=y
 
     def key(self,event):
         print event.key
         if event.key=='x':
             IO.dump((self.mask1,self.mask2,self.a1,self.v1,self.s1,self.a2,self.v2,self.s2),self.savefile)
         if event.key=='w': 
-            self.switchcurrent()
+            self.switch()
         if event.key=='m': 
             self.maskregion(); self.update()
         if event.key=='u': 
@@ -127,13 +131,15 @@ class doublecomp:
             self.fit1(); self.maskregion(2); self.unmaskregion(1); self.update()
         if event.key=='2':
             self.fit2(); self.unmaskregion(); self.update()
-        self.update()
-
+        if event.key=='8':
+            self.parinfo[1]['fixed']=1
+            self.parinfo[4]['fixed']=1
+        
     def fit1(self,x=None,y=None):
         if not x: x=self.cx
         if not y: y=self.cy
         data=N.array(self.cube[x,y,:])+1
-        fit=F.fitgauss(data,x=self.zv,parinfo=self.parinfo(self.zv,data))
+        fit=F.fitgauss(data,x=self.zv,parinfo=self.parinfo)
         if fit != -1:
             c,v,a,s,c,c,c=fit.params
         else: a,v,s=0,0,0
@@ -149,7 +155,7 @@ class doublecomp:
         if not x: x=self.cx
         if not y: y=self.cy
         data=N.array(self.cube[x,y,:])+1
-        fit=F.fit2gauss(data,x=self.zv,parinfo=self.parinfo(self.zv,data))
+        fit=F.fit2gauss(data,x=self.zv,parinfo=self.parinfo,prin=True)
         if fit != -1:
             c,v1,a1,s1,v2,a2,s2=fit.params
         else: v1,a1,s1,v2,a2,s2=(0.0,)*6
@@ -162,7 +168,7 @@ class doublecomp:
         print('Fitted x:%d y:%d with a1:%e v1:%e s1:%e a2:%e v2:%e s2:%e'%(x,y,a1,v1,s1,a2,v2,s2))
         
 
-    def parinfo(self,x,data):
+    def make_parinfo(self,x,data):
         parinfo=[]
         for i in range(7):
             parinfo.append({'value':0.0, 'fixed':0, 'limited':[1,0],'limits':[0.0, 0.0], 'step':0.0})
@@ -176,13 +182,6 @@ class doublecomp:
 
         #parinfo[1]['fixed']=1
         #parinfo[4]['fixed']=1
-                
-        
-        if hasattr(self,'vcl1'): parinfo[1]['value']=self.vcl1
-        if hasattr(self,'acl1'): parinfo[2]['value']=self.acl1
-        if hasattr(self,'vcl2'): parinfo[4]['value']=self.vcl2
-        if hasattr(self,'acl2'): parinfo[5]['value']=self.acl2
-        
         return parinfo
     
     def all1(self):
@@ -225,14 +224,14 @@ class doublecomp:
         self.a1,self.a2=N.where(mask,self.a2,self.a1),N.where(mask,self.a1,self.a2)
         self.v1,self.v2=N.where(mask,self.v2,self.v1),N.where(mask,self.v1,self.v2)
         self.s1,self.s2=N.where(mask,self.s2,self.s1),N.where(mask,self.s1,self.s2)
+
         
-    def switchcurrent(self):
-        self.a1[self.cx,self.cy],self.a2[self.cx,self.cy]= \
-            self.a2[self.cx,self.cy],self.a1[self.cx,self.cy]
-        self.v1[self.cx,self.cy],self.v2[self.cx,self.cy]= \
-            self.v2[self.cx,self.cy],self.v1[self.cx,self.cy]
-        self.s1[self.cx,self.cy],self.s2[self.cx,self.cy]= \
-            self.s2[self.cx,self.cy],self.s1[self.cx,self.cy]
+    def switch(self):
+        sl=slice(self.rx[0],self.rx[1]+1),slice(self.ry[0],self.ry[1]+1)
+        self.a1[sl],self.a2[sl]= self.a2[sl].copy(),self.a1[sl].copy()
+        self.v1[sl],self.v2[sl]= self.v2[sl].copy(),self.v1[sl].copy()
+        self.s1[sl],self.s2[sl]= self.s2[sl].copy(),self.s1[sl].copy()
+        self.mask1[sl],self.mask2[sl]= self.mask2[sl].copy(),self.mask1[sl].copy()
         
         self.update()
 
@@ -245,6 +244,7 @@ class doublecomp:
         self.gauss2,=self.ax7.plot(self.zv,self.g2,'g-',label='2')
         self.gauss,=self.ax7.plot(self.zv,self.g,'r-',label='sum')
         self.ax7.set_yticks([])
+        self.ax7.set_xbound(self.vmin/self.extra,self.vmax*self.extra)
         #self.ax7.legend(loc=2)
         
     def plotcross(self):
@@ -265,12 +265,12 @@ class doublecomp:
         
         
     def plotvfs(self):
-        self.vf1=self.ax1.imshow(N.transpose(self.v1),interpolation='nearest',vmin=self.vmin,vmax=self.vmax)
-        self.vf2=self.ax2.imshow(N.transpose(self.v2),interpolation='nearest',vmin=self.vmin,vmax=self.vmax)
-        self.amp1=self.ax3.imshow(N.transpose(self.a1),interpolation='nearest',vmin=0.0,vmax=self.a1.max())
-        self.amp2=self.ax4.imshow(N.transpose(self.a2),interpolation='nearest',vmin=0.0,vmax=self.a1.max())
-        self.sig1=self.ax5.imshow(N.transpose(self.s1),interpolation='nearest',vmin=self.s1.min(),vmax=self.s1.max())
-        self.sig2=self.ax6.imshow(N.transpose(self.s2),interpolation='nearest',vmin=self.s1.min(),vmax=self.s1.max())
+        self.vf1=self.ax1.imshow(N.transpose(self.v1),interpolation='nearest',vmin=self.vmin,vmax=self.vmax,cmap=P.sauron)
+        self.vf2=self.ax2.imshow(N.transpose(self.v2),interpolation='nearest',vmin=self.vmin,vmax=self.vmax,cmap=P.sauron)
+        self.amp1=self.ax3.imshow(N.transpose(self.a1),interpolation='nearest',vmin=0.0,vmax=self.a1.max(),cmap=P.sauron_inv)
+        self.amp2=self.ax4.imshow(N.transpose(self.a2),interpolation='nearest',vmin=0.0,vmax=self.a1.max(),cmap=P.sauron_inv)
+        self.sig1=self.ax5.imshow(N.transpose(self.s1),interpolation='nearest',vmin=self.s1.min(),vmax=self.s1.max(),cmap=P.sauron_inv)
+        self.sig2=self.ax6.imshow(N.transpose(self.s2),interpolation='nearest',vmin=self.s1.min(),vmax=self.s1.max(),cmap=P.sauron_inv)
         ax=self.ax2.axis()
         self.plotcross()
         self.ax1.axis(ax)
@@ -341,6 +341,7 @@ class doublecomp:
     def update(self):
         self.setregion()
         self.applymask()
+        self.parinfo=self.make_parinfo(self.zv,self.cube[self.cx,self.cy,:]+1)
         self.newgausses()
         self.updateplots()
         self.canvas.draw()
