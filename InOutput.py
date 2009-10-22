@@ -289,7 +289,7 @@ def read_fits (file):
   """
   gives back the data from a fits file
   """
-  ima1=F.open(file)
+  ima1=pyfits.open(file)
   ima=ima1[0]
   im=ima.data
   return im
@@ -299,8 +299,8 @@ def write_fits (data, name):
   writes a matrix into a fits file
   no special headers so far
   """
-  fitsfile=F.HDUList()
-  primary=F.PrimaryHDU()
+  fitsfile=pyfits.HDUList()
+  primary=pyfits.PrimaryHDU()
   primary.data=data
   fitsfile.append(primary)
   fitsfile.writeto(name)
