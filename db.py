@@ -16,7 +16,7 @@ def setupdb(dbname=DBNAME):
 
 def getg(curs,cols,where='gid NOTNULL',table='galax'):
     curs.execute("SELECT %s FROM %s WHERE %s"%(cols,table,where))
-    return N.transpose(map(list,curs.fetchall()))
+    return map(list,curs.fetchall())
 
 def geto(curs,cols,where='oid NOTNULL',table='obspar'):
     curs.execute("SELECT %s FROM %s WHERE %s"%(cols,table,where))
