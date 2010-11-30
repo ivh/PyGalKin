@@ -262,15 +262,17 @@ def doforeachpoint(data, function, *args, **keywords):
     x,y,z=data.shape
     xy=x*y
     data.shape=(xy,z)
-
+    
+    erg=None
     for i in N.arange(xy):
-        tmp=function(data[i], *args, **keywords)
-        if type(tmp)==type(()): print 'cannot handle tuples yet'; return -1
-        elif not hasattr(tmp,'__len__'): tmp=N.array([tmp]);
-        if i == 0:
-            erg=N.zeros((xy,len(tmp)),dtype='float64')
-            erg[i,:]=tmp
-        else: erg[i,:]=tmp
+        tmp=function(data[i,:], *args, **keywords)
+        if not hasattr(tmp,'__len__'): tmp=N.array([tmp]);
+        if erg==None:
+            try: 
+                erg=N.zeros((xy,len(tmp)),dtype='float64')
+            except: continue
+
+        erg[i,:]=tmp
 
     erg.shape=(x,y,-1)
     if erg.shape[2]==1: erg.shape=(x,y)
