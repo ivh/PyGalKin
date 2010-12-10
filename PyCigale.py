@@ -277,6 +277,7 @@ def shift_spectra(data, i=0):
       new_arr: The array shifted i steps
       """
   temp = doforeachpoint(data, shift, i)
+  temp = adhoc(temp,data.p)
   # Offset in km/s
   temp.p['vr_offset'] = temp.p['vr_offset'] - (i*data.fsr()/data.p['lz'])
   return temp
