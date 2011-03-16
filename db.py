@@ -5,7 +5,7 @@ db.py
 
 from PyGalKin import *
 
-DBNAME='/data/cigale/cigale.db'
+DBNAME='/home/tom/cigale/cigale.db'
 exists=path.exists
 
 def setupdb(dbname=DBNAME):

@@ -9,6 +9,71 @@ using matplotlibs key- and mouse-bindings.
 
 from PyGalKin import *
 
+class measure(object):
+    def __init__(self,img,vf,sig,fit,cube,p=None):
+        self.img = img
+        self.vf = vf
+        self.sig = sig
+        self.fit = fit
+        self.cube=cube
+        if p: self.p=p
+        else: self.p=cube.p
+
+        self.conn, self.curs = DB.setupdb()
+
+        self.fig = P.figure()
+        self.canvas = self.fig.canvas
+        self.ax1 = self.fig.add_subplot(221)
+        self.ax1 = self.fig.add_subplot(222, sharex=self.ax1, sharey=self.ax1)
+        self.ax1 = self.fig.add_subplot(223, sharex=self.ax1, sharey=self.ax1)
+        self.ax1 = self.fig.add_subplot(224)
+        self.imaxes = [self.ax1, self.ax2, self.ax3]
+        self.canvas.mpl_connect('key_press_event', self.key)
+        self.canvas.mpl_connect('button_press_event', self.button)
+
+        self.p2pmass = None
+        self.veldiff = None
+        self.censig = None
+        self.sigmass = None
+
+        self.avreg = 5
+        self.cx = 0
+        self.cy = 0
+        self.px = 0
+        self.py = 0
+
+        self.pixdiff2radius= 1
+        self.sigma
+
+    def save(self):
+        pass
+
+    def meas_sigma(self):
+        pass
+
+    def meas_vels(self):
+        pass
+
+    def button(self,event):
+        if event.inaxes not in self.imaxes: return
+
+        x,y=int(round(event.xdata)),int(round(event.ydata))
+        if event.button==1:
+            self.px,self.py=self.cx,self.cy
+            self.cx,self.cy=x,y
+
+    def key(self,event):
+        if event.key=='s':
+            self.save()
+        elif event.key=='w':
+            self.switch(); self.update()
+        elif event.key=='e':
+            self.switch2(); self.update()
+        elif event.key=='b':
+            self.maskregion(1); self.update()
+        elif event.key in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
+            self.avreg = int(event.key)
+
 class doublecomp:
     def __init__(self,fitresults=None,masks=None,cube=None,z=None,vmin=None,vmax=None,\
                      clipcube=True,extra=1.1,restl=Sulfur,savefile='Haro11-multicomp.pick'):
@@ -27,12 +92,12 @@ class doublecomp:
                 p0=lamb2pix(self.l0,cube.l0,cube.dl)-1
                 p1=lamb2pix(self.l1,cube.l0,cube.dl)
                 cube=cube[:,:,p0:p1]
-                
+
             self.z=cube.shape[-1]
             cont=C.contfrommin(cube,10)
             cont.shape=(cube.shape[0],cube.shape[1],1)
             self.cube=cube - cont
-            
+
         elif z: self.z=z
         else: self.z=100
 

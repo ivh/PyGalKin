@@ -19,7 +19,7 @@ from scipy import signal as Sig
 from scipy.optimize import leastsq as LS
 from numpy.ma import masked_where,masked_array,mask_or
 from scipy.fftpack import fft
-from filtfilt import filtfilt
+#from filtfilt import filtfilt
 from mpfit import mpfit
 from math import pi,e,radians,degrees
 
@@ -29,7 +29,7 @@ import os.path as path
 import sys
 from time import sleep
 from copy import copy
-import wx
+#import wx
 import pickle
 from sqlite3 import dbapi2 as sqlite
 from sdss import sqlcl
@@ -39,10 +39,10 @@ from sdss import sqlcl
 ##############
 from tool import *
 import PyCigale as C
-import PyArgus as A
+#import PyArgus as A
 import interact as I
 import InOutput as IO
-import ModelVF as MV
+#import ModelVF as MV
 import Gauss as G
 import fit as F
 import plot as P
@@ -50,8 +50,8 @@ import MacroGen as MG
 import db as DB
 
 # Good ol' IDL
-try: from pyIDL import idl as IDL
-except: print 'Could not import IDL'
+#try: from pyIDL import idl as IDL
+#except: print 'Could not import IDL'
 
 
 
