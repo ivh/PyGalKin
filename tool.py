@@ -266,10 +266,12 @@ def doforeachpoint(data, function, *args, **keywords):
     erg=None
     for i in N.arange(xy):
         tmp=function(data[i,:], *args, **keywords)
+        #print i,tmp
         if not hasattr(tmp,'__len__'): tmp=N.array([tmp]);
         if erg==None:
             try: 
                 erg=N.zeros((xy,len(tmp)),dtype='float64')
+                #print 'first value'
             except: continue
 
         erg[i,:]=tmp
