@@ -16,15 +16,7 @@ def setupdb(dbname=DBNAME):
 
 def getg(curs,cols,where='gid NOTNULL',table='galax'):
     curs.execute("SELECT %s FROM %s WHERE %s"%(cols,table,where))
-    return map(list,curs.fetchall())
-
-def geto(curs,cols,where='oid NOTNULL',table='obspar'):
-    curs.execute("SELECT %s FROM %s WHERE %s"%(cols,table,where))
-    return N.transpose(map(list,curs.fetchall()))
-
-def getd(curs,cols,where='did NOTNULL',table='data'):
-    curs.execute("SELECT %s FROM %s WHERE %s"%(cols,table,where))
-    return N.transpose(map(list,curs.fetchall()))
+    return map(N.array,zip(*curs.fetchall()))
 
 def getSDSSids(curs):
     tol=0.00833

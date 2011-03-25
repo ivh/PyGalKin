@@ -308,24 +308,26 @@ def VF_gauss(data, second=False):
     return temp
   else:
     print 'Object is not in gaussian form!'
-  
+
 def VF_firstmom(data, slitname=None):
   """ giving back a 2d map with the first moment of the 3d cube"""
-  
+
   temp = N.resize(data, (data.nx(), data.ny()))
-  
+
   temp[:,:] = doforeachpoint(data, firstmoment)/data.p['lz']*data.fsr() + lamb2vel(data.p['xlbneb']-0.5*data.p['xil']) + data.p['vr_offset']
-   
+
   return temp
 
-def chan2absvel(inarr):
+def chan2absvel(inarr,p=None):
     """ convert channels into absolute velocity.."""
-    return lamb2vel( inarr.p['xl1'] + (inarr*inarr.p['xil']/inarr.p['lz']) )
-    
-def chan2relvel(inarr):
+    if not p: p=inarr.p
+    return lamb2vel( p['xl1'] + (inarr*p['xil']/p['lz']) )
+
+def chan2relvel(inarr,p=None):
     """ convert channels into relative velocity"""
-    #return lamb2vel((inarr * inarr.p['xil'] /inarr.p['lz'])+inarr.p['xlbneb']) - lamb2vel(inarr.p['xlbneb'])
-    return lamb2vel(lambHA + (inarr * inarr.p['xil'] /float(inarr.p['lz'])))
+    if not p: p=inarr.p
+    return lamb2vel((inarr * p['xil'] /p['lz'])+p['xlbneb'])\
+            - lamb2vel(p['xlbneb'])
 
 def peakvel(inarr,n=3):
     """ calculate velocity field from the peak"""
@@ -335,7 +337,7 @@ def peakvel(inarr,n=3):
 def contfrommin(inarr,n=5):
     """ create a continuum map by averaging the n lowest channels"""
     return doforeachpoint(inarr,getavmin,n)
-    
+
 def getavmin(inarr,n):
     """ average the n lowest value in an array"""
     return N.sort(inarr)[0:n].mean()
