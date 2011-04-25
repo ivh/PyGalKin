@@ -6,6 +6,7 @@ from pylab import *
 from PyGalKin import *
 import pylab as P # to make P not self-reference to plot.py
 import matplotlib
+import matplotlib.mlab as mlab
 from matplotlib import rcParams, colors
 from mpl_toolkits.axes_grid import AxesGrid
 

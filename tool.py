@@ -68,7 +68,7 @@ class numpdict(N.ndarray):
 
         # Transform 'subarr' from an ndarray to our new subclass.
         subarr = subarr.view(subtype)
-      
+
         # Use the specified 'p' parameter if given
         if p is not None:
             subarr.p = p
@@ -102,8 +102,9 @@ class spec(numpdict):
 # physical functions
 def dis(arr1,arr2):
     """ returns the distance between two points""" 
-    arr=(arr2-arr1)**2
-    return N.sqrt(arr.sum())
+    #arr=(arr2-arr1)**2
+    #return N.sqrt(arr.sum())
+    return mlab.dist(arr1,arr2)
 
 def app2abs(dist,m):
     """ convert apparent to absolute magnitudes, takes distance in Mpc"""
@@ -112,7 +113,7 @@ def app2abs(dist,m):
 def balmer(m):
     """ caculate m'th balmer line"""
     return hydrogen(2,m+2)
-  
+
 def hydrogen(n,m):
     """ calculate rydberg wavelengths of hydrogen"""
     m,n=float(m),float(n)
@@ -124,6 +125,14 @@ def massKepler(r,v):
     mind the factors 1/2 !!
     """
     return ((v/2)**2)*(r/2)*pc/Grav
+
+def dynMassDisk(r,sigma):
+    'r in kpc, sigma in km/s, returns solar masses'
+    return 7.9E5 * r * sigma**2
+
+def dynMassSphere(r,sigma):
+    'r in kpc, sigma in km/s, returns solar masses'
+    return 1.1E6 * r * sigma**2
 
 def lamb2vel(l,rest=lambHA):
     """ converts a wavelength in A wrt HA into a radial velocity """
@@ -221,7 +230,6 @@ def getXY(data):
 def shift(vec,i):
     """ Shift a vector.
     Usage: new_vec = shift(vec, i)
-    
     vec:  The vector to be shifted
     i:  The steps to shift the vector with
     """
@@ -252,9 +260,8 @@ def doforeachpoint(data, function, *args, **keywords):
     """Apply a function (whcih takes a 1d-vector) to all values of x and
     y of a 3D-matrix. The output will have a z-dimension equal to the
     length of the output from the 'function'.
-    
+
     Usage: new_arr = doforeachpoint(arr, function, arguments)
-    
     data: The 3D-array input array
 
     """
@@ -262,7 +269,7 @@ def doforeachpoint(data, function, *args, **keywords):
     x,y,z=data.shape
     xy=x*y
     data.shape=(xy,z)
-    
+
     erg=None
     for i in N.arange(xy):
         tmp=function(data[i,:], *args, **keywords)
@@ -299,19 +306,16 @@ selav=selective_average
 def posvel(vf,dyncen,pa):
     vec=N.array([-N.sin(radians(pa)),N.cos(radians(pa))])
     x,y=N.indices(vf.shape)
-             
     pos=N.inner(vec,N.array([dyncen[0]-x,dyncen[1]-y]))
     vel=N.flatten(vf)
 #      pos=N.flatten(N.zeros_like(vf,'Float32'))
 #      vel=N.zeros(0,'Float32')
-      
 #      for i in N.arange(vf.nx()):
 #        for j in N.arange(vf.ny()):
 #          if self[i,j] != 0 :
 #            pos[i,j]=N.innerproduct(vec,N.array([dyncen[0]-i,dyncen[1]-j]))
 #            pos[]=N.concatenate((pos, ))
 #            vel=N.concatenate((vel, self[i,j]))
-      
     return pos,vel
 
 def m2masks(angmap,pa,wedge):
@@ -322,14 +326,12 @@ def m2masks(angmap,pa,wedge):
         mask1=mask_or(mask1, (angmap > pa+wedge) & (angmap<pi))
     else:
         mask1=mask_or(mask1, angmap > pa+wedge)
-    
     mask2=angmap > pa2+wedge
     if pa2+wedge>2*pi:
         mask2=mask_or(mask2, (angmap > pa2-2*pi+wedge) & (angmap<pi))
         mask2=mask_or(mask2, (angmap < pa2-wedge) & (angmap>pi))
     else:
         mask2=mask_or(mask2, angmap < pa2-wedge)
-    
     return mask1,mask2
 
 def Angmap(x,y,pa):
@@ -359,7 +361,6 @@ def binRC(rin,vin,rbin=1.0):
         vt=masked_where((rin<r)|(rin>r+rbin),vin)
         V[i]=vt.mean()
         S[i]=vt.std()
-      
     return R+(rbin/2.0),V,S
 
 def rotcur(vf,cen,pa,wedge,incl):
@@ -372,14 +373,14 @@ def rotcur(vf,cen,pa,wedge,incl):
     y.shape=vf.shape
     x=x.astype('f') - cen[0]
     y=y.astype('f') - cen[1]
-    
+
     angmap=Angmap(x,y,pa)
     dismap=Dismap(x,y,pa,incl)
 
     vf=vf.copy()
     vf-=vf[cen[0],cen[1]]
     vf=vf/N.abs(N.cos(angmap))/N.sin(incl)
-    
+
     #mask1,mask2=m2masks(angmap,pa,wedge)
     mask1=(angmap>wedge) & (angmap<2*pi-wedge)
     mask2=mask_or(angmap<pi-wedge,angmap>pi+wedge,copy=True)
@@ -387,12 +388,11 @@ def rotcur(vf,cen,pa,wedge,incl):
     r2=masked_array(dismap,mask2).flatten()
     v1=masked_array(vf,mask1).flatten()
     v2=masked_array(vf,mask2).flatten()
-    
+
     #return vf,masked_array(N.cos(angmap),mask1&mask2)
     return r1,r2,v1,v2
-    
-    
-    
+
+
 #########################
 ####  Cross correlation
 #########################
@@ -409,11 +409,10 @@ def xcorr(galaxy,star,filtgal=False,filtstar=None,range=N.array([700,1300]),bary
     star-=contSubtr(star,order=1)
     star=star[range[0]:range[1]]
     star,x=log_rebin(star,wavecal)
-    
-    
+
     if len(galaxy.shape) == 3:
         galaxy.shape=(origshape[0]*origshape[1],origshape[2])
-    
+
     pos=N.zeros(galaxy.shape[0],'Float32')
     wid=N.zeros(galaxy.shape[0],'Float32')
     bary=N.zeros(galaxy.shape[0],'Float32')
@@ -435,7 +434,7 @@ def xcorr(galaxy,star,filtgal=False,filtstar=None,range=N.array([700,1300]),bary
         if filtgal:
             gal.ndim=1
             gal=bandfilt(gal)
-        
+
         xc=Sig.correlate(gal,star,'same')
         if plot: P.clf(); P.plot(xc); sleep(3);P.clf()
         if plot: sleep(4);P.clf()

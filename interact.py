@@ -19,17 +19,25 @@ class measure(object):
         if p: self.p=p
         else: self.p=cube.p
 
-        self.conn, self.curs = DB.setupdb()
+        self.gid=int(self.p['gid'])
 
-        self.fig = P.figure()
+        self.conn, self.curs = DB.setupdb()
+        self.vsys, self.name, self.reff = \
+            DB.getg(self.curs,'vsys,name,reff',where='gid=%d'%self.gid)
+        self.fig = P.figure(figsize=(9,9))
         self.canvas = self.fig.canvas
         self.ax1 = self.fig.add_subplot(221)
-        self.ax1 = self.fig.add_subplot(222, sharex=self.ax1, sharey=self.ax1)
-        self.ax1 = self.fig.add_subplot(223, sharex=self.ax1, sharey=self.ax1)
-        self.ax1 = self.fig.add_subplot(224)
+        self.ax2 = self.fig.add_subplot(222, sharex=self.ax1, sharey=self.ax1)
+        self.ax3 = self.fig.add_subplot(223, sharex=self.ax1, sharey=self.ax1)
+        self.ax4 = self.fig.add_subplot(224)
         self.imaxes = [self.ax1, self.ax2, self.ax3]
+        for ax in self.imaxes: ax.set_xticks(()); ax.set_yticks(())
         self.canvas.mpl_connect('key_press_event', self.key)
         self.canvas.mpl_connect('button_press_event', self.button)
+
+        self.ax1.imshow(N.transpose(self.img))
+        self.ax2.imshow(N.transpose(self.vf))
+        self.ax3.imshow(N.transpose(self.sig))
 
         self.p2pmass = None
         self.veldiff = None
@@ -43,34 +51,75 @@ class measure(object):
         self.py = 0
 
         self.pixdiff2radius= 1
-        self.sigma
+
+        self.canvas.set_window_title('%s'%self.name)
+        self.update()
+        P.P.show()
+
+    def update(self):
+        self.ax4.clear()
+        spec=self.cube[self.cx,self.cy,:]
+        self.ax4.plot(spec,'b',linestyle='steps')
+        self.canvas.draw()
 
     def save(self):
-        pass
+        sql='UPDATE galax SET sigma_cent=?,mass_sig=?,'
+        sql+='maxvel=?,mass_p2p=?'
+        sql+=''
+        sql+=''
+        sql+='WHERE gid=%s'%self.gid
+        self.curs.execute(sql,(self.censig,\
+                               self.sigmass,\
+                               self.veldiff,\
+                               float(self.p2pmass),\
+                        ))
+        self.conn.commit()
+        print 'Saved to database.'
+
+    def getAvRange(self,previous=False):
+        if previous: cx,cy=self.px,self.py
+        else: cx,cy=self.cx,self.cy
+        av = self.avreg //2
+        extra = self.avreg %2
+        xav = slice(cx - av, cx + av + extra)
+        yav = slice(cy - av, cy + av + extra)
+        return xav,yav
 
     def meas_sigma(self):
-        pass
+        xav,yav=self.getAvRange()
+        self.censig = N.mean(self.sig[xav,yav])
+        self.sigmass = dynMassSphere(self.reff,self.censig)
+        print "Measured sigma: %s   -> mass=%.1e)"%(self.censig,self.sigmass)
 
     def meas_vels(self):
-        pass
+        xav,yav=self.getAvRange()
+        v1=N.mean(self.vf[xav,yav])
+        xav,yav=self.getAvRange(previous=True)
+        v2=N.mean(self.vf[xav,yav])
+        self.veldiff=N.abs(v1-v2)
+
+        scale = scalefromvarc(self.p['echelle'],self.vsys)
+        npix = dis(N.array([self.cx,self.cy]),N.array([self.px,self.py])) / 2.0
+        self.p2pmass = massKepler(npix * scale, self.veldiff)
+        print "Mesaured v1=%s, v2=%s, |v1-v2|=%s -> mass=%.1e"%(v1,v2,self.veldiff, self.p2pmass)
+
 
     def button(self,event):
         if event.inaxes not in self.imaxes: return
-
         x,y=int(round(event.xdata)),int(round(event.ydata))
         if event.button==1:
             self.px,self.py=self.cx,self.cy
             self.cx,self.cy=x,y
+            print 'x=%d, y=%d, v=%.1f, s=%.1f'%(x,y,self.vf[x,y],self.sig[x,y])
+            self.update()
 
     def key(self,event):
-        if event.key=='s':
+        if event.key=='S':
             self.save()
-        elif event.key=='w':
-            self.switch(); self.update()
-        elif event.key=='e':
-            self.switch2(); self.update()
-        elif event.key=='b':
-            self.maskregion(1); self.update()
+        elif event.key=='i':
+            self.meas_sigma()
+        elif event.key=='v':
+            self.meas_vels()
         elif event.key in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
             self.avreg = int(event.key)
 

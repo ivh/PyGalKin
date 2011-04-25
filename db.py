@@ -16,7 +16,11 @@ def setupdb(dbname=DBNAME):
 
 def getg(curs,cols,where='gid NOTNULL',table='galax'):
     curs.execute("SELECT %s FROM %s WHERE %s"%(cols,table,where))
-    return map(N.array,zip(*curs.fetchall()))
+    result = zip(*curs.fetchall())
+    if len(result) == 1: result = result[0]
+    elif len(result[0]) == 1:
+        for i,r in enumerate(result): result[i]=r[0]
+    return result
 
 def getSDSSids(curs):
     tol=0.00833

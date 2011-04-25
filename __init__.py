@@ -22,6 +22,7 @@ from scipy.fftpack import fft
 #from filtfilt import filtfilt
 from mpfit import mpfit
 from math import pi,e,radians,degrees
+import matplotlib.mlab as mlab
 
 # OS etc.
 import os
@@ -40,7 +41,6 @@ from sdss import sqlcl
 from tool import *
 import PyCigale as C
 #import PyArgus as A
-import interact as I
 import InOutput as IO
 #import ModelVF as MV
 import Gauss as G
@@ -48,6 +48,7 @@ import fit as F
 import plot as P
 import MacroGen as MG
 import db as DB
+import interact as I
 
 # Good ol' IDL
 #try: from pyIDL import idl as IDL
