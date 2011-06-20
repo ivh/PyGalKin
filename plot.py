@@ -194,6 +194,29 @@ def fillederrorplot(x,y,e1,e2=None,f='r--',c='r',alpha=0.5,label=None):
         P.fill(N.concatenate((x,x[::-1])),N.concatenate((y+e2,(y-e1)[::-1])),c,alpha=alpha)
 
 
+##################################
+
+def velSigmaPlot(curs):
+    v,s,inc=DB.getg(curs,'maxvel,sigma_cent,incl',where='maxvel NOTNULL AND sigma_cent NOTNULL')
+    v/=2
+    inc=inc.astype('f')
+    inc=masked_where(inc==N.NaN, inc)
+
+    P.plot(s,v,'kD')
+    P.plot(s,v/N.sin(N.radians(inc)),'rd')
+    P.ylabel(r'$v_{max}\quad (km/s)$')
+    P.xlabel(r'$\sigma_{cent}\quad (km/s)$')
+    P.grid()
+
+def rotMassRandPlot(curs):
+    ms,mv,inc=DB.getg(curs,'mass_sig,mass_p2p,incl',where='mass_sig NOTNULL AND mass_p2p NOTNULL')
+    P.loglog(ms,mv,'kD',label='raw')
+    inc=inc.astype('f')
+    inc=masked_where(inc==N.NaN, inc)
+    P.loglog(ms,mv/N.sin(N.radians(inc)),'rd',label='incl corrected')
+    P.ylabel(r'$M_{max.velocity}\quad (M_\odot)$')
+    P.xlabel(r'$M_{dispersion}\quad (M_\odot)$')
+    P.grid()
 
 
 ##################################

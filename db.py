@@ -14,9 +14,10 @@ def setupdb(dbname=DBNAME):
     cursor=connection.cursor()
     return connection,cursor
 
-def getg(curs,cols,where='gid NOTNULL',table='galax'):
+def getg(curs,cols,where='gid NOTNULL',table='galax',asarray=True):
     curs.execute("SELECT %s FROM %s WHERE %s"%(cols,table,where))
     result = zip(*curs.fetchall())
+    if asarray: result = map(N.array,result)
     if len(result) == 1: result = result[0]
     elif len(result[0]) == 1:
         for i,r in enumerate(result): result[i]=r[0]

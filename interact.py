@@ -101,7 +101,7 @@ class measure(object):
         scale = scalefromvarc(self.p['echelle'],self.vsys)
         npix = dis(N.array([self.cx,self.cy]),N.array([self.px,self.py])) / 2.0
         self.p2pmass = massKepler(npix * scale, self.veldiff)
-        print "Mesaured v1=%s, v2=%s, |v1-v2|=%s -> mass=%.1e"%(v1,v2,self.veldiff, self.p2pmass)
+        print "|v1-v2|=%.1f, r=%.1f kpc -> mass=%.1e"%(self.veldiff, npix*scale/1.0E3, self.p2pmass)
 
 
     def button(self,event):
@@ -122,6 +122,7 @@ class measure(object):
             self.meas_vels()
         elif event.key in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
             self.avreg = int(event.key)
+            print 'Avergaing region set to %s pixels.'%self.avreg
 
 class doublecomp:
     def __init__(self,fitresults=None,masks=None,cube=None,z=None,vmin=None,vmax=None,\
