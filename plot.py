@@ -4,13 +4,13 @@ plot.py
 
 from pylab import *
 from PyGalKin import *
+import PyGalKin.db as DB
 import pylab as P # to make P not self-reference to plot.py
 import matplotlib
 import matplotlib.mlab as mlab
 from matplotlib import rcParams, colors
 from mpl_toolkits.axes_grid import AxesGrid
-
-#LUTSIZE = rcParams['image.lut']
+import aplpy
 
 #matplotlib.use('Agg')
 #matplotlib.rc('text', usetex = True)
@@ -119,15 +119,15 @@ def plotscale(p,left=0.65,right=0.9,frombottom=0.1,kpc=False):
   if not kpc:
       kpc=(x2-x1)*arcsec2kpc(arcs,p['vr0'])/1.E3
   P.text(x1-0.01,y+0.01,r'$%.1f^{\prime\prime}\approx %.1fkpc$'%(arcs,kpc),fontsize=9)
-  
+
 
 def setYaxis_pc(inarr):
   """ set the plotting-axes to parsec """
-  
+
   nticks=inarr.ny()*inarr.scale()/1000
   nticks=nticks.sum()
   factor=1.0
-  
+
   while nticks > 10:
     nticks/=2
     factor/=2
@@ -138,7 +138,7 @@ def setYaxis_pc(inarr):
 
 def setXaxis_pc(inarr):
   """ set the plotting-axes to parsec """
-  
+
   nticks=inarr.nx()*inarr.scale()/1000
   nticks=nticks[0]
   factor=1.
@@ -146,7 +146,7 @@ def setXaxis_pc(inarr):
   while nticks > 10:
     nticks/=2
     factor/=2
-  
+
   P.setp(P.gca(),'xticks',N.arange(nticks)/inarr.scale()*1000/factor)
   P.setp(P.gca(),'xticklabels',N.arange(nticks)/factor)
   P.xlabel('[kpc]',font)
@@ -177,12 +177,12 @@ def plotspec(data,region=None,plotlines=False,Z=1.0206,style=False,linestyle='st
         region=[8470,8700]
     if region != None:
         relevant=data[lamb2pix(region[0]*Z,Lamb0,Step):lamb2pix(region[1]*Z,Lamb0,Step)]
-        if vminmax=='sigbased': 
+        if vminmax=='sigbased':
             vmax=relevant.mean() + 4*relevant.std()
             vmin=relevant.mean() - 4*relevant.std()
         else: vmin,vmax=relevant.min(),relevant.max()
         P.axis([float(region[0]*Z),float(region[1]*Z),vmin,vmax])
-    
+
     else: pass
 
 
@@ -223,7 +223,7 @@ def rotMassRandPlot(curs):
 
 def plotbadpix(color='w'):
     """ for the Argus FOV """
-    
+
     P.plot([0,1],[0,1],color)
     P.plot([1,2],[0,1],color)
     P.plot([20,21],[0,1],color)
@@ -236,7 +236,7 @@ def plotbadpix(color='w'):
     P.plot([20,21],[8,9],color)
     P.plot([20,21],[9,10],color)
     P.plot([20,21],[10,11],color)
-    
+
     P.plot([0,1],[1,0],color)
     P.plot([1,2],[1,0],color)
     P.plot([20,21],[1,0],color)
@@ -249,7 +249,7 @@ def plotbadpix(color='w'):
     P.plot([20,21],[9,8],color)
     P.plot([20,21],[10,9],color)
     P.plot([20,21],[11,10],color)
-  
+
 
 def plotonpix(data3,data2=None,layout='argus',line='k-',range=None):
     if not data2: data2=N.sum(data3,axis=2)

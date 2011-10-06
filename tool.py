@@ -732,6 +732,16 @@ def hpfilt(data):
 ####  HELPER FUNCTIONS
 #########################
 
+def new_wcs(pix,coord,delta,naxis=2,equinox=2000.0):
+    wcs = pywcs.WCS(naxis=naxis)
+    wcs.wcs.crpix = pix
+    wcs.wcs.cdelt = N.array(delta) / 3600.0
+    wcs.wcs.crval = coord
+    wcs.wcs.ctype = ["RA---AIR", "DEC--AIR"]
+    wcs.wcs.set_pv([(2, 1, 45.0)])
+    wcs.wcs.equinox = equinox
+    return wcs
+
 def smooth_gauss(data,sigma):
     gauss=Sig.gaussian(10*sigma,sigma)
     return Sig.convolve(data,gauss/N.sum(gauss),mode='same')

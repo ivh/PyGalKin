@@ -23,6 +23,7 @@ from scipy.fftpack import fft
 from mpfit import mpfit
 from math import pi,e,radians,degrees
 import matplotlib.mlab as mlab
+import pywcs
 
 # OS etc.
 import os
