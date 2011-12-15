@@ -193,6 +193,15 @@ def fillederrorplot(x,y,e1,e2=None,f='r--',c='r',alpha=0.5,label=None):
         P.plot(x,y+e2,c+'-',linewidth=0.5)
         P.fill(N.concatenate((x,x[::-1])),N.concatenate((y+e2,(y-e1)[::-1])),c,alpha=alpha)
 
+##################################
+# Individual panels for cigale papers
+
+def vfpanel(vf,p=None):
+    if not p: p=vf.p
+
+    imshow(vf,vmin=p['vmin'],vmax=p['vmax'])
+    plotscale(p)
+
 
 ##################################
 
@@ -258,7 +267,7 @@ def plotonpix(data3,data2=None,layout='argus',line='k-',range=None):
     P.imshow(N.transpose(data2))
     corn=P.gca().figbox.corners()
     sx,sy=corn[0,0],corn[0,1]
-    lx,ly=corn[-1,0]-sx,corn[-1,1]-sy 
+    lx,ly=corn[-1,0]-sx,corn[-1,1]-sy
     xl,yl=lx/x,ly/y
     xs,ys=sx,sy
     for i in N.arange(x):

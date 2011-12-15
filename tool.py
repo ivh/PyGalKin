@@ -101,7 +101,7 @@ class spec(numpdict):
 
 # physical functions
 def dis(arr1,arr2):
-    """ returns the distance between two points""" 
+    """ returns the distance between two points"""
     #arr=(arr2-arr1)**2
     #return N.sqrt(arr.sum())
     return mlab.dist(arr1,arr2)
@@ -182,7 +182,7 @@ def units(have,want,number=''):
     return N.array([float(out)])
 
 def lamb2pix(data,Lamb0,Step):
-    if type(data) == type(1) or type(data) == type(1.0): 
+    if type(data) == type(1) or type(data) == type(1.0):
         return int(N.around((data-Lamb0)/Step).astype('Int32'))
     else: return N.around((data-Lamb0)/Step).astype('Int32')
 
@@ -217,7 +217,7 @@ def scalefromvarc(arcsecperpix,v):
 def isconstant(data):
     return S.std(data)==0.0
 
-def relz(v): 
+def relz(v):
     return sqrt((1+(v/c))/(1-(v/c)))-1
 
 # Handy general functions
@@ -276,7 +276,7 @@ def doforeachpoint(data, function, *args, **keywords):
         #print i,tmp
         if not hasattr(tmp,'__len__'): tmp=N.array([tmp]);
         if erg==None:
-            try: 
+            try:
                 erg=N.zeros((xy,len(tmp)),dtype='float64')
                 #print 'first value'
             except: continue
@@ -466,14 +466,14 @@ def xcorr(galaxy,star,filtgal=False,filtstar=None,range=N.array([700,1300]),bary
         amp.shape=(origshape[0],origshape[1])
         h3.shape=(origshape[0],origshape[1])
         h4.shape=(origshape[0],origshape[1])
-        
+
     return pos,bary,wid,secmom,cont,amp,h3,h4
 
 
 def offset2vel(data,calib=4.93750657338e-05):
     """I *think* this is simply to apply a previously determined calibration"""
     return (N.exp(data*calib)-1) * c
-    
+
 
 def sigmacal(star,plot=False):
     sigmain=N.arange(0,20,1.0,'Float32')
@@ -490,7 +490,7 @@ def sigmacal(star,plot=False):
         sigmaout[i]=fit.params[3]
     return dlamb2vel(sigmain*Step,CaT[1]),sigmaout
 
-    
+
 def applysigcal(data,cal):
     mi=cal.x.min()
     ma=cal.x.max()
@@ -501,40 +501,40 @@ def applysigcal(data,cal):
     cadat.shape=dat.shape
     return cadat
 
-    
+
 #########################
 ####  IDL Wrappers
 #########################
 
 def log_rebin(spec,lamRange=None):
     """ wrapper for IDL's log_rebin"""
-    
+
     # make a new IDL session
     idl=IDL()
 
-    # give the variables to IDL 
+    # give the variables to IDL
     idl.put('spec',spec)
     idl.put('lamRange',lamRange)
 
     #construct the IDL command and execute it
     idlcommand='LOG_REBIN, lamRange, spec, specNew, logLam, VELSCALE=velScale'
     idl.eval(idlcommand)
-    
+
     # get the result
     specNew=N.array(idl.get('specNew'))
     logLam=N.array(idl.get('logLam'))
 
     return specNew,logLam
 
-    
+
 def ppxf():
     """ wrapper for ppxf in IDL"""
     #PPXF, star, galaxy, noise, velScale, start, sol, $
     #;       BESTFIT=bestFit, BIAS=bias, /CLEAN, DEGREE=degree, ERROR=error, $
     #;       GOODPIXELS=goodPixels, MDEGREE=mdegree, MOMENTS=moments, $
     #;       /OVERSAMPLE, /PLOT, /QUIET, VSYST=vsyst, WEIGHTS=weights
-    
-    
+
+
 
 def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=True,returnall=False):
     """ wrapper to do voronoi binning
@@ -564,13 +564,13 @@ def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=True,returnall
     else:
         print "must have a noise level for non-spectral data"
         return -1
-        
+
     #print Signal.shape,Noise.shape,X.shape,Y.shape
     print max(Signal),S.average(Noise),X[N.argmax(Signal)],Y[N.argmax(Signal)]
     # make a new IDL session
     idl=IDL()
 
-    # give the variables to IDL 
+    # give the variables to IDL
     idl.put('X',X)
     idl.put('Y',Y)
     idl.put('Signal',Signal)
@@ -583,7 +583,7 @@ def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=True,returnall
     if quiet: idlcommand+=', /QUIET'
 
     # run the command and save the plot
-    
+
     try:
         idl.eval('set_plot,\'ps\'')
         idl.eval(idlcommand)
@@ -591,7 +591,7 @@ def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=True,returnall
     except:
         print "something went wron while running idl"
         return -1
-        
+
     # collect the output
     BinNumber=N.array(idl.get('BinNumber'))
     xBin=N.array(idl.get('xBin'))
@@ -600,7 +600,7 @@ def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=True,returnall
     yBar=N.array(idl.get('yBar'))
     SN=N.array(idl.get('SN'))
     nPixels=N.array(idl.get('nPixels'))
-    
+
     if returnall: return BinNumber, xBin, yBin, xBar, yBar, SN, nPixels
     else: return BinNumber
 
@@ -637,8 +637,8 @@ def spreadbins2(data,BinNumber,shape=None):
         result[i]=data[bin]
     result.shape=shape
     return result
-    
-  
+
+
 
 def average_bins3(data,BinNumber):
     """BinNumber is of length Npix and contains for each pix the bin-number that it belongs to"""
@@ -648,7 +648,7 @@ def average_bins3(data,BinNumber):
 
     BinValues=N.zeros((Nbins,orig.shape[2]),'Float32')
     counter=N.zeros((Nbins,))
-    
+
     for i in N.arange(len(BinNumber)):
         BinValues[BinNumber[i],:] += data[i,:]
         counter[BinNumber[i]] += 1
@@ -662,31 +662,31 @@ def average_bins3(data,BinNumber):
 def average_bins2(data,BinNumber,prin=False):
     """BinNumber is of length Npix and contains for each pix the bin-number that it belongs to"""
     origshape=data.shape
-    
+
     data=N.ravel(data.copy())
     sig=N.zeros_like(data)
     num=N.zeros_like(data)
 
     BinValues,BinSigmas,BinNum=binvalues(data,BinNumber)
-    
+
     for i in N.arange(len(BinNumber)):
         data[i]=BinValues[BinNumber[i]]
         sig[i]=BinSigmas[BinNumber[i]]
         num[i]=BinNum[BinNumber[i]]
-        
+
     data.shape=origshape
     sig.shape=origshape
     num.shape=origshape
     return data,sig,num
 
-    
+
 def binvalues(data,BinNumber):
     Nbins=max(BinNumber)+1
     BinValues=[N.array([])]*Nbins
     #print Nbins, BinValues.shape,data.shape
     for i,bin in enumerate(BinNumber):
         BinValues[bin]= N.hstack((BinValues[bin],data[i]))
-        
+
     return map(N.mean,BinValues),map(N.std,BinValues),map(N.size,BinValues)
 
 def rad_profile(data,xbin,ybin,xcen,ycen,BinNumber):
@@ -696,12 +696,12 @@ def rad_profile(data,xbin,ybin,xcen,ycen,BinNumber):
 
 
 def bandfilt(data):
-    
+
     lpcf = 0.2
     lpsf = 0.25
     hpcf = 0.7
     hpsf = 0.6
-    
+
     Rp = 2
     Rs = 20
     #print [lpcf,hpcf],[lpsf,hpsf],Rp,Rs
@@ -783,7 +783,7 @@ def degrade_old(data,factor=4.25):
         if i%2==0: split=upper+1
         else: split=lower-1
         degr[i]=N.sum(data[lower:upper+1])+ (data[split]/2.0)
-        
+
     return degr/factor
 
 def degrade(data,factor=4.25,quadratic=False):
@@ -803,7 +803,7 @@ def degrade(data,factor=4.25,quadratic=False):
             degr[i]=N.sqrt(N.sum((ldata[i*fac:(i+1)*fac])**2))/N.sqrt(fac)
         else:
             degr[i]=N.sum(ldata[i*fac:(i+1)*fac])/fac
-        
+
     return degr
 
 def degradeall(data,factor=4.25,quadratic=False):
@@ -854,7 +854,7 @@ def sortbins(data,error,wave,start,binwidth=0.85,end=False,log=False):
     dat /= count
     err /= count
     err /= N.sqrt(count)
-    
+
     data.shape=origshape
     error.shape=origshape
     wave.shape=origshape

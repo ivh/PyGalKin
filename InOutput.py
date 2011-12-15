@@ -2,9 +2,9 @@
  InOutput.py
 
  For documentation see the major file PyCigale.py
- 
+
  This file contains the file-in/output functions for the PyCigale package
- 
+
 """
 from PyGalKin import *
 
@@ -44,7 +44,7 @@ def fromPAR(p,filename):
     elif line[0] == 'incl':  p['incl']=float(line[1])
     elif line[0] == 'wedge':  p['wedge']=float(line[1])
     elif line[0] == 'gid':  p['gid']=line[1]
-    
+    elif line[0] == 'coor': p['coor'] = N.array([float(line[1]),float(line[2])])
 
 def toPAR(inarr,filename=None):
   """ writing my own parameter file with relevant parameters """
@@ -65,7 +65,7 @@ def toPAR(inarr,filename=None):
   file.write('contcuts'+sp+str(inarr.p['contcuts'][0])+sp+str(inarr.p['contcuts'][1])+nl)
   file.write('velcuts'+sp+str(inarr.p['velcuts'][0])+sp+str(inarr.p['velcuts'][1])+nl)
   file.write('minmask'+sp+str(inarr.p['minmask'])+nl)
-  
+
   file.close()
 
 def fromAD(filename, readparams=True):
@@ -78,7 +78,7 @@ def fromAD(filename, readparams=True):
   nx=tmpI[-61]
   ny=tmpI[-60]
   nz=tmpI[-59]
-  
+
   if ndim == 2:
     shape=(nx,ny)
     data = N.fromfile(filename,dtype='Float32',count=nx*ny).reshape(shape)
@@ -94,12 +94,12 @@ def fromAD(filename, readparams=True):
   data=data.swapaxes(0,1)                          # to be make origin at lower right
 
   # setting some parameters
-  p={}     
+  p={}
   p['cen']=nx/2,ny/2
   p['imagename']=filename
   p['vr_offset']=0.0
   p['is_gauss']=False
-  
+
   # setting the Adhoc-parameters
   p['echelle']=tmpF[-58]
   p['xl1']=tmpF[-54]
@@ -110,12 +110,12 @@ def fromAD(filename, readparams=True):
   p['xlneb']=tmpF[-48]
   p['v1']=tmpF[-47]
   p['interfr_kms']=tmpF[-46]
-  
+
   if (readparams==True):
     fromADP(p,'par.adp')
     fromPAR(p,'par')
     #data.getsaltzer()
-    
+
   data=N.ascontiguousarray(data)
   return C.adhoc(data,p=p)
 
@@ -154,36 +154,36 @@ def toAD(input,filename=None):
     N.array([1],'Float32').tofile(file)
     N.array([256],'Int32').tofile(file)
     N.array([1],'Int32').tofile(file)
-    N.arange(17,dtype='Int32').tofile(file) # unsused 68 bytes    
-    
+    N.arange(17,dtype='Int32').tofile(file) # unsused 68 bytes
+
   elif inarr.ndim() == 3:
     print "Writing 3D file"
     N.array([inarr.p['xl1']],'Float32').tofile(file)
     N.array([inarr.p['xil']],'Float32').tofile(file)
-    N.array([inarr.p['vr0']],'Float32').tofile(file)      
+    N.array([inarr.p['vr0']],'Float32').tofile(file)
     N.array([0],'Float32').tofile(file) # velocity correction
     N.array([inarr.p['p']],'Float32').tofile(file)
     N.array([inarr.p['xlp']],'Float32').tofile(file)
     N.array([inarr.p['xlneb']],'Float32').tofile(file)
     N.array([inarr.p['v1']],'Float32').tofile(file)
     N.array([inarr.p['interfr_kms']],'Float32').tofile(file)
-    N.arange(13,dtype='Int32').tofile(file) # unsused 52 bytes    
-    
+    N.arange(13,dtype='Int32').tofile(file) # unsused 52 bytes
+
   else:
     pass
-  
+
   N.arange(32,dtype='Int32').tofile(file) # the 128 byte of comment
-  
+
   file.close()
-  
+
 def fromADP(p,filename):
   """ read an ADP file into an ADP class
   """
-  
+
   p['paraname']=filename
-  
+
   for line in open(filename).readlines():
-    
+
     line=line.split()
     if line.__len__() <= 1: p['objname']=line[0]
     elif line[1] == 'lx':  p['lx']=int(line[0])
@@ -257,7 +257,7 @@ def toADP(inADP,filename=None):
   file.write(tab + str(inADP.p['max_a']) + tab + 'max_a' + tab + 'max angle for phase' +nl)
   file.write(tab + str(inADP.p['min_r']) + tab + 'min_r' + tab + 'min radius for phase' +nl)
   file.write(tab + str(inADP.p['max_r']) + tab + 'max_r' + tab + 'max radius for phase' +nl)
-  
+
   file.write("""     0       alpha hours
      0       alpha minutes
    0.0000000 alpha seconds
@@ -308,7 +308,7 @@ def write_fits (data, name):
 def read_model(filename):
   """Reads filename.model and returns a model_list that can be used with
       functions in ModelVF.
-      
+
       Usage: model_list = read_model(filename)
       """
   pars={}
@@ -318,12 +318,12 @@ def read_model(filename):
   # Read parameters and models
   for line in file:
     line=line.split()
-    
+
     if len(line) == 0: pass
     elif line[0]=='model_sys': models += [str(line[1])]
     elif line[0]=='model_rot': models += [str(line[1])]
     elif line[0]=='model_exp': models += [str(line[1])]
-    
+
     elif line[0]=='dim': pars['dim']=int(line[1])
     elif line[0]=='a_scale': pars['a_scale']=[float(line[1]),int(line[2])]
     elif line[0]=='v_system': pars['v_system']=[float(line[1]),int(line[2])]
@@ -335,28 +335,28 @@ def read_model(filename):
     elif line[0]=='r_max': pars['r_max']=[float(line[1]),int(line[2])]
     elif line[0]=='x0': pars['centr_offset_x']=[float(line[1]),int(line[2])]
     elif line[0]=='y0': pars['centr_offset_y']=[float(line[1]),int(line[2])]
-  
+
   file.close()
-  
+
   # Create the model_list
   model_list = []
   for i in range(len(models)):
     model_list += [[models[i], pars]]
-  
+
   return model_list
 
 def write_model(filename, model_list):
   """Writes the model_list to filename.model in the .model-format. Note: Only
       one model of each type (system, rotation and expansion) is supported.
-      
+
       Warning! If the file exists it will be overwritten!
-      
+
       Usage: write_model(filename, model_list)
       """
-      
+
   # Open the file for writing
   file=open(filename + '.model', 'w')
-  
+
   # Write the models in the list
   for i in range(len(model_list)):
     if (model_list[i][0] == 'system'): file.write('model_sys'+tab+model_list[i][0]+nl)
@@ -366,7 +366,7 @@ def write_model(filename, model_list):
     elif (model_list[i][0] == 'kepler'): file.write('model_rot'+tab+model_list[i][0]+nl)
     elif (model_list[i][0] == 'pure_kepler'): file.write('model_rot'+tab+model_list[i][0]+nl)
     elif (model_list[i][0] == 'expansion'): file.write('model_rot'+tab+model_list[i][0]+nl)
-  
+
   # Write the model-parameters
   file.write(nl)
   file.write('dim'+tab+tab+tab+str(model_list[0][1]['dim'])+nl)
@@ -380,18 +380,18 @@ def write_model(filename, model_list):
   file.write('r_max'+tab+tab+str(model_list[0][1]['r_max'][0])+tab+tab+str(model_list[0][1]['r_max'][1])+nl)
   file.write('x0'+tab+tab+tab+str(model_list[0][1]['centr_offset_x'][0])+tab+tab+str(model_list[0][1]['centr_offset_x'][1])+nl)
   file.write('y0'+tab+tab+tab+str(model_list[0][1]['centr_offset_y'][0])+tab+tab+str(model_list[0][1]['centr_offset_y'][1])+nl)
-  
+
   file.close()
 
 def read_slit (filename):
   """Read slit parameters from a filename.slit. Returns a dictionary with the
       parameters.
-      
+
       Usage: pars = read_slit(filename)
   """
   pars={}
   file=open(filename + '.slit','r')
-    
+
   for line in file:
     line=line.split()
     if len(line) == 0: pass
@@ -399,22 +399,22 @@ def read_slit (filename):
     elif line[0]=='angle': pars['angle']=float(line[1])
     elif line[0]=='offset': pars['offset']=N.array([float(line[1]), float(line[2])])
     elif line[0] == 'slit_angle_dep': pars['slit_angle_dep']=int(line[1])
-    
+
   file.close()
   return pars
 
 def write_rc (filename,position, velocity, error):
   """Writes an rc output-file (from RCslit or gauss_slit).
-      
+
       Usage: write_rc(filename, pos, vel, err)
-      
+
       pos, vel and err are arrays with the positions, velocities and errors.
   """
   outfile=open(filename + '.rc','w')
-  
+
   for i in range(len(position)):
     outfile.write('%g %g %g \n' % (position[i], velocity[i],error[i]))
-  
+
   outfile.close()
 
 
@@ -451,11 +451,11 @@ def ADTtoADP(outname,objname,ADT):
         if ' cy=' in tmp[i]:
             numbercycles=int(tmp[i].split()[5].split('=')[1])
             break
-        
+
 
     # GETTING INFO FROM .ADT FILE FINISHED
     adt.close()
-   
+
     print pf,filter,nx,ny,nz,exppchan,scanlamb,queen
 
     outfile.write(tab+str(nx)+tab+'lx'+tab+'dimension X'+nl)
