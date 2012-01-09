@@ -220,9 +220,28 @@ def isconstant(data):
 def relz(v):
     return sqrt((1+(v/c))/(1-(v/c)))-1
 
+
+# formatting
+def deg2hms(deg):
+    x = deg / 360.0 * 24.0
+    h = int( x //1 )
+    x = (x%1) * 60
+    m = int( x //1 )
+    s = (x%1) * 60
+    return h,m,Decimal('%.1f'%round(s,1))
+
+def deg2dms(deg):
+    if deg < 0: f = -1
+    else: f = 1
+    deg *= f
+    d = int(deg //1)
+    deg = (deg%1)*60
+    m = int(deg//1)
+    s = int(round((deg%1)*60))
+    return f*d,m,s
+
+
 # Handy general functions
-
-
 def getXY(data):
     i=N.indices((data.shape[0],data.shape[1]))
     return N.ravel(i[0]),N.ravel(i[1])
