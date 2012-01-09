@@ -100,10 +100,17 @@ register_cmap(cmap=sauron)
 register_cmap(cmap=sauron_inv)
 rcParams['image.cmap']='sauron'
 
-def imshow(X, cmap=sauron, norm=None, aspect=None, interpolation='nearest', alpha=1.0, vmin=None, vmax=None, origin='lower', extent=None):
-    P.imshow(N.transpose(X),cmap=cmap, norm=norm, aspect=aspect, interpolation=interpolation, alpha=alpha, vmin=vmin, vmax=vmax, origin=origin, extent=extent)
+def imshow(*args, **kwargs):
+    kwargs.setdefault('interpolation','nearest')
+    kwargs.setdefault('origin','lower')
+    kwargs.setdefault('cmap','sauron')
+    args = list(args)
+    args[0] = N.transpose(args[0])
+    P.imshow(*args, **kwargs)
 
-
+def plot(*args, **kwargs):
+    kwargs.setdefault('drawstyle','steps-mid')
+    P.plot(*args, **kwargs)
 
 def noticks():
   P.setp(P.gca(),'xticks',[])
@@ -196,12 +203,24 @@ def fillederrorplot(x,y,e1,e2=None,f='r--',c='r',alpha=0.5,label=None):
 ##################################
 # Individual panels for cigale papers
 
-def vfpanel(vf,p=None):
-    if not p: p=vf.p
+def vfpanel(vf, p=None):
+    if not p: p = vf.p
 
-    imshow(vf,vmin=p['vmin'],vmax=p['vmax'])
+    vmin, vmax = p['velcuts']
+    imshow(vf, vmin=vmin, vmax=vmax)
     plotscale(p)
 
+def sigpanel(sig, p=None):
+    if not p: p = sig.p
+
+    vmin, vmax = p['sigcuts']
+    imshow(sig, vmin=vmin, vmax=vmax)
+
+def hpanel(h, p=None):
+    if not p: p = h.p
+
+    vmin,vmax = -0.1,0.1
+    imshow(h, vmin=vmin, vmax=vmax)
 
 ##################################
 

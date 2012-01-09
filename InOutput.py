@@ -32,19 +32,19 @@ def fromPAR(p,filename):
   p['parname']=filename
   for line in open(filename):
     line=line.split()
-    if line[0] == 'cen':  p['cen']=N.array([int(line[1]),int(line[2])])
+    if line[0] == 'cen':  p['cen'] = int(line[1]),int(line[2])
     elif line[0] == 'relsize':  p['relsize']=int(line[1])
     elif line[0] == 'pa':  p['pa']=float(line[1])
-    elif line[0] == 'dyncen':  p['dyncen']=N.array([int(line[1]),int(line[2])])
-    elif line[0] == 'monocuts':  p['monocuts']=N.array([int(line[1]),int(line[2])])
-    elif line[0] == 'contcuts':  p['contcuts']=N.array([int(line[1]),int(line[2])])
-    elif line[0] == 'velcuts':  p['velcuts']=N.array([int(line[1]),int(line[2])])
-    elif line[0] == 'sigcuts':  p['sigcuts']=N.array([int(line[1]),int(line[2])])
+    elif line[0] == 'dyncen':  p['dyncen']= int(line[1]),int(line[2])
+    elif line[0] == 'monocuts':  p['monocuts']= int(line[1]),int(line[2])
+    elif line[0] == 'contcuts':  p['contcuts']= int(line[1]),int(line[2])
+    elif line[0] == 'velcuts':  p['velcuts']= int(line[1]),int(line[2])
+    elif line[0] == 'sigcuts':  p['sigcuts']= int(line[1]),int(line[2])
     elif line[0] == 'minmask':  p['minmask']=float(line[1])
     elif line[0] == 'incl':  p['incl']=float(line[1])
     elif line[0] == 'wedge':  p['wedge']=float(line[1])
-    elif line[0] == 'gid':  p['gid']=line[1]
-    elif line[0] == 'coor': p['coor'] = N.array([float(line[1]),float(line[2])])
+    elif line[0] == 'gid':  p['gid']= int(line[1])
+    elif line[0] == 'coor': p['coor'] = float(line[1]),float(line[2])
 
 def toPAR(inarr,filename=None):
   """ writing my own parameter file with relevant parameters """
@@ -91,25 +91,23 @@ def fromAD(filename, readparams=True):
     pass
 
 
-  data=data.swapaxes(0,1)                          # to be make origin at lower right
+  data=data.swapaxes(0,1)    # to be make origin at lower right
 
   # setting some parameters
   p={}
   p['cen']=nx/2,ny/2
   p['imagename']=filename
-  p['vr_offset']=0.0
-  p['is_gauss']=False
 
   # setting the Adhoc-parameters
-  p['echelle']=tmpF[-58]
-  p['xl1']=tmpF[-54]
-  p['xil']=tmpF[-53]
-  p['vr0']=tmpF[-52]
-  p['p']=tmpF[-50]
-  p['xlp']=tmpF[-49]
-  p['xlneb']=tmpF[-48]
-  p['v1']=tmpF[-47]
-  p['interfr_kms']=tmpF[-46]
+  p['echelle']=float(tmpF[-58])
+  p['xl1']=float(tmpF[-54])
+  p['xil']=float(tmpF[-53])
+  p['vr0']=float(tmpF[-52])
+  p['p']=float(tmpF[-50])
+  p['xlp']=float(tmpF[-49])
+  p['xlneb']=float(tmpF[-48])
+  p['v1']=float(tmpF[-47])
+  p['interfr_kms']=float(tmpF[-46])
 
   if (readparams==True):
     fromADP(p,'par.adp')
