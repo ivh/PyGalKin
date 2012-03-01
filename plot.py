@@ -203,6 +203,14 @@ def fillederrorplot(x,y,e1,e2=None,f='r--',c='r',alpha=0.5,label=None):
 ##################################
 # Individual panels for cigale papers
 
+def monocont_panel(g,mono,cont,wcs=None):
+    if not wcs:
+        wcs = WCS.new_wcs(g.ra,g.dec,g.p['echelle'])
+
+    fig=aplpy.FITSFigure(wcs)
+
+    return fig
+
 def vfpanel(vf, p=None):
     if not p: p = vf.p
 
@@ -243,6 +251,13 @@ def rotMassRandPlot(curs):
     inc=masked_where(inc==N.NaN, inc)
     P.loglog(ms,mv/N.sin(N.radians(inc)),'rd',label='incl corrected')
     P.ylabel(r'$M_{max.velocity}\quad (M_\odot)$')
+    P.xlabel(r'$M_{dispersion}\quad (M_\odot)$')
+    P.grid()
+
+def photMassRandPlot(curs):
+    ms,mp=DB.getg(curs,'mass_sig,mass_phot',where='mass_sig NOTNULL AND mass_phot NOTNULL')
+    P.loglog(ms,mp,'kD',label='raw')
+    P.ylabel(r'$M_{phot}\quad (M_\odot)$')
     P.xlabel(r'$M_{dispersion}\quad (M_\odot)$')
     P.grid()
 
