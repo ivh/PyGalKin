@@ -12,6 +12,8 @@ from matplotlib import rcParams, colors
 from mpl_toolkits.axes_grid import AxesGrid
 import aplpy
 
+from DjCigale.table import models as M
+
 #matplotlib.use('Agg')
 #matplotlib.rc('text', usetex = True)
 
@@ -203,20 +205,28 @@ def fillederrorplot(x,y,e1,e2=None,f='r--',c='r',alpha=0.5,label=None):
 ##################################
 # Individual panels for cigale papers
 
-def monocont_panel(g,mono,cont,wcs=None):
-    if not wcs:
-        wcs = WCS.new_wcs(g.ra,g.dec,g.p['echelle'])
-
-    fig=aplpy.FITSFigure(wcs)
-
+def monocont_panel(g,mono,cont):
+    wcs = WCS.new_wcs(g.ra,g.dec,g.p['echelle'])
+    fits=pyfits.PrimaryHDU(data=N.transpose(mono),header=wcs.to_header())
+    fig=aplpy.FITSFigure(fits)
+    vmin, vmax = g.p['monocuts']
+    fig.show_colorscale(vmin=vmin, vmax=vmax,cmap=sauron_inv)
     return fig
 
-def vfpanel(vf, p=None):
-    if not p: p = vf.p
+def vfpanel(g, vf):
+    wcs=WCS.new_wcs(g.ra,g.dec,g.p['echelle'])
+    fits=pyfits.PrimaryHDU(data=N.transpose(vf),header=wcs.to_header())
+    fig=aplpy.FITSFigure(fits)
+    vmin, vmax = g.p['velcuts']
+    fig.show_colorscale(vmin=vmin-g.vsys, vmax=vmax-g.vsys,cmap=sauron_inv)
+    fig.tick_labels.set_font(size='small')
 
-    vmin, vmax = p['velcuts']
-    imshow(vf, vmin=vmin, vmax=vmax)
-    plotscale(p)
+    fig.add_colorbar()
+    fig.colorbar.set_pad(0)
+    fig.colorbar.set_location('top')
+
+#    fig.add_scalebar()
+    return fig
 
 def sigpanel(sig, p=None):
     if not p: p = sig.p
@@ -250,15 +260,39 @@ def rotMassRandPlot(curs):
     inc=inc.astype('f')
     inc=masked_where(inc==N.NaN, inc)
     P.loglog(ms,mv/N.sin(N.radians(inc)),'rd',label='incl corrected')
+    P.loglog([3E8,1E11],[3E8,1E11],'k--')
     P.ylabel(r'$M_{max.velocity}\quad (M_\odot)$')
     P.xlabel(r'$M_{dispersion}\quad (M_\odot)$')
-    P.grid()
+    P.grid(True)
 
-def photMassRandPlot(curs):
+def photMassRandPlot_old(curs):
     ms,mp=DB.getg(curs,'mass_sig,mass_phot',where='mass_sig NOTNULL AND mass_phot NOTNULL')
     P.loglog(ms,mp,'kD',label='raw')
     P.ylabel(r'$M_{phot}\quad (M_\odot)$')
     P.xlabel(r'$M_{dispersion}\quad (M_\odot)$')
+    P.grid()
+
+def photMassRandPlot():
+    gs=M.Galax.objects.all()
+
+    fus = [dynMassDisk, dynMassSphere]
+    rs = ['reff','rholm','h25','h27']
+    fac = [1,1,1.68,1.68]
+    fmts = ['o','D']
+    cols = ['b','r','g','y']
+    lab1 = ['disk + ','sphere + ']
+    for i,r in enumerate(rs):
+        for j,fu in enumerate(fus):
+            for g in gs:
+                rad=getattr(g,r) or 0
+                rad*=fac[i]
+                mass = fu(arcsec2kpc(rad,g.vsys),g.sigma_cent or 0) or None
+                P.loglog(g.mass_phot,mass,cols[i]+fmts[j])
+
+
+    P.legend()
+    P.xlabel(r'$M_{phot}\quad (M_\odot)$')
+    P.ylabel(r'$M_{dispersion}\quad (M_\odot)$')
     P.grid()
 
 
