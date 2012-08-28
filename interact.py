@@ -146,8 +146,12 @@ class measure(object):
             self.g.p['poi'] = []
             self.g.save()
         elif event.key=='w':
-            self.g.p['wedge'] = float(raw_input('new wedge: '))
+            self.g.p['wedge'] = input('new wedge: ')
             self.g.save()
+        elif event.key=='a':
+            self.g.pa = input('new PA: ')
+            self.g.save()
+            self.draw_markers()
         elif event.key=='c':
             self.g.p['dyncen']=[self.cx,self.cy]
             self.g.save()
