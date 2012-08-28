@@ -143,8 +143,7 @@ class adhoc(numpdict):
 
       outarr = self[self.cenx()-relsize:self.cenx()+relsize,self.ceny()-relsize:self.ceny()+relsize]
       outarr.p=self.p.copy()
-      outarr.p['cen']=N.array([relsize,relsize])
-      outarr.p['dyncen']=outarr.p['cen']+(self.p['dyncen']-self.p['cen'])
+      outarr.p['cen']=[relsize,relsize]
       return outarr
 
     def mask(self,cond):

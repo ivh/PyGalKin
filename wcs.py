@@ -13,7 +13,7 @@ def new_wcs(ra,dec,scale):
     scale in ""/pix
     assumes the image is already north-up east-left
     """
-    scale /= 3599.
+    scale /= 3600.
     wcs = pywcs.WCS(naxis=2)
     wcs.wcs.crpix = [ra, dec]
     wcs.wcs.cdelt = [scale, scale]

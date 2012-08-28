@@ -10,71 +10,48 @@ using matplotlibs key- and mouse-bindings.
 from PyGalKin import *
 
 class measure(object):
-    def __init__(self,img,vf,sig,fit,cube,p=None):
+    def __init__(self,g,img,vf,sig,fit,cube):
+        self.g = g
         self.img = img
         self.vf = vf
         self.sig = sig
         self.fit = fit
         self.cube=cube
-        if p: self.p=p
-        else: self.p=cube.p
-
-        self.gid=int(self.p['gid'])
-
-        self.conn, self.curs = DB.setupdb()
-        self.vsys, self.name, self.reff = \
-            DB.getg(self.curs,'vsys,name,reff',where='gid=%d'%self.gid)
-        self.fig = P.figure(figsize=(9,9))
+        self.fig = P.figure(figsize=(12,9))
         self.canvas = self.fig.canvas
-        self.ax1 = self.fig.add_subplot(221)
-        self.ax2 = self.fig.add_subplot(222, sharex=self.ax1, sharey=self.ax1)
-        self.ax3 = self.fig.add_subplot(223, sharex=self.ax1, sharey=self.ax1)
-        self.ax4 = self.fig.add_subplot(224)
-        self.imaxes = [self.ax1, self.ax2, self.ax3]
+        self.ax1 = self.fig.add_subplot(231)
+        self.ax2 = self.fig.add_subplot(232, sharex=self.ax1, sharey=self.ax1)
+        self.ax3 = self.fig.add_subplot(233, sharex=self.ax1, sharey=self.ax1)
+        self.ax4 = self.fig.add_subplot(234, sharex=self.ax1, sharey=self.ax1)
+        self.ax5 = self.fig.add_subplot(235, sharex=self.ax1, sharey=self.ax1)
+        self.axspec = self.fig.add_subplot(4,6,18)
+        self.axpv = self.fig.add_subplot(4,3,12)
+        self.fig.subplots_adjust(wspace=0.01,hspace=0.01,left=0.01,right=0.99,top=0.99,bottom=0.01)
+        self.imaxes = [self.ax1, self.ax2, self.ax3, self.ax4, self.ax5]
         for ax in self.imaxes: ax.set_xticks(()); ax.set_yticks(())
         self.canvas.mpl_connect('key_press_event', self.key)
         self.canvas.mpl_connect('button_press_event', self.button)
 
+        self.avreg = 5
+        self.cx, self.cy = (self.g.p['relsize'],)*2
+        self.px = 0
+        self.py = 0
+        self.pixdiff2radius= 1
+
         self.ax1.imshow(N.transpose(self.img))
         self.ax2.imshow(N.transpose(self.vf))
         self.ax3.imshow(N.transpose(self.sig))
+        self.ax4.imshow(N.transpose(self.fit[:,:,4]),vmin=-0.5,vmax=0.5)
+        self.ax5.imshow(N.transpose(self.fit[:,:,5]),vmin=-0.5,vmax=0.5)
+        self.draw_spec()
+        self.draw_pvdiag()
+        self.draw_markers()
 
-        self.p2pmass = None
-        self.veldiff = None
-        self.censig = None
-        self.sigmass = None
+        if self.g.p.get('axis'):
+            self.ax1.axis(self.g.p.get('axis'))
 
-        self.avreg = 5
-        self.cx = 0
-        self.cy = 0
-        self.px = 0
-        self.py = 0
-
-        self.pixdiff2radius= 1
-
-        self.canvas.set_window_title('%s'%self.name)
-        self.update()
+        self.canvas.set_window_title('%s'%self.g.name)
         P.P.show()
-
-    def update(self):
-        self.ax4.clear()
-        spec=self.cube[self.cx,self.cy,:]
-        self.ax4.plot(spec,'b',linestyle='steps')
-        self.canvas.draw()
-
-    def save(self):
-        sql='UPDATE galax SET sigma_cent=?,mass_sig=?,'
-        sql+='maxvel=?,mass_p2p=?'
-        sql+=''
-        sql+=''
-        sql+='WHERE gid=%s'%self.gid
-        self.curs.execute(sql,(self.censig,\
-                               self.sigmass,\
-                               self.veldiff,\
-                               float(self.p2pmass),\
-                        ))
-        self.conn.commit()
-        print 'Saved to database.'
 
     def getAvRange(self,previous=False):
         if previous: cx,cy=self.px,self.py
@@ -87,22 +64,35 @@ class measure(object):
 
     def meas_sigma(self):
         xav,yav=self.getAvRange()
-        self.censig = N.mean(self.sig[xav,yav])
-        self.sigmass = dynMassSphere(self.reff,self.censig)
-        print "Measured sigma: %s   -> mass=%.1e)"%(self.censig,self.sigmass)
+        self.g.sigma_x, self.g.sigma_y = self.cx, self.cy
+        self.g.sigma_cent = N.mean(self.sig[xav,yav])
+        self.g.mass_sig = dynMassSphere((self.g.h27 or self.g.h25)*1.68,self.g.sigma_cent)
+        print "Measured sigma: %s   -> mass=%.1e)"%\
+            (self.g.sigma_cent,self.g.mass_sig)
+        self.g.save()
 
     def meas_vels(self):
+        self.g.maxvel_x1, self.g.maxvel_y1 = self.px,self.py
+        self.g.maxvel_x2, self.g.maxvel_y2 = self.cx,self.cy
         xav,yav=self.getAvRange()
         v1=N.mean(self.vf[xav,yav])
         xav,yav=self.getAvRange(previous=True)
         v2=N.mean(self.vf[xav,yav])
-        self.veldiff=N.abs(v1-v2)
+        self.g.maxvel=N.abs(v1-v2)
 
-        scale = scalefromvarc(self.p['echelle'],self.vsys)
-        npix = dis(N.array([self.cx,self.cy]),N.array([self.px,self.py])) / 2.0
-        self.p2pmass = massKepler(npix * scale, self.veldiff)
-        print "|v1-v2|=%.1f, r=%.1f kpc -> mass=%.1e"%(self.veldiff, npix*scale/1.0E3, self.p2pmass)
+        scale = scalefromvarc(self.g.p['echelle'],self.g.vsys) / 1000.
+        npix = dis(N.array([self.cx,self.cy]),N.array([self.px,self.py]))
+        self.g.mass_p2p = massKepler(npix * scale, self.g.maxvel)
+        print "|v1-v2|=%.1f, r=%.1f kpc -> mass=%.1e"%\
+            (self.g.maxvel, npix*scale, self.g.mass_p2p)
+        self.g.save()
 
+    def add_poi(self):
+        if not 'poi' in self.g.p:
+            self.g.p['poi'] = []
+        self.g.p['poi'].append((self.cx,self.cy))
+        print "adding %s to pois."%(self.g.p['poi'][-1],)
+        self.g.save()
 
     def button(self,event):
         if event.inaxes not in self.imaxes: return
@@ -111,19 +101,68 @@ class measure(object):
             self.px,self.py=self.cx,self.cy
             self.cx,self.cy=x,y
             print 'x=%d, y=%d, v=%.1f, s=%.1f'%(x,y,self.vf[x,y],self.sig[x,y])
-            self.update()
+            self.draw_spec()
+
+    def draw_spec(self):
+        self.axspec.clear()
+        spec=self.cube[self.cx,self.cy,:]
+        self.axspec.plot(spec,'b',linestyle='steps')
+        fit=F.gaussh34(self.fit[self.cx,self.cy], N.arange(len(spec)))
+#                """p0=cont p1=x0 p2=ampl p3=sigma p4=h3 p5=h4
+        self.axspec.plot(fit,'g-',linestyle='steps')
+        self.canvas.draw()
+
+
+    def draw_pvdiag(self):
+        self.axpv.clear()
+        pos,vel=posvel(self.vf,self.g.p['dyncen'],self.g.p['pa'])
+        r1,r2,v1,v2=rotcur(self.vf,self.g.p['dyncen'],self.g.p['pa'],self.g.p['wedge'],self.g.incl)
+        self.axpv.plot(pos,vel-self.g.vsys,'.y',alpha=0.6)
+        self.axpv.plot(-r1,v1,'sr')
+        self.axpv.plot(r2,v2,'sb')
+        self.canvas.draw()
+
+    def draw_markers(self):
+        self.ax2.plot(*self.g.dyncen,color='k',marker='o')
+        self.ax2.plot([self.g.maxvel_x1,self.g.maxvel_x2],
+            [self.g.maxvel_y1,self.g.maxvel_y2],'Dk')
+
+        vec=pa2vec(self.g.pa)*self.g.p['relsize']
+        ends=N.transpose(N.vstack((self.g.dyncen+vec,self.g.dyncen-vec)))
+        self.ax2.plot(ends[0],ends[1],'k-')
+
+        self.ax3.plot(self.g.sigma_x,self.g.sigma_y,'ok')
+        self.canvas.draw()
 
     def key(self,event):
         if event.key=='S':
-            self.save()
-        elif event.key=='i':
             self.meas_sigma()
+            self.draw_markers()
         elif event.key=='v':
             self.meas_vels()
+        elif event.key=='i':
+            self.add_poi()
+        elif event.key=='r':
+            self.g.p['poi'] = []
+            self.g.save()
+        elif event.key=='w':
+            self.g.p['wedge'] = float(raw_input('new wedge: '))
+            self.g.save()
+        elif event.key=='c':
+            self.g.p['dyncen']=[self.cx,self.cy]
+            self.g.save()
+            self.draw_pvdiag()
+            self.draw_markers()
         elif event.key in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
             self.avreg = int(event.key)
-            print 'Avergaing region set to %s pixels.'%self.avreg
+            print 'Averaging region set to %s pixels.'%self.avreg
+        elif event.key=='z':
+            self.g.p['axis']=self.ax2.axis()
+            self.g.save()
+        elif event.key=='q':
+            sys.exit()
 
+#############################################
 class doublecomp:
     def __init__(self,fitresults=None,masks=None,cube=None,z=None,vmin=None,vmax=None,\
                      clipcube=True,extra=1.1,restl=Sulfur,savefile='Haro11-multicomp.pick'):
@@ -169,7 +208,7 @@ class doublecomp:
             self.a2,self.v2,self.s2=masked_array(z,copy=True),masked_array(z,copy=True),masked_array(z,copy=True)
             self.a3,self.v3,self.s3=masked_array(z,copy=True),masked_array(z,copy=True),masked_array(z,copy=True)
             #self.all2()
-        
+
         if masks==None:
             self.mask1=N.zeros_like(self.a1).astype('bool')
             self.mask2=N.zeros_like(self.a2).astype('bool')
@@ -178,7 +217,7 @@ class doublecomp:
             self.mask1=masks[0]
             self.mask2=masks[1]
             self.mask3=masks[2]
-                        
+
         #self.sortbyamp()
 
         self.fig=P.figure(1)
@@ -202,14 +241,14 @@ class doublecomp:
         self.plotcurspec()
         #self.canvas.draw()
         self.update()
-        
+
     def button(self,event):
         if event.inaxes in [self.ax1,self.ax2,self.ax3,self.ax4,self.ax5,self.ax6]:
             x,y=int(round(event.xdata)),int(round(event.ydata))
             if event.button==1:
                 self.cx,self.cy=x,y
                 self.update()
-            elif event.button==2: 
+            elif event.button==2:
                 self.setregion(x,y)
                 self.update()
             elif event.button==3:
@@ -221,11 +260,11 @@ class doublecomp:
                 self.vcl1,self.acl1=x,y
                 self.parinfo[1]['value']=x
                 self.parinfo[2]['value']=y
-            elif event.button==2: 
+            elif event.button==2:
                 self.vcl2,self.acl2=x,y
                 self.parinfo[4]['value']=x
                 self.parinfo[5]['value']=y
-            elif event.button==3: 
+            elif event.button==3:
                 self.vcl3,self.acl3=x,y
                 self.parinfo[7]['value']=x
                 self.parinfo[8]['value']=y
@@ -234,31 +273,31 @@ class doublecomp:
         print event.key
         if event.key=='x':
             IO.dump((self.mask1,self.mask2,self.mask3,self.a1,self.v1,self.s1,self.a2,self.v2,self.s2,self.a3,self.v3,self.s3),self.savefile)
-        elif event.key=='w': 
+        elif event.key=='w':
             self.switch(); self.update()
-        elif event.key=='e': 
+        elif event.key=='e':
             self.switch2(); self.update()
-        elif event.key=='b': 
+        elif event.key=='b':
             self.maskregion(1); self.update()
-        elif event.key=='n': 
+        elif event.key=='n':
             self.maskregion(2); self.update()
-        elif event.key=='m': 
+        elif event.key=='m':
             self.maskregion(3); self.update()
-        elif event.key=='t': 
+        elif event.key=='t':
             self.unmaskregion(1); self.update()
-        elif event.key=='y': 
+        elif event.key=='y':
             self.unmaskregion(2); self.update()
-        elif event.key=='u': 
+        elif event.key=='u':
             self.unmaskregion(3); self.update()
-        elif event.key=='i': 
+        elif event.key=='i':
             self.cy+=1; self.update()
-        elif event.key=='k': 
+        elif event.key=='k':
             self.cy-=1; self.update()
-        elif event.key=='j': 
+        elif event.key=='j':
             self.cx-=1; self.update()
-        elif event.key=='l': 
+        elif event.key=='l':
             self.cx+=1; self.update()
-        elif event.key=='1': 
+        elif event.key=='1':
             self.fit1(); self.unmaskregion(); self.maskregion(2); self.maskregion(3); self.update()
         elif event.key=='2':
             self.fit2(); self.unmaskregion(); self.maskregion(3); self.update()
@@ -267,7 +306,7 @@ class doublecomp:
         elif event.key=='8':
             self.parinfo[1]['fixed']=1
             self.parinfo[4]['fixed']=1
-        
+
     def fit1(self,x=None,y=None):
         if not x: x=self.cx
         if not y: y=self.cy
@@ -299,7 +338,7 @@ class doublecomp:
         self.v2[x,y]=v2
         self.s2[x,y]=s2
         print('Fitted x:%d y:%d with a1:%e v1:%e s1:%e a2:%e v2:%e s2:%e'%(x,y,a1,v1,s1,a2,v2,s2))
-        
+
     def fit3(self,x=None,y=None):
         if not x: x=self.cx
         if not y: y=self.cy
@@ -318,7 +357,7 @@ class doublecomp:
         self.v3[x,y]=v3
         self.s3[x,y]=s3
         print('Fitted x:%d y:%d with a1:%e v1:%e s1:%e a2:%e v2:%e s2:%e a3:%e v3:%e s3:%e'%(x,y,a1,v1,s1,a2,v2,s2,a3,v3,s3))
-        
+
 
     def make_parinfo(self,x,data):
         parinfo=[]
@@ -338,7 +377,7 @@ class doublecomp:
         #parinfo[1]['fixed']=1
         #parinfo[4]['fixed']=1
         return parinfo
-    
+
     def all1(self):
         for i in N.arange(self.cube.shape[0]):
             for j in N.arange(self.cube.shape[1]):
@@ -348,7 +387,7 @@ class doublecomp:
         for i in N.arange(self.cube.shape[0]):
             for j in N.arange(self.cube.shape[1]):
                 self.fit2(i,j)
-    
+
     def setregion(self,x=None,y=None):
         if not x: x=self.cx
         if not y: y=self.cy
@@ -364,7 +403,7 @@ class doublecomp:
             self.mask2[self.rx[0]:self.rx[1]+1,self.ry[0]:self.ry[1]+1]=True
         elif what==3:
             self.mask3[self.rx[0]:self.rx[1]+1,self.ry[0]:self.ry[1]+1]=True
-        
+
     def unmaskregion(self,what=4):
         if what==1:
             self.mask1[self.rx[0]:self.rx[1]+1,self.ry[0]:self.ry[1]+1]=False
@@ -375,7 +414,7 @@ class doublecomp:
         else:
             for mask in [self.mask1,self.mask2,self.mask3]:
                 mask[self.rx[0]:self.rx[1]+1,self.ry[0]:self.ry[1]+1]=False
-        
+
     def sortbyamp(self):
         self.switchbymask(self.a1<self.a2)
 
@@ -385,22 +424,22 @@ class doublecomp:
         self.v1,self.v2=N.where(mask,self.v2,self.v1),N.where(mask,self.v1,self.v2)
         self.s1,self.s2=N.where(mask,self.s2,self.s1),N.where(mask,self.s1,self.s2)
 
-        
+
     def switch(self):
         sl=slice(self.rx[0],self.rx[1]+1),slice(self.ry[0],self.ry[1]+1)
         self.a1[sl],self.a2[sl]= self.a2[sl].copy(),self.a1[sl].copy()
         self.v1[sl],self.v2[sl]= self.v2[sl].copy(),self.v1[sl].copy()
         self.s1[sl],self.s2[sl]= self.s2[sl].copy(),self.s1[sl].copy()
         self.mask1[sl],self.mask2[sl]= self.mask2[sl].copy(),self.mask1[sl].copy()
-        
+
     def switch2(self):
         sl=slice(self.rx[0],self.rx[1]+1),slice(self.ry[0],self.ry[1]+1)
         self.a3[sl],self.a2[sl]= self.a2[sl].copy(),self.a3[sl].copy()
         self.v3[sl],self.v2[sl]= self.v2[sl].copy(),self.v3[sl].copy()
         self.s3[sl],self.s2[sl]= self.s2[sl].copy(),self.s3[sl].copy()
         self.mask3[sl],self.mask2[sl]= self.mask2[sl].copy(),self.mask3[sl].copy()
-        
-         
+
+
     def plotcurspec(self,x=0,y=0):
         self.ax7.set_title('Current pixel')
         if hasattr(self,'cube'):
@@ -413,7 +452,7 @@ class doublecomp:
         self.ax7.set_yticks([])
         self.ax7.set_xbound(self.vmin/self.extra,self.vmax*self.extra)
         #self.ax7.legend(loc=2)
-        
+
     def plotcross(self):
         crx,cry=[self.cx-0.5,self.cx+0.5],[self.cy-0.5,self.cy+0.5]
         csx,csy=[self.cx-0.5,self.cx+0.5],[self.cy+0.5,self.cy-0.5]
@@ -429,8 +468,8 @@ class doublecomp:
         self.cross5b,=self.ax5.plot(csx,csy,'k-')
         self.cross6a,=self.ax6.plot(crx,cry,'w-')
         self.cross6b,=self.ax6.plot(csx,csy,'k-')
-        
-        
+
+
     def plotvfs(self):
         self.vf1=self.ax1.imshow(N.transpose(self.v1),interpolation='nearest',vmin=self.vmin,vmax=self.vmax,cmap=P.sauron)
         self.vf2=self.ax2.imshow(N.transpose(self.v2),interpolation='nearest',vmin=self.vmin,vmax=self.vmax,cmap=P.sauron)
@@ -458,7 +497,7 @@ class doublecomp:
         self.ax4.set_yticks([]);self.ax4.set_xticks([])
         self.ax5.set_yticks([]);self.ax5.set_xticks([])
         self.ax6.set_yticks([]);self.ax6.set_xticks([])
-        
+
     def newgausses(self):
         self.g1=F.gauss([0.0,self.v1[self.cx,self.cy],self.a1[self.cx,self.cy],self.s1[self.cx,self.cy]],x=self.zv, returnmodel=True)
         self.g2=F.gauss([0.0,self.v2[self.cx,self.cy],self.a2[self.cx,self.cy],self.s2[self.cx,self.cy]],x=self.zv, returnmodel=True)
@@ -468,8 +507,8 @@ class doublecomp:
         self.g2-=self.g.min()
         self.g3-=self.g.min()
         self.g-=self.g.min()
-        
-        
+
+
     def applymask(self):
         self.a1.mask=self.mask1
         self.v1.mask=self.mask1
@@ -480,7 +519,7 @@ class doublecomp:
         self.a3.mask=self.mask3
         self.v3.mask=self.mask3
         self.s3.mask=self.mask3
-        
+
     def updateplots(self):
         crx,cry=[self.cx-0.5,self.cx+0.5],[self.cy-0.5,self.cy+0.5]
         csx,csy=[self.cx-0.5,self.cx+0.5],[self.cy+0.5,self.cy-0.5]
@@ -509,7 +548,7 @@ class doublecomp:
         self.gauss3.set_ydata(masked_array(self.g3))
         self.gauss.set_ydata(masked_array(self.g))
         self.ax7.set_ylim(meas.min()/1.15,meas.max()*1.05)
-        
+
 
     def update(self):
         self.setregion()
@@ -534,7 +573,7 @@ class PaSub:
         self.flag=0
         self.x=data.shape[0]
         self.y=data.shape[1]
-        
+
         self.PaNumb=PaNumb
         self.osn=self.odata/self.oerror
         self.step=0.1
@@ -546,16 +585,16 @@ class PaSub:
 
         self.currdata()
         self.file=open(prefix+'.dat','w')
-        
+
         self.fig=P.figure(1)
-        
+
         self.canvas = self.fig.canvas
         self.canvas.mpl_connect('key_press_event', self.key_press_callback)
         self.canvas.mpl_connect('button_press_event', self.button_press_callback)
 
         #first one
         self.nextone()
-        
+
     def nextone(self):
         if self.i+1 < self.x: self.i +=1
         elif self.j+1 < self.y:
@@ -564,7 +603,7 @@ class PaSub:
         else:
             print "DONE!"
             self.quit()
-            
+
         self.currdata()
 
         if isconstant(self.data):
@@ -593,7 +632,7 @@ class PaSub:
     def save(self):
         dump(self.subtracted,self.prefix+'.pick')
         self.file.write('%s %s %s %s %s %s %s\n'%(self.i,self.j,self.PaNumb,self.fact,self.shift,self.tiltfac, self.flag))
-        
+
     def choosepix(self):
         self.i=int(raw_input('i: '))
         self.j=int(raw_input('j: '))
@@ -607,20 +646,20 @@ class PaSub:
             print "using PaNumb %d"%self.PaNumb
             self.osynt=A.createPaschen(self.data+1,type='single',velRange=self.velRange,guessV=self.guessV,PaNumb=self.PaNumb,plotfit=False)
         self.synt=self.osynt.copy()
- 
-        
+
+
     def measurePa(self):
         params=A.fitAllPaschen_old(self.data,self.error,velRange=self.velRange,guessV=self.guessV,plot=False,prin=False)
         #print params
         self.paparams=params
-        
+
 
     def shiftscaled(self):
         return shift(self.synt,self.shift)*self.fact * self.tilt()
 
     def tilt(self):
         return N.ones(len(self.data),'Float32') + (self.tiltfac *N.arange(-1.,1.,2.0/len(self.data)))
-        
+
     def accept(self):
         self.subtracted[self.i,self.j,:]=self.data - self.shiftscaled()
         self.save()
@@ -634,14 +673,14 @@ class PaSub:
     def reject(self):
         self.file.write('%s %s %s\n'%(self.i,self.j,'R'))
         self.nextone()
-    
+
     def startover(self):
         #self.fact=1.0
         #self.shift=0
         self.flag=0
         #self.tiltfac=0.0
         self.update()
-        
+
 
     def chooseline(self,key):
         self.PaNumb=int(key)
@@ -655,11 +694,11 @@ class PaSub:
         if self.flag == 0: self.flag = 1
         else: self.flag = 0
         self.accept()
-        
+
     def key_press_callback(self,event):
-        
+
         if event.key == '+': self.fact += self.step
-        elif event.key == '-': self.fact -= self.step 
+        elif event.key == '-': self.fact -= self.step
         elif event.key == 'l': self.shift -= 1
         elif event.key == 'r': self.shift += 1
         elif event.key == 's': self.smooth()
@@ -672,12 +711,12 @@ class PaSub:
         elif event.key == 'b': self.toggleflag()
         elif event.key == 'm': self.tiltfac += 0.1
         elif event.key == 'n': self.tiltfac -= 0.1
-        
-        
+
+
         elif event.key in '0123456789': self.chooseline(event.key)
         else: print "Unknown key pressed, doing nothing"
         self.plot()
-        
+
     def plot(self):
         self.fig.clf()
         #print 'currently at %s %s'%(self.i,self.j)
@@ -688,7 +727,7 @@ class PaSub:
         plotspec(self.data-self.shiftscaled(),style='-r',vminmax='sigbased',Z=vel2z(self.guessV),plotlines=True,region='cat')
         P.setp(ax,xticks=[], yticks=[])
         P.title('CaT and Pa 13, 14, 15, 16')
-        
+
         # SIII
         #ax=P.axes([0.74,0.68,0.23,0.27])
         ax=P.axes([0.02,0.35,0.23,0.27])
@@ -717,13 +756,13 @@ class PaSub:
         self.plotaroundline(PaLamb(12))
         P.setp(ax,xticks=[], yticks=[])
         P.title('Pa 12')
-        
+
         ## Pa 17
         ax=P.axes([0.02,0.02,0.23,0.27])
         self.plotaroundline(PaLamb(17))
         P.setp(ax,xticks=[], yticks=[])
         P.title('Pa 17')
-        
+
         ## PaStren Ratio
         ax=P.axes([0.38,0.02,0.23,0.27])
         lines=N.array([10,11,12,14,17])
@@ -732,14 +771,14 @@ class PaSub:
         for i in N.arange(5)*2 + 3:
             meas[j]=self.paparams[i]
             j+=1
-            
+
         ratio=meas / PaschStren[19-lines]
         P.plot(lines[::-1],ratio/ratio[-2],'bo')
         P.setp(ax,xticks=[9,10,11,12,14,17])
         P.title('Pa Strength Ratio')
         P.setp(ax,xticks=[], yticks=[])
         P.title('Pa 17')
-        
+
         ## PaStren Ratio
         ax=P.axes([0.38,0.02,0.23,0.27])
         lines=N.array([10,11,12,14,17])
@@ -748,7 +787,7 @@ class PaSub:
         for i in N.arange(5)*2 + 3:
             meas[j]=self.paparams[i]
             j+=1
-            
+
         ratio=meas / PaschStren[19-lines]
         P.plot(lines[::-1],ratio/ratio[-2],'bo')
         P.setp(ax,xticks=[9,10,11,12,14,17])
@@ -756,7 +795,7 @@ class PaSub:
 
         ## values
         ax=P.axes([0.76,0.02,0.20,0.27])
-        
+
         #text(0.1,0.9,'S/N: '+str(self.sn.mean()),transform = ax.transAxes)
         P.text(0.1,0.8,'X: %s  Y: %s'%(self.i,self.j),transform = ax.transAxes)
         P.text(0.1,0.7,'PaNumb: %s'%(self.PaNumb,),transform = ax.transAxes)
@@ -764,10 +803,10 @@ class PaSub:
         P.text(0.1,0.5,'Fact: %s'%(self.fact),transform = ax.transAxes)
         P.text(0.1,0.4,'Shift: %s'%(self.shift),transform = ax.transAxes)
         P.text(0.1,0.3,'Flag: %s'%(self.flag),transform = ax.transAxes)
-        
+
         P.setp(ax,xticks=[], yticks=[])
         P.title('Some Values')
-        
+
         self.canvas.draw()
 
     def plotaroundline(self,lamb):
@@ -797,10 +836,10 @@ class inspectdata():
         self.gauss1=N.zeros(self.nx,'i')
 
         self.fig1=P.figure()
-        self.fig1.canvas.mpl_connect('key_press_event',self.keyhandler)     
+        self.fig1.canvas.mpl_connect('key_press_event',self.keyhandler)
         self.next()
-        
-        
+
+
     def init1(self):
         self.fig1.clf()
         self.ax1=self.fig1.add_subplot(1,1,1)
@@ -813,7 +852,7 @@ class inspectdata():
         self.init1()
         self.ax1.plot(self.data[self.cur,:],color='k',linestyle='steps')
         self.fig1.canvas.draw()
-    
+
     def fit(self):
         pass
 
@@ -826,7 +865,7 @@ class inspectdata():
         if event.key=='3': self.ngauss[self.cur]=3;self.next()
         if event.key=='b': self.ngauss[self.cur]=0;self.next()
         if event.key=='q': self.fig1.canvas.mpl_disconnect(self.clickconn)
- 
+
 
 
 ##########################################
@@ -845,13 +884,13 @@ class rotcur_int():
         self.ax1=self.fig.add_subplot(2,2,1)
         self.ax2=self.fig.add_subplot(2,1,2)
         self.ax3=self.fig.add_subplot(2,2,2)
-        
+
         self.canvas.mpl_connect('key_press_event',self.keyhandler)
         self.canvas.mpl_connect('button_press_event',self.mousehandler)
-        
+
         self.flip=True
         self.showindiv=True
-        
+
         self.update()
 
     def update(self):
@@ -894,7 +933,7 @@ class rotcur_int():
         self.ax3.text(0.05,0.4,'vsys: %.1f'%self.vsys)
         self.ax3.set_xticks([])
         self.ax3.set_yticks([])
-        
+
 
     def calc(self):
         self.r1,self.r2,self.v1,self.v2=\
@@ -908,7 +947,7 @@ class rotcur_int():
         else:
             self.vl*=-1
             self.v1*=-1
-        
+
         self.vsys=self.vf[self.cen[0],self.cen[1]]
 
     def keyhandler(self,event):
@@ -928,7 +967,7 @@ class rotcur_int():
         elif event.key=='down': self.cen[1]-=1; self.update()
         else: pass#print event.key
 
-     
+
 
     def mousehandler(self,event):
         self.cen=N.array([event.xdata,event.ydata])
@@ -942,7 +981,7 @@ class rotcur_int():
 
 class vf_inter:
 	def __init__(self, data, pixels=7, avg_square=3):
-	
+
 		# Basic Values
 		self.avg_square_size = avg_square
 		self.pixels = pixels
@@ -952,7 +991,7 @@ class vf_inter:
 		self.spectra_break = 6
 		self.cenx = 0
 		self.ceny = 0
-			
+
 		self.trusted = []
 		self.trustgraph = []
 		self.windownr = 1
@@ -967,16 +1006,16 @@ class vf_inter:
 		self.modelled_flux = None
 		self.radii = None
 		self.synth_spectrum = None
-		
-		
-		
+
+
+
 		# import and process data cube
 		self.odata = data.copy()
 		self.cdata = data.cliparoundcenter()
 		self.cdata = self.cdata
 		self.cdata.p = self.odata.p
 		self.sdata = G.sum(self.cdata)
-		
+
 		# import or calculate velocity field
 		self.vel_file = self.odata.p['objname'] + '_peakvf_' + `self.pixels` + 'pixels.pick'
 		if os.path.exists(self.vel_file):
@@ -987,7 +1026,7 @@ class vf_inter:
 			self.ini_velf = G.peakvel(self.cdata,self.pixels)
 			G.dump(self.ini_velf, self.vel_file)
 			print 'done!\n'
-		
+
 		# setup main figure
 		self.fig=P.figure(1)
 		canvas = self.fig.canvas
@@ -995,11 +1034,11 @@ class vf_inter:
 		canvas.mpl_connect('button_press_event', self.button_press_callback)
 		self.canvas = canvas
 		self.plot()
-		
-        
+
+
 	def plot(self):
 		self.fig.clf()
-        
+
         # Total Flux
 		self.axflux=P.axes([0.00,0.59,0.34,0.34])
 		axfluxresmin, axfluxresmax = self.nicegraph(self.sdata)
@@ -1007,7 +1046,7 @@ class vf_inter:
 		P.imshow(self.sdata,interpolation='nearest',vmin=axfluxresmin,vmax=axfluxresmax)
 		P.title('Total Flux')
 		P.colorbar()
-		
+
 		# Velocity Field
 		self.axvelf=P.axes([0.34,0.59,0.34,0.34])
 		axvelresmin, axvelresmax = self.nicegraph(self.ini_velf)
@@ -1015,11 +1054,11 @@ class vf_inter:
 		P.imshow(self.ini_velf, interpolation='nearest',vmin=axvelresmin, vmax=axvelresmax)
 		P.title('Velocity Field')
 		P.colorbar()
-		
+
 		# Local Spectrum
 		self.axspec=P.axes([0.015,0.46,0.12,0.08],xticks=[], yticks=[])
-		
-		
+
+
 	def key_press_callback(self,event):
         # key bindings
 		if event.key == 'a': self.fitvellinear()
@@ -1047,14 +1086,14 @@ class vf_inter:
 				self.add_to_trusted((x,y))
 			elif event.button == 2:
 				self.set_center((x,y))
-				
+
 		elif event.inaxes in self.trustgraph:
 			if event.button == 3:
 				self.drop_trusted(event.inaxes)
-				
+
 		else: print '.'
-		
-		
+
+
 	def res_key_press_callback(self, event):
 		# key bindings for result window
 		if   event.key == 'a': self.res_log_flux()
@@ -1062,12 +1101,12 @@ class vf_inter:
 		elif event.key == 's': self.res_log_vel()
 		elif event.key == 'x': self.res_log_vel(log=0)
 		else: print 'unused key:', event.key
-	
-		
+
+
 	def res_button_press_callback(self, event):
 		print 'unused button:', event.button
-		
-		
+
+
 	def open_menu(self):
 		# opens menu window to easily access models, modify graph range, etc.
 		app = wx.PySimpleApp()
@@ -1079,8 +1118,8 @@ class vf_inter:
 		###########################
 		###########################
 		###########################
-    
-    
+
+
 	def plotat(self, xy):
 		# refresh local spectrum
 		P.figure(1)
@@ -1089,8 +1128,8 @@ class vf_inter:
 		P.setp(self.axspec, xticks=[], yticks=[], title='Local')
 		self.currdat = self.cdata[xy[0],xy[1],:]
 		self.canvas.draw()
-		
-		
+
+
 	def add_to_trusted(self, xy):
 		# add coordinates, spectrum and velocity to trusted data
 		P.figure(1)
@@ -1113,8 +1152,8 @@ class vf_inter:
 		self.trusted.append(newlistitem)
 		print 'added point @', xy, 'to trusted points'
 		self.update_trusted()
-		
-		
+
+
 	def drop_trusted(self, axis):
 		# remove trusted data
 		P.figure(1)
@@ -1122,8 +1161,8 @@ class vf_inter:
 		print 'point @', self.trusted[i][1], 'being removed'
 		self.trusted = self.trusted[:i] + self.trusted[i+1:]
 		self.update_trusted(delf=i)
-		
-		
+
+
 	def del_all_trusted(self):
 		# remove all trusted data-points
 		P.figure(1)
@@ -1132,18 +1171,18 @@ class vf_inter:
 			self.update_trusted(delf=i)
 			self.canvas.draw()
 		print 'all trusted points removed'
-			
-		
+
+
 	def update_trusted(self, delf=-1):
 		# update graphs of trusted data
 		P.figure(1)
 		trustlen = len(self.trusted)
-		
-		# add new graphs		
+
+		# add new graphs
 		if len(self.trustgraph) == trustlen - 1:
 			self.trustgraph.append(P.axes(self.newaxis(trustlen-1, cutat = self.spectra_break), xticks=[],yticks=[]))
 			P.plot(self.trusted[trustlen-1][0])
-		
+
 		# delete old ones
 		elif len(self.trustgraph) == trustlen + 1 and delf >= 0:
 			P.delaxes(self.trustgraph[-1])
@@ -1152,7 +1191,7 @@ class vf_inter:
 				self.trustgraph[i].cla()
 				P.setp(self.trustgraph[i], xticks=[],yticks=[])
 				self.trustgraph[i].plot(self.trusted[i][0])
-		
+
 		# notify errors
 		elif len(self.trustgraph) == trustlen:
 			print 'plotter idling ...'
@@ -1166,13 +1205,13 @@ class vf_inter:
 
 	def fitvellinear(self):
 		# perform a linear fit to trusted points, giving modelled VF as output
-		
+
 		P.figure(1)
 		try: P.delaxes(self.axlinf)
 		except: pass
 		else: print 'old axis killed'
-		
-		print 'velocity fit started ...'	
+
+		print 'velocity fit started ...'
 		# get and process input data
 		ini_values = []
 		ini_coordx = []
@@ -1189,7 +1228,7 @@ class vf_inter:
 		ini_coordy = N.array(ini_coordy)
 		ini_velocs = N.array(ini_velocs)
 		print 'got values\n'
-		
+
 		# initialize mpfit fitting
 		parinfo=[]
 		parinfo.append({'value':self.odata.p['pa'], 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'pa'})		# position angle
@@ -1212,7 +1251,7 @@ class vf_inter:
 		seen=linfit_func(linfitres.params, None,  x=ini_coordx, y=ini_coordy, z=None, err=None, returnmodel=True)
 		print '\ntrue velocities:\n', ini_velocs
 		print '\nmodel velocities:\n', seen
-		
+
 		# visual output
 		all_coordx = N.array(range(-self.cdata.shape[0]/2-self.cenx,self.cdata.shape[0]/2-self.cenx)*self.cdata.shape[1])
 		all_coordx = all_coordx[::-1]
@@ -1223,14 +1262,14 @@ class vf_inter:
 		self.field = N.transpose(self.field)
 		self.axlinf=P.axes([0.68,0.02,0.32,0.32],xticks=[], yticks=[], title='Velocity Model')
 		P.imshow(self.field, interpolation='nearest')
-		
+
 		self.canvas.draw()
 		print 'done!\n'
-		
-			
+
+
 	def fitfluxexp(self, modeltype, contnr=3):
 		# fit exponential law to flux of trusted points
-		
+
 		P.figure(1)
 		# throw away your television
 		try: P.delaxes(self.axfluxmod)
@@ -1281,17 +1320,17 @@ class vf_inter:
 		functkw = {'x':ini_coordx, 'y':ini_coordy, 'z':fluxes, 'err':err}
 
 		expfitres=mpfit.mpfit(modeltype,parinfo=parinfo,functkw=functkw,quiet=False)
-		
+
 		# store data
 		print expfitres.params
 		print 'radii:',self.radii
 		self.flux_pars = {'model':modelt, 'amp':expfitres.params[0], 'slope':expfitres.params[1], 'cutoff':expfitres.params[2]}
-		
+
 		# nice output
 		self.axfluxmod=P.axes([0.72,0.75,0.27,0.20], yticks=[], title='Flux Model')
 		self.axfluxmod.plot(self.radii, M.e**fluxes,'bo')
 		self.axfluxmod.semilogy()
-		
+
 		# get fitted field
 		maxrad = max(self.radii)
 		modelled_flux = N.array([])
@@ -1301,8 +1340,8 @@ class vf_inter:
 
 		self.canvas.draw()
 		print 'done!\n'
-			
-			
+
+
 	def modelspectra_from_trusted(self):
 		# get typical spectral shape from trusted points
 
@@ -1320,7 +1359,7 @@ class vf_inter:
 			print 'taking velocity from par file'
 		else:
 			print 'got fitted systemic velocity'
-			
+
 		vel_step = self.cdata.fsr()
 		channr = self.cdata.shape[2]
 		midchan = channr/2
@@ -1333,17 +1372,17 @@ class vf_inter:
 			sspectra += sspec
 		norm = N.sum(sspectra)
 		sspectra /= norm
-		
+
 		# store fit in plot
 		self.spectral_pars = {'model':'empirical', 'spectrum':sspectra}
-		
+
 		# plot it
 		self.axspecmod=P.axes([0.70,0.47,0.29,0.20], xticks=[], yticks=[], title='Model Spectrum')
 		self.axspecmod.plot(self.spectral_pars['spectrum'], 'r', linewidth=2)
 		self.canvas.draw()
 		print 'model spectrum done\n'
-		
-		
+
+
 	def modelgauss_from_trusted(self):
 		# assume gaussian shape and perform fit in width, amplitude and noise
 		amplis = []
@@ -1352,7 +1391,7 @@ class vf_inter:
 		centrs = []
 		noises = []
 		coords = []
-	    
+
 		parinfo=[]
 		parinfo.append({'value':1.0, 'fixed':0, 'limited':[1,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'amp'})		# amplitude
 		parinfo.append({'value':1.0, 'fixed':0, 'limited':[1,1],'limits':[0.0, self.cdata.shape[2]], 'step':0.0, 'parname':'width'})	# width
@@ -1361,26 +1400,26 @@ class vf_inter:
 	    # fit each and every spectrum
 		for i in self.trusted:
 			y = N.array(i[0])
-			x = N.arange(len(y))		
+			x = N.arange(len(y))
 			err = N.sqrt(y)
 			functkw = {'x':x, 'y':y, 'err':err}
 
 			gaussfitres=mpfit.mpfit(gauss_fit_func,parinfo=parinfo,functkw=functkw,quiet=True)
-		    
+
 			pp = gaussfitres.params
 			amplis.append(pp[0])
 			widths.append(pp[1])
 			widerr.append(gaussfitres.perror[1])
 			centrs.append(pp[2])
 			noises.append(pp[3])
-			
+
 			dx = i[1][0] - self.cdata.shape[0] - self.cenx
 			dy = i[1][1] - self.cdata.shape[1] - self.ceny
 			dr = M.sqrt(dx**2+dy**2)
 			coords.append(dr)
-			
+
 			#print '\n\n'
-		
+
 		# convert to arrays
 		amplis = N.array(amplis)
 		widths = N.array(widths)
@@ -1388,7 +1427,7 @@ class vf_inter:
 		centrs = N.array(centrs)
 		noises = N.array(noises)
 		coords = N.array(coords)
-		
+
 		# show all results
 		print '\n'
 		print amplis,'\n'
@@ -1399,30 +1438,30 @@ class vf_inter:
 		P.plot(coords, widths, 'bo')
 		#P.show()
 		self.windownr += 1
-		
+
 		# linear fit to width
 		parinfo=[]
 		parinfo.append({'value':1.0, 'fixed':0, 'limited':[1,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'offset'})		# initial
 		parinfo.append({'value':1.0, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'slope'})	# slope
 		functkw = {'x':coords, 'y':widths, 'err':widerr}
 		widthfit=mpfit.mpfit(lin_fit_func,parinfo=parinfo,functkw=functkw,quiet=False)
-		
+
 		# show fit
 		offset = widthfit.params[0]
 		slope =  widthfit.params[1]
 		xi = N.arange(min(coords),max(coords))
 		yi = offset + xi * slope
 		P.plot(xi,yi,'k')
-		
+
 		####################
 		####################
 		####################
 		####################
-	
-	
+
+
 	def get_modelled_spectrum(self):
 		# use all of the results from fitting procedures to form model spectrum
-		
+
 		# check for performed fits, else abort
 		if self.vel_pars == None:
 			print '!!! No velocity model yet. Please perform modelling first (a) !!!'
@@ -1433,7 +1472,7 @@ class vf_inter:
 		elif self.spectral_pars == None:
 			print '!!! No spectral model yet. Please perform modelling first (d) !!!'
 			return
-		
+
 		# get velocities from vel model, rescale with flux model, give obtained spectral shape
 		print 'alright, starting modelling with current fits ...'
 
@@ -1441,7 +1480,7 @@ class vf_inter:
 		if self.vel_pars['model'] == 'lin':
 			vel_model = linfit_func
 			vel_pars = [self.vel_pars['posang'], self.vel_pars['gradient'], self.vel_pars['system']]
-		
+
 		# get flux model
 		if self.flux_pars['model'] == 'exp':
 			flux_model = expfit_func
@@ -1449,7 +1488,7 @@ class vf_inter:
 		elif self.flux_pars['model'] == 'powerlaw':
 			flux_model = powerlawfit_func
 			flux_pars = [self.flux_pars['amp'], self.flux_pars['slope'], self.flux_pars['cutoff']]
-		
+
 		# get spectral model
 		if self.spectral_pars['model'] == 'empirical':
 			spectral_model = self.spectral_pars['spectrum']
@@ -1460,7 +1499,7 @@ class vf_inter:
 		inter = N.repeat(start, self.cdata.shape[0], axis=1)
 		model = N.repeat(inter, self.cdata.shape[1], axis=2)
 		model = N.transpose(model, (1,2,0))
-		
+
 		# build coordinate arrays
 		wdt = self.cdata.shape[0]/2
 		hgt = self.cdata.shape[1]/2
@@ -1468,21 +1507,21 @@ class vf_inter:
 		all_coordx = all_coordx[::-1]
 		all_coordy = all_coordx.copy()
 		all_coordy.sort()
-		
+
 		# get velocity model
 		velmod = vel_model(vel_pars, None,  x=all_coordx, y=all_coordy, z=None, err=None, returnmodel=True)
 		velmod.shape = (2*wdt,2*hgt)
 		velmod = N.transpose(velmod)
-		
+
 		# get flux model
 		fluxmod = N.exp(flux_model(flux_pars, None,  x=all_coordx, y=all_coordy, z=None, err=None, returnmodel=True))
 		fluxmod.shape = (2*wdt,2*hgt)
 		fluxmod = N.transpose(fluxmod)
 		self.fluxmod = fluxmod
-		
+
 		# get unshifted spectral model
 		intermediate_model = fluxmod[:,:,N.newaxis] * model
-		
+
 		# get indexshifts
 		channr = self.cdata.shape[2]
 		midchan = channr/2
@@ -1490,14 +1529,14 @@ class vf_inter:
 		vel_step = self.cdata.fsr()/channr
 		shiftarray = N.around((velmod-vel_base)/vel_step)
 		shiftarray.dtype = 'Int32'
-		
+
 		# final model
 		fin_mod = intermediate_model.copy()
 		for i in range(fin_mod.shape[0]):
 			for j in range(fin_mod.shape[1]):
 				fin_mod[i,j,:] = G.PyCigale.shift(fin_mod[i,j,:], int(shiftarray[i,j]))
 		print 'done!\n'
-		
+
 		print 'creating residuals ...'
 		self.synth_spectrum = G.PyCigale.array(fin_mod)
 		self.synth_spectrum.p = self.cdata.p
@@ -1505,7 +1544,7 @@ class vf_inter:
 		self.residual = self.cdata - self.synth_spectrum
 		self.residual_sum = G.sum(self.residual)
 		self.residual_vel = G.peakvel(self.residual, 7)
-		
+
 		# show it!!
 		self.result = P.figure()
 		self.rescanvas = self.result.canvas
@@ -1517,7 +1556,7 @@ class vf_inter:
 		self.axfluxres.imshow(self.residual_sum, interpolation='nearest', vmin=axfluxresmin,vmax=axfluxresmax)
 		self.canvas.draw()
 		P.colorbar()
-		
+
 		# Velocity Field
 		axvelresmin, axvelresmax = self.nicegraph(self.residual_vel)
 		self.axvelres=P.axes([0.36,0.59,0.36,0.36],xticks=[], yticks=[],title='Velocity Field (Residual)')
@@ -1530,8 +1569,8 @@ class vf_inter:
 		self.rescanvas.mpl_connect('key_press_event', self.res_key_press_callback)
 		self.rescanvas.mpl_connect('button_press_event', self.res_button_press_callback)
 		print 'done!\n'
-		
-	
+
+
 	def res_log_flux(self,log=1):
 		# log flux plot
 		if log:
@@ -1539,7 +1578,7 @@ class vf_inter:
 		else:
 			temp = self.residual_sum
 		self.axfluxres.cla()
-		
+
 		minmaxflux = N.array(temp)
 		minmaxflux.shape = (-1,)
 		minmaxflux = N.sort(minmaxflux)
@@ -1552,8 +1591,8 @@ class vf_inter:
 			P.setp(self.axfluxres, xticks=[], yticks=[], title='Flux (residual)')
 		self.axfluxres.imshow(temp, interpolation='nearest', vmin=axfluxresmin,vmax=axfluxresmax)
 		self.rescanvas.draw()
-	
-	
+
+
 	def res_log_vel(self,log=1):
 		# log vel plot
 		if log:
@@ -1562,7 +1601,7 @@ class vf_inter:
 			temp = self.residual_vel
 		self.axvelres.cla()
 		print temp
-		
+
 		minmaxflux = N.array(temp)
 		minmaxflux.shape = (-1,)
 		minmaxflux = N.sort(minmaxflux)
@@ -1576,8 +1615,8 @@ class vf_inter:
 			P.setp(self.axvelres, xticks=[], yticks=[], title='Flux (residual)')
 		self.axvelres.imshow(temp, interpolation='nearest', vmin=axfluxresmin,vmax=axfluxresmax)
 		self.rescanvas.draw()
-		
-		
+
+
 	def dump(self):
 		# dump all relevant data
 		dumper = {}
@@ -1592,12 +1631,12 @@ class vf_inter:
 		dumper['residual_sum'] = self.residual_sum
 		dumper['residual_vel'] = self.residual_vel
 		dumper['trusted'] = self.trusted
-		
+
 		dumpname = raw_input('Filename for dump? ')#self.odata.p['objname'] + '_interactvf_dumpfile.pick'
 		G.dump(dumper, dumpname)
 		print 'all dumped'
-		
-	
+
+
 	def load(self):
 		# load the dumped data
 		#dumpname = self.odata.p['objname'] + '_interactvf_dumpfile.pick'
@@ -1605,7 +1644,7 @@ class vf_inter:
 		if os.path.exists(dumpname):
 			dumper = G.load(dumpname)
 			print 'dump imported\n'
-			
+
 			print 'rebuilding data structure ...'
 			self.vel_pars = dumper['vel_pars']
 			self.field = dumper['vel_field']
@@ -1619,18 +1658,18 @@ class vf_inter:
 			self.residual_vel = dumper['residual_vel']
 			self.trusted = dumper['trusted']
 			print 'done!\n'
-			
-			
+
+
 		else:
 			print 'no dumpfile found'
-		
-	
+
+
 	def set_center(self,xy):
 		# select new center for the galaxy
 		self.cenx = xy[0] - self.cdata.shape[0]/2
 		self.ceny = xy[1] - self.cdata.shape[1]/2
 		print 'new center selected @', xy
-		
+
 
 	def printfit(self):
 		# print parameters from fitting
@@ -1638,8 +1677,8 @@ class vf_inter:
 		print '\nParameters for radial flux model:\n', self.flux_pars
 		print '\nParameters for spectral model:\n', self.spectral_pars
 		print '\n'
-		
-		
+
+
 	def nicegraph(self, values, cut=0.02):
 		# asjust upper & lower limit for graphs
 		minmax = N.array(values)
@@ -1649,24 +1688,24 @@ class vf_inter:
 		tmax = max(int(round(minmax[-take])),1)
 		tmin = max(int(round(minmax[take])), 0)
 		return (tmin, tmax)
-	
-	
+
+
 	def close_all(self):
 		# close all opened windows
 		for i in range(self.windownr):
 			try: P.close(self.windownr-i)
 			except: pass
 		print 'interactvf closed. goodbye!\n\n'
-		
-	
+
+
 	def coord(self, event):
 		# extract proper coordinates of mouse event
 		y = int(round(event.xdata))
 		x = int(round(event.ydata))
 		self.xy = (x,y)
 		return self.xy
-		
-		
+
+
 	def newaxis(self, i, cutat=4):
 		# iterate window positions for trusted data
 		row = (i+1)/cutat
@@ -1684,7 +1723,7 @@ def radii_from_position(coords, pars):
 	cenx = pars['centr_offset_x']
 	ceny = pars['centr_offset_y']
 	radii = []
-			
+
 	for i in range(len(x)):
 		sx = (x[i] - cenx)
 		sy = (y[i] - ceny)
@@ -1700,7 +1739,7 @@ def radii_from_position(coords, pars):
 		else: sgn = -1
 		r = sgn*M.sqrt(dx**2 + dy**2)
 		radii.append(r)
-		
+
 	radii = N.array(radii)
 	return radii
 
@@ -1728,8 +1767,8 @@ def on_click(event):
 
 def on_click_float(event):
   """Handle click events in plotting windows. Not to be called from
-      the command line. It saves the float coordinates for the 
-      clicks with button 1 in a temporary file. Button 3 closes 
+      the command line. It saves the float coordinates for the
+      clicks with button 1 in a temporary file. Button 3 closes
       the figure.
       """
   file=open('/tmp/MPclick.dat','a')

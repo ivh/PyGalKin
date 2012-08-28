@@ -124,7 +124,7 @@ def massKepler(r,v):
     input in pc and km/s
     mind the factors 1/2 !!
     """
-    return ((v/2)**2)*(r/2)*pc/Grav
+    return ((v/2.)**2)*(r/2.)*pc/Grav
 
 def dynMassDisk(r,sigma):
     'r in kpc, sigma in km/s, returns solar masses'
@@ -163,7 +163,7 @@ def micron2Ghz(l):
     return lamb2freq(l)*1.0E-3
 
 def arcsec2rad(arcsec):
-    return radians(arcsec/3600.0)
+    return N.radians(arcsec/3600.0)
 
 def arcsec2kpc(arcsec=1.0,vsys=1000):
     return vsys/H0*1E3*arcsec2rad(arcsec)
@@ -322,20 +322,15 @@ def selective_average(data,range='cat',Z=1.002912,axis=2):
     elif len(data.shape)==1: return N.average(data[zmin:zmax])
 selav=selective_average
 
+def pa2vec(pa):
+    return N.array([-N.sin(radians(pa)),N.cos(radians(pa))])
+
 def posvel(vf,dyncen,pa):
-    vec=N.array([-N.sin(radians(pa)),N.cos(radians(pa))])
+    vec=pa2vec(pa)
     x,y=N.indices(vf.shape)
-    pos=N.inner(vec,N.array([dyncen[0]-x,dyncen[1]-y]))
-    vel=N.flatten(vf)
-#      pos=N.flatten(N.zeros_like(vf,'Float32'))
-#      vel=N.zeros(0,'Float32')
-#      for i in N.arange(vf.nx()):
-#        for j in N.arange(vf.ny()):
-#          if self[i,j] != 0 :
-#            pos[i,j]=N.innerproduct(vec,N.array([dyncen[0]-i,dyncen[1]-j]))
-#            pos[]=N.concatenate((pos, ))
-#            vel=N.concatenate((vel, self[i,j]))
-    return pos,vel
+    pos=N.inner(vec,N.transpose([dyncen[0]-x,dyncen[1]-y])).reshape(-1)
+    vel=N.ma.array(vf,mask=vf.mask).reshape(-1)
+    return pos, vel
 
 def m2masks(angmap,pa,wedge):
     pa2=pa+pi

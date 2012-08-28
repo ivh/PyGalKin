@@ -18,12 +18,14 @@ from scipy import interpolate
 from scipy import signal as Sig
 from scipy.optimize import leastsq as LS
 from numpy.ma import masked_where,masked_array,mask_or
+from decimal import Decimal
 from scipy.fftpack import fft
 #from filtfilt import filtfilt
 from mpfit import mpfit
 from math import pi,e,radians,degrees
 import matplotlib.mlab as mlab
 import pywcs
+import aplpy
 
 # OS etc.
 import os

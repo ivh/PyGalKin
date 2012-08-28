@@ -202,43 +202,8 @@ def fillederrorplot(x,y,e1,e2=None,f='r--',c='r',alpha=0.5,label=None):
         P.plot(x,y+e2,c+'-',linewidth=0.5)
         P.fill(N.concatenate((x,x[::-1])),N.concatenate((y+e2,(y-e1)[::-1])),c,alpha=alpha)
 
-##################################
-# Individual panels for cigale papers
 
-def monocont_panel(g,mono,cont):
-    wcs = WCS.new_wcs(g.ra,g.dec,g.p['echelle'])
-    fits=pyfits.PrimaryHDU(data=N.transpose(mono),header=wcs.to_header())
-    fig=aplpy.FITSFigure(fits)
-    vmin, vmax = g.p['monocuts']
-    fig.show_colorscale(vmin=vmin, vmax=vmax,cmap=sauron_inv)
-    return fig
 
-def vfpanel(g, vf):
-    wcs=WCS.new_wcs(g.ra,g.dec,g.p['echelle'])
-    fits=pyfits.PrimaryHDU(data=N.transpose(vf),header=wcs.to_header())
-    fig=aplpy.FITSFigure(fits)
-    vmin, vmax = g.p['velcuts']
-    fig.show_colorscale(vmin=vmin-g.vsys, vmax=vmax-g.vsys,cmap=sauron_inv)
-    fig.tick_labels.set_font(size='small')
-
-    fig.add_colorbar()
-    fig.colorbar.set_pad(0)
-    fig.colorbar.set_location('top')
-
-#    fig.add_scalebar()
-    return fig
-
-def sigpanel(sig, p=None):
-    if not p: p = sig.p
-
-    vmin, vmax = p['sigcuts']
-    imshow(sig, vmin=vmin, vmax=vmax)
-
-def hpanel(h, p=None):
-    if not p: p = h.p
-
-    vmin,vmax = -0.1,0.1
-    imshow(h, vmin=vmin, vmax=vmax)
 
 ##################################
 
@@ -248,22 +213,26 @@ def velSigmaPlot(curs):
     inc=inc.astype('f')
     inc=masked_where(inc==N.NaN, inc)
 
-    P.plot(s,v,'kD')
-    P.plot(s,v/N.sin(N.radians(inc)),'rd')
+    P.plot(s,v,'Dk',label='$measured$',alpha=0.3)
+    P.plot(s,v/N.sin(N.radians(inc)),'gD',label='$inclination\, corrected$')
+    P.plot([15.,59.],[15.,59.],'k--',label='$unity$')
     P.ylabel(r'$v_{max}\quad (km/s)$')
     P.xlabel(r'$\sigma_{cent}\quad (km/s)$')
     P.grid()
+    P.legend(loc='upper left')
 
 def rotMassRandPlot(curs):
-    ms,mv,inc=DB.getg(curs,'mass_sig,mass_p2p,incl',where='mass_sig NOTNULL AND mass_p2p NOTNULL')
-    P.loglog(ms,mv,'kD',label='raw')
+    ms,mv,inc,samp=DB.getg(curs,'mass_sig,mass_p2p,incl,sample',where='mass_sig NOTNULL AND mass_p2p NOTNULL')
     inc=inc.astype('f')
     inc=masked_where(inc==N.NaN, inc)
-    P.loglog(ms,mv/N.sin(N.radians(inc)),'rd',label='incl corrected')
-    P.loglog([3E8,1E11],[3E8,1E11],'k--')
+    P.loglog(ms,mv/N.sin(N.radians(inc)),'kd',label='$sample\, 1$')
+    inc=masked_where(samp<2,inc)
+    P.loglog(ms,mv/N.sin(N.radians(inc)),'rd',label='$sample\, 2$')
+    P.loglog([3E7,2E10],[3E7,2E10],'k--',label='$unity$')
     P.ylabel(r'$M_{max.velocity}\quad (M_\odot)$')
     P.xlabel(r'$M_{dispersion}\quad (M_\odot)$')
     P.grid(True)
+    P.legend(loc='upper left')
 
 def photMassRandPlot_old(curs):
     ms,mp=DB.getg(curs,'mass_sig,mass_phot',where='mass_sig NOTNULL AND mass_phot NOTNULL')

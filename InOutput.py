@@ -26,7 +26,7 @@ def load(filename):
   file.close()
   return data
 
-def fromPAR(p,filename):
+def fromPAR(p={},filename='par'):
   """ reading my own parameter file with relevant parameters """
 
   p['parname']=filename
@@ -45,6 +45,7 @@ def fromPAR(p,filename):
     elif line[0] == 'wedge':  p['wedge']=float(line[1])
     elif line[0] == 'gid':  p['gid']= int(line[1])
     elif line[0] == 'coor': p['coor'] = float(line[1]),float(line[2])
+  return p
 
 def toPAR(inarr,filename=None):
   """ writing my own parameter file with relevant parameters """
