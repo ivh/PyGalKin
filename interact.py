@@ -66,9 +66,10 @@ class measure(object):
         xav,yav=self.getAvRange()
         self.g.sigma_x, self.g.sigma_y = self.cx, self.cy
         self.g.sigma_cent = N.mean(self.sig[xav,yav])
-        self.g.mass_sig = dynMassSphere((self.g.h27 or self.g.h25)*1.68,self.g.sigma_cent)
-        print "Measured sigma: %s   -> mass=%.1e)"%\
-            (self.g.sigma_cent,self.g.mass_sig)
+        if (self.g.h27 or self.g.h25):
+            self.g.mass_sig = dynMassSphere((self.g.h27 or self.g.h25)*1.68,self.g.sigma_cent)
+            print "Measured sigma: %s   -> mass=%.1e)"%\
+                (self.g.sigma_cent,self.g.mass_sig)
         self.g.save()
 
     def meas_vels(self):
@@ -117,7 +118,7 @@ class measure(object):
         self.axpv.clear()
         pos,vel=posvel(self.vf,self.g.p['dyncen'],self.g.pa)
         r1,r2,v1,v2=rotcur(self.vf,self.g.p['dyncen'],self.g.pa,self.g.p['wedge'],self.g.incl)
-        self.axpv.plot(pos,vel-self.g.vsys,'.y',alpha=0.6)
+        self.axpv.plot(pos,vel,'.y',alpha=0.6)
         self.axpv.plot(-r1,v1,'sr')
         self.axpv.plot(r2,v2,'sb')
         self.canvas.draw()
