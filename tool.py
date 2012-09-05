@@ -392,7 +392,8 @@ def rotcur(vf,cen,pa,wedge,incl):
     dismap=Dismap(x,y,pa,incl)
 
     vf=vf.copy()
-    vf-=vf[cen[0],cen[1]]
+    offset=vf[cen[0],cen[1]]
+    vf-=offset
     vf=vf/N.abs(N.cos(angmap))/N.sin(incl)
 
     #mask1,mask2=m2masks(angmap,pa,wedge)
@@ -404,7 +405,7 @@ def rotcur(vf,cen,pa,wedge,incl):
     v2=masked_array(vf,mask2).flatten()
 
     #return vf,masked_array(N.cos(angmap),mask1&mask2)
-    return r1,r2,v1,v2
+    return r1,r2,v1+offset,v2+offset
 
 
 #########################

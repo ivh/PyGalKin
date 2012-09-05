@@ -32,17 +32,17 @@ class measure(object):
         self.canvas.mpl_connect('key_press_event', self.key)
         self.canvas.mpl_connect('button_press_event', self.button)
 
-        self.avreg = 5
+        self.avreg = 3
         self.cx, self.cy = (self.g.p['relsize'],)*2
         self.px = 0
         self.py = 0
         self.pixdiff2radius= 1
 
-        self.ax1.imshow(N.transpose(self.img))
-        self.ax2.imshow(N.transpose(self.vf))
-        self.ax3.imshow(N.transpose(self.sig))
-        self.ax4.imshow(N.transpose(self.fit[:,:,4]),vmin=-0.5,vmax=0.5)
-        self.ax5.imshow(N.transpose(self.fit[:,:,5]),vmin=-0.5,vmax=0.5)
+        self.ax1.imshow(N.transpose(self.img),vmin=g.p['monocuts'][0],vmax=g.p['monocuts'][1])
+        self.ax2.imshow(N.transpose(self.vf),vmin=g.p['velcuts'][0],vmax=g.p['velcuts'][1])
+        self.ax3.imshow(N.transpose(self.sig),vmin=g.p['sigcuts'][0],vmax=g.p['sigcuts'][1])
+        self.ax4.imshow(N.transpose(self.fit[:,:,4]),vmin=-0.3,vmax=0.3)
+        self.ax5.imshow(N.transpose(self.fit[:,:,5]),vmin=-0.3,vmax=0.3)
         self.draw_spec()
         self.draw_pvdiag()
         self.draw_markers()
@@ -115,8 +115,8 @@ class measure(object):
 
     def draw_pvdiag(self):
         self.axpv.clear()
-        pos,vel=posvel(self.vf,self.g.p['dyncen'],self.g.p['pa'])
-        r1,r2,v1,v2=rotcur(self.vf,self.g.p['dyncen'],self.g.p['pa'],self.g.p['wedge'],self.g.incl)
+        pos,vel=posvel(self.vf,self.g.p['dyncen'],self.g.pa)
+        r1,r2,v1,v2=rotcur(self.vf,self.g.p['dyncen'],self.g.pa,self.g.p['wedge'],self.g.incl)
         self.axpv.plot(pos,vel-self.g.vsys,'.y',alpha=0.6)
         self.axpv.plot(-r1,v1,'sr')
         self.axpv.plot(r2,v2,'sb')
@@ -1235,7 +1235,7 @@ class vf_inter:
 
 		# initialize mpfit fitting
 		parinfo=[]
-		parinfo.append({'value':self.odata.p['pa'], 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'pa'})		# position angle
+		parinfo.append({'value':self.odata.pa, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.0, 'parname':'pa'})		# position angle
 		parinfo.append({'value':1.0, 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':0.1, 'parname':'vel gradient'})		# gradient
 		parinfo.append({'value':self.odata.p['vr0'], 'fixed':0, 'limited':[0,0],'limits':[0.0, 0.0], 'step':1.0, 'parname':'vel gradient'})		# system
 
