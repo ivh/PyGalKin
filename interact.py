@@ -63,13 +63,10 @@ class measure(object):
         return xav,yav
 
     def meas_sigma(self):
-        xav,yav=self.getAvRange()
         self.g.sigma_x, self.g.sigma_y = self.cx, self.cy
-        self.g.sigma_cent = N.mean(self.sig[xav,yav])
-        if (self.g.h27 or self.g.h25):
-            self.g.mass_sig = dynMassSphere((self.g.h27 or self.g.h25)*1.68,self.g.sigma_cent)
-            print "Measured sigma: %s   -> mass=%.1e)"%\
-                (self.g.sigma_cent,self.g.mass_sig)
+        self.g.sigma_cent = N.sqrt(self.sig[self.cx, self.cy]**2 - self.g.instr_width**2)
+        self.g.mass_sig = None
+        print "Measured sigma: %s)"%self.g.sigma_cent
         self.g.save()
 
     def meas_vels(self):

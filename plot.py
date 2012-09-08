@@ -208,17 +208,20 @@ def fillederrorplot(x,y,e1,e2=None,f='r--',c='r',alpha=0.5,label=None):
 ##################################
 
 def velSigmaPlot(curs):
-    v,s,inc=DB.getg(curs,'maxvel,sigma_cent,incl',where='maxvel NOTNULL AND sigma_cent NOTNULL')
+    gs1=M.Galax.objects.filter(sample=1)
+    gs2=M.Galax.objects.filter(sample=2)
+    v,s,inc=zip(*gs1.values_list('maxvel','sigma_cent','incl'))
     v/=2
-    inc=inc.astype('f')
-    inc=masked_where(inc==N.NaN, inc)
 
+    P.plot(s,v,'o',label=r'$\sigma_{sum,1}',mfc='w')
     P.plot(s,v,'Dk',label='$measured$',alpha=0.3)
     P.plot(s,v/N.sin(N.radians(inc)),'gD',label='$inclination\, corrected$')
-    P.plot([15.,59.],[15.,59.],'k--',label='$unity$')
+
+    P.plot([9.,59.],[9.,59.],'k--',label='$unity$')
     P.ylabel(r'$v_{max}\quad (km/s)$')
     P.xlabel(r'$\sigma_{cent}\quad (km/s)$')
     P.grid()
+    P.axis((9,60,0,180))
     P.legend(loc='upper left')
 
 def rotMassRandPlot(curs):
@@ -233,13 +236,6 @@ def rotMassRandPlot(curs):
     P.xlabel(r'$M_{dispersion}\quad (M_\odot)$')
     P.grid(True)
     P.legend(loc='upper left')
-
-def photMassRandPlot_old(curs):
-    ms,mp=DB.getg(curs,'mass_sig,mass_phot',where='mass_sig NOTNULL AND mass_phot NOTNULL')
-    P.loglog(ms,mp,'kD',label='raw')
-    P.ylabel(r'$M_{phot}\quad (M_\odot)$')
-    P.xlabel(r'$M_{dispersion}\quad (M_\odot)$')
-    P.grid()
 
 def photMassRandPlot():
     gs=M.Galax.objects.all()
@@ -263,6 +259,23 @@ def photMassRandPlot():
     P.xlabel(r'$M_{phot}\quad (M_\odot)$')
     P.ylabel(r'$M_{dispersion}\quad (M_\odot)$')
     P.grid()
+
+def sigmasPlot():
+    gs1=M.Galax.objects.filter(sample=1)
+    gs2=M.Galax.objects.filter(sample=2)
+    s1,s2,s3=zip(*gs1.values_list('sigma_cent','sigma_weighmean','sigma_collap'))
+    P.plot(s1,s2,'o',label=r'$\sigma_{sum,1}',mfc='w')
+    P.plot(s1,s3,'D',label=r'$\sigma_{shift,1}$',mfc='w')
+    s1,s2,s3=zip(*gs2.values_list('sigma_cent','sigma_weighmean','sigma_collap'))
+    P.plot(s1,s2,'o',label=r'$\sigma_{sum,2}$',mfc='k')
+    P.plot(s1,s3,'D',label=r'$\sigma_{shift,2}$',mfc='k')
+    P.xlabel(r'$\sigma_{central} (km/s)$')
+    P.ylabel(r'$\sigma\, (km/s)$')
+    P.legend(loc='upper left')
+    P.grid()
+
+def LsigmaPlot():
+    gs=M.Galax.objects.all()
 
 
 ##################################
