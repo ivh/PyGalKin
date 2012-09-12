@@ -20,12 +20,12 @@ null='\0'
 # units:
 #        velocity: km/s
 #        wavelength: Angstrom
-lambHA=N.array([6562.7797852000003],'Float32')
-sol=N.array([299792.458],'Float32')
+lambHA=N.array([6562.7797852000003],'Float64')
+sol=N.array([299792.458],'Float64')
 c=sol
-H0=N.array([70.],'Float32')
-Grav=N.array([6.6726E-11*1.989E30/1000**3],'Float32') ### in solar masses and km
-pc=N.array([3.086E13],'Float32') ## in km
+H0=N.array([70.],'Float64')
+Grav=N.array([6.6726E-11*1.989E30/1000**3],'Float64') ### in solar masses and km
+pc=N.array([3.086E13],'Float64') ## in km
 
 ## Roberts values
 ## [S III] 9068.8

@@ -207,30 +207,32 @@ def fillederrorplot(x,y,e1,e2=None,f='r--',c='r',alpha=0.5,label=None):
 
 ##################################
 
-def velSigmaPlot(curs):
-    gs1=M.Galax.objects.filter(sample=1)
-    gs2=M.Galax.objects.filter(sample=2)
+def velSigmaPlot():
+    gs1=M.Galax.objects.filter(sample=1,maxvel__isnull=False)
+    gs2=M.Galax.objects.filter(sample=2,maxvel__isnull=False)
     v,s,inc=zip(*gs1.values_list('maxvel','sigma_cent','incl'))
-    v/=2
-
-    P.plot(s,v,'o',label=r'$\sigma_{sum,1}',mfc='w')
-    P.plot(s,v,'Dk',label='$measured$',alpha=0.3)
-    P.plot(s,v/N.sin(N.radians(inc)),'gD',label='$inclination\, corrected$')
+    v=array(v)/2
+    P.plot(s,v,'ok',label=r'$v_{meas,1}$',mfc='w')
+    P.plot(s,v/N.sin(N.radians(inc)),'kD',label='$v_{incl.corr,1}$',mfc='w')
+    v,s,inc=zip(*gs2.values_list('maxvel','sigma_cent','incl'))
+    v=array(v)/2
+    P.plot(s,v,'ok',label=r'$v_{meas,2}$',mfc='k')
+    P.plot(s,v/N.sin(N.radians(inc)),'kD',label='$v_{incl.corr,2}$',mfc='k')
 
     P.plot([9.,59.],[9.,59.],'k--',label='$unity$')
     P.ylabel(r'$v_{max}\quad (km/s)$')
     P.xlabel(r'$\sigma_{cent}\quad (km/s)$')
     P.grid()
-    P.axis((9,60,0,180))
+#    P.axis((9,60,0,180))
     P.legend(loc='upper left')
 
-def rotMassRandPlot(curs):
-    ms,mv,inc,samp=DB.getg(curs,'mass_sig,mass_p2p,incl,sample',where='mass_sig NOTNULL AND mass_p2p NOTNULL')
-    inc=inc.astype('f')
-    inc=masked_where(inc==N.NaN, inc)
-    P.loglog(ms,mv/N.sin(N.radians(inc)),'kd',label='$sample\, 1$')
-    inc=masked_where(samp<2,inc)
-    P.loglog(ms,mv/N.sin(N.radians(inc)),'rd',label='$sample\, 2$')
+def rotMassRandPlot():
+    gs1=M.Galax.objects.filter(sample=1,mass_p2p__isnull=False)
+    gs2=M.Galax.objects.filter(sample=2,mass_p2p__isnull=False)
+    ms,mv,inc=zip(*gs1.values_list('mass_sig','mass_p2p','incl'))
+    P.loglog(ms,mv/N.sin(N.radians(inc)),'ok',mfc='w',label='$sample\, 1$')
+    ms,mv,inc=zip(*gs2.values_list('mass_sig','mass_p2p','incl'))
+    P.loglog(ms,mv/N.sin(N.radians(inc)),'ok',mfc='k',label='$sample\, 2$')
     P.loglog([3E7,2E10],[3E7,2E10],'k--',label='$unity$')
     P.ylabel(r'$M_{max.velocity}\quad (M_\odot)$')
     P.xlabel(r'$M_{dispersion}\quad (M_\odot)$')
@@ -275,7 +277,21 @@ def sigmasPlot():
     P.grid()
 
 def LsigmaPlot():
-    gs=M.Galax.objects.all()
+    gs1=M.Galax.objects.filter(sample=1)
+    gs2=M.Galax.objects.filter(sample=2)
+    #sig,mb=zip(*gs1.values_list('sigma_cent','mb'))
+    HaLum,sig=zip(*[(g.p.get('HaLum'),g.sigma_cent) for g in gs1])
+
+    P.loglog(sig,HaLum,'o',label=r'$\sigma_{1}',mfc='w')
+
+    HaLum,sig=zip(*[(g.p.get('HaLum'),g.sigma_cent) for g in gs2])
+    P.loglog(sig,HaLum,'o',label=r'$\sigma_{2}',mfc='k')
+
+#    P.grid()
+#    P.axis((5E,-20.7,0,65))
+    P.ylabel(r'$L(H\alpha)\,\,(erg\,s^{-1})$')
+    P.xlabel(r'$\sigma\, (km/s)$')
+
 
 
 ##################################
