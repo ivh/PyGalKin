@@ -223,7 +223,7 @@ def velSigmaPlot():
     P.ylabel(r'$v_{max}\quad (km/s)$')
     P.xlabel(r'$\sigma_{cent}\quad (km/s)$')
     P.grid()
-#    P.axis((9,60,0,180))
+    P.axis((9,60,0,185))
     P.legend(loc='upper left')
 
 def rotMassRandPlot():
@@ -236,6 +236,7 @@ def rotMassRandPlot():
     P.loglog([3E7,2E10],[3E7,2E10],'k--',label='$unity$')
     P.ylabel(r'$M_{max.velocity}\quad (M_\odot)$')
     P.xlabel(r'$M_{dispersion}\quad (M_\odot)$')
+    P.axis((6E7,3E10,1E6,1E11))
     P.grid(True)
     P.legend(loc='upper left')
 
@@ -257,7 +258,6 @@ def photMassRandPlot():
                 P.loglog(g.mass_phot,mass,cols[i]+fmts[j])
 
 
-    P.legend()
     P.xlabel(r'$M_{phot}\quad (M_\odot)$')
     P.ylabel(r'$M_{dispersion}\quad (M_\odot)$')
     P.grid()
@@ -281,16 +281,156 @@ def LsigmaPlot():
     gs2=M.Galax.objects.filter(sample=2)
     #sig,mb=zip(*gs1.values_list('sigma_cent','mb'))
     HaLum,sig=zip(*[(g.p.get('HaLum'),g.sigma_cent) for g in gs1])
-
-    P.loglog(sig,HaLum,'o',label=r'$\sigma_{1}',mfc='w')
+    HaLum=N.log10(N.array(HaLum).astype('Float64'))
+    sig=N.log10(N.array(sig))
+    P.plot(sig,HaLum,'o',label=r'$\sigma_{1}',mfc='w')
 
     HaLum,sig=zip(*[(g.p.get('HaLum'),g.sigma_cent) for g in gs2])
-    P.loglog(sig,HaLum,'o',label=r'$\sigma_{2}',mfc='k')
+    HaLum=N.log10(N.array(HaLum).astype('Float64'))
+    sig=N.log10(N.array(sig))
+    P.plot(sig,HaLum,'o',label=r'$\sigma_{2}',mfc='k')
 
 #    P.grid()
 #    P.axis((5E,-20.7,0,65))
-    P.ylabel(r'$L(H\alpha)\,\,(erg\,s^{-1})$')
-    P.xlabel(r'$\sigma\, (km/s)$')
+    P.ylabel(r'$\log L(H\alpha)\,\,(erg\,s^{-1})$')
+    P.xlabel(r'$\log \sigma\, (km\,s^{-1})$')
+
+def MsigmaPlot():
+    gs1=M.Galax.objects.filter(sample=1)
+    gs2=M.Galax.objects.filter(sample=2)
+    sig,mb=zip(*gs1.values_list('sigma_cent','mb'))
+    sig=N.log10(N.array(sig))
+    P.plot(mb,sig,'o',label=r'$\sigma_{1}',mfc='w')
+
+    sig,mb=zip(*gs2.values_list('sigma_cent','mb'))
+    sig=N.log10(N.array(sig))
+    P.plot(mb,sig,'o',label=r'$\sigma_{2}',mfc='k')
+
+    P.grid()
+    P.axis((-13.2,-20.7,1,1.8))
+    P.xlabel(r'$M_B$')
+    P.ylabel(r'$\log \sigma\, (km\,s^{-1})$')
+
+def mu_h_mergPlot():
+    gs1=M.Galax.objects.filter(sample=1)
+    gs2=M.Galax.objects.filter(sample=2)
+
+    h1=N.array([arcsec2kpc(g.h27 or g.h25 or nan,g.vsys)[0] or nan for g in gs1])
+    mu1=N.array([g.p.get('mu0host') or nan for g in gs1])
+    merg1=N.array([g.doub+g.irrvf for g in gs1])
+
+    P.scatter(log10(h1),array(mu1),s=(merg1+1)*40,c=merg1,cmap=cm.bone_r,alpha=0.8,lw=1.6,marker='D')
+
+    h2=N.array([arcsec2kpc(g.h27 or g.h25 or nan,g.vsys)[0] or nan for g in gs2])
+    mu2=N.array([g.p['mu0host'] or nan for g in gs2])
+    merg2=N.array([g.doub+g.irrvf for g in gs2])
+
+    P.scatter(log10(h2),array(mu2),s=(merg2+1)*40,c=merg2,cmap=cm.bone_r,alpha=0.8,lw=1.6,marker='o')
+    P.axis((-0.75,0.9,25.8,18.1))
+
+    P.xlabel(r'$log_{10}(h_r)$')
+    P.ylabel(r'$\mu_{0,host}$')
+
+def M_burst_mergPlot():
+    gs1=M.Galax.objects.filter(sample=1)
+    gs2=M.Galax.objects.filter(sample=2)
+
+    burst1=N.array([g.p.get('bfrac27') or g.p.get('bfrac25') or nan for g in gs1])
+    mb1=N.array([g.mb or nan for g in gs1])
+    merg1=N.array([g.doub+g.irrvf for g in gs1])
+
+    P.scatter(mb1,burst1,s=(merg1+1)*40,c=merg1,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='D')
+
+    burst2=N.array([g.p.get('bfrac27') or g.p.get('bfrac25') or nan for g in gs2])
+    mb2=N.array([g.mb or nan for g in gs2])
+    merg2=N.array([g.doub+g.irrvf for g in gs2])
+
+    P.scatter(mb2,burst2,s=(merg2+1)*40,c=merg2,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='o')
+
+    P.axis((-13,-20.5,0,1))
+    P.xlabel(r'$M_B$')
+    P.ylabel(r'$\mathrm{burst\, fraction}$')
+
+def EWsigmaPlot():
+    gs=M.Galax.objects.filter(sample=1)
+    merg=N.array([g.doub+g.irrvf for g in gs])
+    ew=N.array([g.p.get('HaEW') for g in gs],dtype='Float64')
+    sig=N.array([g.sigma_cent for g in gs])
+    P.scatter(N.log10(sig),N.log10(ew),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='D')
+
+    gs=M.Galax.objects.filter(sample=2)
+    merg=N.array([g.doub+g.irrvf for g in gs])
+    ew=N.array([g.p.get('HaEW') for g in gs],dtype='Float64')
+    sig=N.array([g.sigma_cent for g in gs])
+    P.scatter(N.log10(sig),N.log10(ew),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='o')
+
+    P.xlabel(r'$\log \sigma\, (km\,s^{-1})$')
+    P.ylabel(r'$\log \mathrm{EW}(H\alpha)$')
+
+def L_EWPlot():
+    gs=M.Galax.objects.filter(sample=1)
+    merg=N.array([g.doub+g.irrvf for g in gs])
+    ew=N.array([g.p.get('HaEW') for g in gs],dtype='Float64')
+    LHa=N.array([g.p.get('HaLum') for g in gs],dtype='Float64')
+    P.scatter(N.log10(ew),N.log10(LHa),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='D')
+
+    gs=M.Galax.objects.filter(sample=2)
+    merg=N.array([g.doub+g.irrvf for g in gs])
+    ew=N.array([g.p.get('HaEW') for g in gs],dtype='Float64')
+    LHa=N.array([g.p.get('HaLum') for g in gs],dtype='Float64')
+    P.scatter(N.log10(ew),N.log10(LHa),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='o')
+
+    P.ylabel(r'$\log L(H\alpha)\,\,(erg\,s^{-1})$')
+    P.xlabel(r'$\log \mathrm{EW}(H\alpha)$')
+
+def EW_burstPlot():
+    gs=M.Galax.objects.filter(sample=1)
+    merg=N.array([g.doub+g.irrvf for g in gs])
+    ew=N.array([g.p.get('HaEW') for g in gs],dtype='Float64')
+    burst=N.array([g.p.get('bfrac27') or g.p.get('bfrac25') or nan for g in gs])
+    P.scatter(N.log10(ew),burst,s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='D')
+
+    gs=M.Galax.objects.filter(sample=2)
+    merg=N.array([g.doub+g.irrvf for g in gs])
+    ew=N.array([g.p.get('HaEW') for g in gs],dtype='Float64')
+    burst=N.array([g.p.get('bfrac27') or g.p.get('bfrac25') or nan for g in gs])
+    P.scatter(N.log10(ew),burst,s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='o')
+
+    P.ylabel('$\mathrm{burst\, fraction}$')
+    P.xlabel(r'$\log \mathrm{EW}(H\alpha)$')
+
+def L_vsigPlot():
+    gs=M.Galax.objects.filter(sample=1)
+    vsig=N.array([g.maxvel/2/g.sigma_cent for g in gs])
+    merg=N.array([g.doub+g.irrvf for g in gs])
+    LHa=N.array([g.p.get('HaLum') for g in gs],dtype='Float64')
+    P.scatter(vsig,N.log10(LHa),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='D')
+
+    gs=M.Galax.objects.filter(sample=2)
+    vsig=N.array([g.maxvel/2/g.sigma_cent for g in gs])
+    merg=N.array([g.doub+g.irrvf for g in gs])
+    LHa=N.array([g.p.get('HaLum') for g in gs],dtype='Float64')
+    P.scatter(vsig,N.log10(LHa),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='o')
+
+    P.xlabel('$v_{max} / \sigma_c$')
+    P.ylabel(r'$\log L(H\alpha)\,\,(erg\,s^{-1})$')
+
+def EW_vsigPlot():
+    gs=M.Galax.objects.filter(sample=1)
+    vsig=N.array([g.maxvel/2/g.sigma_cent for g in gs])
+    merg=N.array([g.doub+g.irrvf for g in gs])
+    ew=N.array([g.p.get('HaEW') for g in gs],dtype='Float64')
+    P.scatter(vsig,N.log10(ew),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='D')
+
+    gs=M.Galax.objects.filter(sample=2)
+    vsig=N.array([g.maxvel/2/g.sigma_cent for g in gs])
+    merg=N.array([g.doub+g.irrvf for g in gs])
+    ew=N.array([g.p.get('HaEW') for g in gs],dtype='Float64')
+    P.scatter(vsig,N.log10(ew),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='o')
+
+    P.xlabel('$v_{max} / \sigma_c$')
+    P.ylabel(r'$\log \mathrm{EW}(H\alpha)$')
+
 
 
 
