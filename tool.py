@@ -26,7 +26,7 @@ c=sol
 H0=N.array([70.],'Float64')
 Grav=N.array([6.6726E-11*1.989E30/1000**3],'Float64') ### in solar masses and km
 pc=N.array([3.086E13],'Float64') ## in km
-
+sq3 = N.sqrt(3.0)
 ## Roberts values
 ## [S III] 9068.8
 ## Pa 10   9014.910

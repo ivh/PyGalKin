@@ -212,16 +212,16 @@ def velSigmaPlot():
     gs2=M.Galax.objects.filter(sample=2,maxvel__isnull=False)
     v,s,inc=zip(*gs1.values_list('maxvel','sigma_cent','incl'))
     v=array(v)/2
-    P.plot(s,v,'ok',label=r'$v_{meas,1}$',mfc='w')
-    P.plot(s,v/N.sin(N.radians(inc)),'kD',label='$v_{incl.corr,1}$',mfc='w')
+    P.plot(s*sq3,v,'ok',label=r'$v_{meas,1}$',mfc='w')
+    P.plot(s*sq3,v/N.sin(N.radians(inc)),'kD',label='$v_{incl.corr,1}$',mfc='w')
     v,s,inc=zip(*gs2.values_list('maxvel','sigma_cent','incl'))
     v=array(v)/2
-    P.plot(s,v,'ok',label=r'$v_{meas,2}$',mfc='k')
-    P.plot(s,v/N.sin(N.radians(inc)),'kD',label='$v_{incl.corr,2}$',mfc='k')
+    P.plot(s*sq3,v,'ok',label=r'$v_{meas,2}$',mfc='k')
+    P.plot(s*sq3,v/N.sin(N.radians(inc)),'kD',label='$v_{incl.corr,2}$',mfc='k')
 
     P.plot([9.,59.],[9.,59.],'k--',label='$unity$')
     P.ylabel(r'$v_{max}\quad (km/s)$')
-    P.xlabel(r'$\sigma_{cent}\quad (km/s)$')
+    P.xlabel(r'$\sigma^\ast_{c}\quad (km/s)$')
     P.grid()
     P.axis((9,60,0,185))
     P.legend(loc='upper left')
@@ -230,12 +230,12 @@ def rotMassRandPlot():
     gs1=M.Galax.objects.filter(sample=1,mass_p2p__isnull=False)
     gs2=M.Galax.objects.filter(sample=2,mass_p2p__isnull=False)
     ms,mv,inc=zip(*gs1.values_list('mass_sig','mass_p2p','incl'))
-    P.loglog(ms,mv/N.sin(N.radians(inc)),'ok',mfc='w',label='$sample\, 1$')
+    P.loglog(ms,mv,'ok',mfc='w',label='$sample\, 1$')
     ms,mv,inc=zip(*gs2.values_list('mass_sig','mass_p2p','incl'))
-    P.loglog(ms,mv/N.sin(N.radians(inc)),'ok',mfc='k',label='$sample\, 2$')
+    P.loglog(ms,mv,'ok',mfc='k',label='$sample\, 2$')
     P.loglog([3E7,2E10],[3E7,2E10],'k--',label='$unity$')
-    P.ylabel(r'$M_{max.velocity}\quad (M_\odot)$')
-    P.xlabel(r'$M_{dispersion}\quad (M_\odot)$')
+    P.ylabel(r'$M_{rot}\quad (M_\odot)$')
+    P.xlabel(r'$M_{disp}\quad (M_\odot)$')
     P.axis((6E7,3E10,1E6,1E11))
     P.grid(True)
     P.legend(loc='upper left')
@@ -266,12 +266,12 @@ def sigmasPlot():
     gs1=M.Galax.objects.filter(sample=1)
     gs2=M.Galax.objects.filter(sample=2)
     s1,s2,s3=zip(*gs1.values_list('sigma_cent','sigma_weighmean','sigma_collap'))
-    P.plot(s1,s2,'o',label=r'$\sigma_{sum,1}',mfc='w')
-    P.plot(s1,s3,'D',label=r'$\sigma_{shift,1}$',mfc='w')
+    P.plot(s1,s2,'o',label=r'$\sigma_{i,1}',mfc='w')
+    P.plot(s1,s3,'D',label=r'$<\sigma_{,1}>$',mfc='w')
     s1,s2,s3=zip(*gs2.values_list('sigma_cent','sigma_weighmean','sigma_collap'))
-    P.plot(s1,s2,'o',label=r'$\sigma_{sum,2}$',mfc='k')
-    P.plot(s1,s3,'D',label=r'$\sigma_{shift,2}$',mfc='k')
-    P.xlabel(r'$\sigma_{central} (km/s)$')
+    P.plot(s1,s2,'o',label=r'$\sigma_{i,2}$',mfc='k')
+    P.plot(s1,s3,'D',label=r'$<\sigma_{i,2}>$',mfc='k')
+    P.xlabel(r'$\sigma_{c} (km/s)$')
     P.ylabel(r'$\sigma\, (km/s)$')
     P.legend(loc='upper left')
     P.grid()
@@ -282,34 +282,34 @@ def LsigmaPlot():
     #sig,mb=zip(*gs1.values_list('sigma_cent','mb'))
     HaLum,sig=zip(*[(g.p.get('HaLum'),g.sigma_cent) for g in gs1])
     HaLum=N.log10(N.array(HaLum).astype('Float64'))
-    sig=N.log10(N.array(sig))
+    sig=N.log10(N.array(sig) *sq3)
     P.plot(sig,HaLum,'o',label=r'$\sigma_{1}',mfc='w')
 
     HaLum,sig=zip(*[(g.p.get('HaLum'),g.sigma_cent) for g in gs2])
     HaLum=N.log10(N.array(HaLum).astype('Float64'))
-    sig=N.log10(N.array(sig))
+    sig=N.log10(N.array(sig)*sq3)
     P.plot(sig,HaLum,'o',label=r'$\sigma_{2}',mfc='k')
 
 #    P.grid()
 #    P.axis((5E,-20.7,0,65))
     P.ylabel(r'$\log L(H\alpha)\,\,(erg\,s^{-1})$')
-    P.xlabel(r'$\log \sigma\, (km\,s^{-1})$')
+    P.xlabel(r'$\log \sigma^\ast_c\, (km\,s^{-1})$')
 
 def MsigmaPlot():
     gs1=M.Galax.objects.filter(sample=1)
     gs2=M.Galax.objects.filter(sample=2)
     sig,mb=zip(*gs1.values_list('sigma_cent','mb'))
-    sig=N.log10(N.array(sig))
+    sig=N.log10(N.array(sig) *sq3)
     P.plot(mb,sig,'o',label=r'$\sigma_{1}',mfc='w')
 
     sig,mb=zip(*gs2.values_list('sigma_cent','mb'))
-    sig=N.log10(N.array(sig))
+    sig=N.log10(N.array(sig) *sq3)
     P.plot(mb,sig,'o',label=r'$\sigma_{2}',mfc='k')
 
     P.grid()
     P.axis((-13.2,-20.7,1,1.8))
     P.xlabel(r'$M_B$')
-    P.ylabel(r'$\log \sigma\, (km\,s^{-1})$')
+    P.ylabel(r'$\log \sigma_c^\ast\, (km\,s^{-1})$')
 
 def mu_h_mergPlot():
     gs1=M.Galax.objects.filter(sample=1)
@@ -355,16 +355,16 @@ def EWsigmaPlot():
     gs=M.Galax.objects.filter(sample=1)
     merg=N.array([g.doub+g.irrvf for g in gs])
     ew=N.array([g.p.get('HaEW') for g in gs],dtype='Float64')
-    sig=N.array([g.sigma_cent for g in gs])
+    sig=N.array([g.sigma_cent for g in gs]) * sq3
     P.scatter(N.log10(sig),N.log10(ew),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='D')
 
     gs=M.Galax.objects.filter(sample=2)
     merg=N.array([g.doub+g.irrvf for g in gs])
     ew=N.array([g.p.get('HaEW') for g in gs],dtype='Float64')
-    sig=N.array([g.sigma_cent for g in gs])
+    sig=N.array([g.sigma_cent for g in gs]) * sq3
     P.scatter(N.log10(sig),N.log10(ew),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='o')
 
-    P.xlabel(r'$\log \sigma\, (km\,s^{-1})$')
+    P.xlabel(r'$\log \sigma_c^\ast_c\, (km\,s^{-1})$')
     P.ylabel(r'$\log \mathrm{EW}(H\alpha)$')
 
 def L_EWPlot():
@@ -401,34 +401,34 @@ def EW_burstPlot():
 
 def L_vsigPlot():
     gs=M.Galax.objects.filter(sample=1)
-    vsig=N.array([g.maxvel/2/g.sigma_cent for g in gs])
+    vsig=N.array([g.maxvel/2/g.sigma_cent/sq3 for g in gs])
     merg=N.array([g.doub+g.irrvf for g in gs])
     LHa=N.array([g.p.get('HaLum') for g in gs],dtype='Float64')
     P.scatter(vsig,N.log10(LHa),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='D')
 
     gs=M.Galax.objects.filter(sample=2)
-    vsig=N.array([g.maxvel/2/g.sigma_cent for g in gs])
+    vsig=N.array([g.maxvel/2/g.sigma_cent/sq3 for g in gs])
     merg=N.array([g.doub+g.irrvf for g in gs])
     LHa=N.array([g.p.get('HaLum') for g in gs],dtype='Float64')
     P.scatter(vsig,N.log10(LHa),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='o')
 
-    P.xlabel('$v_{max} / \sigma_c$')
+    P.xlabel(r'$v_{max} / \sigma^\ast_c$')
     P.ylabel(r'$\log L(H\alpha)\,\,(erg\,s^{-1})$')
 
 def EW_vsigPlot():
     gs=M.Galax.objects.filter(sample=1)
-    vsig=N.array([g.maxvel/2/g.sigma_cent for g in gs])
+    vsig=N.array([g.maxvel/2/g.sigma_cent/sq3 for g in gs])
     merg=N.array([g.doub+g.irrvf for g in gs])
     ew=N.array([g.p.get('HaEW') for g in gs],dtype='Float64')
     P.scatter(vsig,N.log10(ew),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='D')
 
     gs=M.Galax.objects.filter(sample=2)
-    vsig=N.array([g.maxvel/2/g.sigma_cent for g in gs])
+    vsig=N.array([g.maxvel/2/g.sigma_cent/sq3 for g in gs])
     merg=N.array([g.doub+g.irrvf for g in gs])
     ew=N.array([g.p.get('HaEW') for g in gs],dtype='Float64')
     P.scatter(vsig,N.log10(ew),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='o')
 
-    P.xlabel('$v_{max} / \sigma_c$')
+    P.xlabel(r'$v_{max} / \sigma_c^\ast$')
     P.ylabel(r'$\log \mathrm{EW}(H\alpha)$')
 
 
