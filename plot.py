@@ -266,7 +266,7 @@ def sigmasPlot():
     gs1=M.Galax.objects.filter(sample=1)
     gs2=M.Galax.objects.filter(sample=2)
     s1,s2,s3=zip(*gs1.values_list('sigma_cent','sigma_weighmean','sigma_collap'))
-    P.plot(s1,s2,'o',label=r'$\sigma_{sum,1}',mfc='w')
+    P.plot(s1,s2,'o',label=r'$\sigma_{sum,1}$',mfc='w')
     P.plot(s1,s3,'D',label=r'$\sigma_{shift,1}$',mfc='w')
     s1,s2,s3=zip(*gs2.values_list('sigma_cent','sigma_weighmean','sigma_collap'))
     P.plot(s1,s2,'o',label=r'$\sigma_{sum,2}$',mfc='k')
