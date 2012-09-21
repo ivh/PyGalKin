@@ -210,18 +210,18 @@ def fillederrorplot(x,y,e1,e2=None,f='r--',c='r',alpha=0.5,label=None):
 def velSigmaPlot():
     gs1=M.Galax.objects.filter(sample=1,maxvel__isnull=False)
     gs2=M.Galax.objects.filter(sample=2,maxvel__isnull=False)
+    P.plot([9.,59.],[9.,59.],'k--',label='$\mathrm{unity}$')
     v,s,inc=zip(*gs1.values_list('maxvel','sigma_cent','incl'))
     v=array(v)/2
-    P.plot(s*sq3,v,'ok',label=r'$v_{meas,1}$',mfc='w')
-    P.plot(s*sq3,v/N.sin(N.radians(inc)),'kD',label='$v_{incl.corr,1}$',mfc='w')
+    P.plot(s*sq3,v,'ok',label=r'$v_{max,1}$',mfc='w')
+    P.plot(s*sq3,v/N.sin(N.radians(inc)),'kD',label='$v_{max,i,1}$',mfc='w')
     v,s,inc=zip(*gs2.values_list('maxvel','sigma_cent','incl'))
     v=array(v)/2
-    P.plot(s*sq3,v,'ok',label=r'$v_{meas,2}$',mfc='k')
-    P.plot(s*sq3,v/N.sin(N.radians(inc)),'kD',label='$v_{incl.corr,2}$',mfc='k')
+    P.plot(s*sq3,v,'ok',label=r'$v_{max,2}$',mfc='k')
+    P.plot(s*sq3,v/N.sin(N.radians(inc)),'kD',label='$v_{max,i,2}$',mfc='k')
 
-    P.plot([9.,59.],[9.,59.],'k--',label='$unity$')
-    P.ylabel(r'$v_{max}\quad (km/s)$')
-    P.xlabel(r'$\sigma^\ast_{c}\quad (km/s)$')
+    P.ylabel(r'$v_{max}\quad (km\,s^{-1})$')
+    P.xlabel(r'$\sigma^\ast_{c}\quad (km\,s^{-1})$')
     P.grid()
     P.axis((9,60,0,185))
     P.legend(loc='upper left')
@@ -229,11 +229,11 @@ def velSigmaPlot():
 def rotMassRandPlot():
     gs1=M.Galax.objects.filter(sample=1,mass_p2p__isnull=False)
     gs2=M.Galax.objects.filter(sample=2,mass_p2p__isnull=False)
+    P.loglog([3E7,2E10],[3E7,2E10],'k--',label='$\mathrm{unity}$')
     ms,mv,inc=zip(*gs1.values_list('mass_sig','mass_p2p','incl'))
     P.loglog(ms,mv,'ok',mfc='w',label='$sample\, 1$')
     ms,mv,inc=zip(*gs2.values_list('mass_sig','mass_p2p','incl'))
     P.loglog(ms,mv,'ok',mfc='k',label='$sample\, 2$')
-    P.loglog([3E7,2E10],[3E7,2E10],'k--',label='$unity$')
     P.ylabel(r'$M_{rot}\quad (M_\odot)$')
     P.xlabel(r'$M_{disp}\quad (M_\odot)$')
     P.axis((6E7,3E10,1E6,1E11))
@@ -265,15 +265,17 @@ def photMassRandPlot():
 def sigmasPlot():
     gs1=M.Galax.objects.filter(sample=1)
     gs2=M.Galax.objects.filter(sample=2)
+    P.plot([7,65],[7,65],'k--',label='$\mathrm{unity}$')
     s1,s2,s3=zip(*gs1.values_list('sigma_cent','sigma_weighmean','sigma_collap'))
     P.plot(s1,s2,'o',label=r'$\sigma_{i,1}$',mfc='w')
-    P.plot(s1,s3,'D',label=r'$<\sigma_{,1}>$',mfc='w')
+    P.plot(s1,s3,'D',label=r'$\langle\sigma\rangle_{i,1}$',mfc='w')
     s1,s2,s3=zip(*gs2.values_list('sigma_cent','sigma_weighmean','sigma_collap'))
     P.plot(s1,s2,'o',label=r'$\sigma_{i,2}$',mfc='k')
-    P.plot(s1,s3,'D',label=r'$<\sigma_{i,2}>$',mfc='k')
-    P.xlabel(r'$\sigma_{c} (km/s)$')
-    P.ylabel(r'$\sigma\, (km/s)$')
+    P.plot(s1,s3,'D',label=r'$\langle\sigma\rangle_{i,2}$',mfc='k')
+    P.xlabel(r'$\sigma_{c} (km\,s^{-1})$')
+    P.ylabel(r'$\sigma\, (km\,s^{-1})$')
     P.legend(loc='upper left')
+    P.axis((5,70,5,70))
     P.grid()
 
 def LsigmaPlot():
@@ -430,6 +432,21 @@ def EW_vsigPlot():
 
     P.xlabel(r'$v_{max} / \sigma_c^\ast$')
     P.ylabel(r'$\log \mathrm{EW}(H\alpha)$')
+
+def classifPlot():
+    P.axis((-13.1,-21,-0.2,4.4))
+    P.yticks(range(5),['$%d$'%i for i in range(5)])
+    gs=M.Galax.objects.filter(sample=1,mb__isnull=False)
+    for g in gs:
+        P.text(g.mb,g.doub+g.irrvf+0.1,'$\mathrm{%s}$'%g.p.get('morphclass'),
+            bbox=dict(fc='black', alpha=0.1, ec='white'))
+
+    gs=M.Galax.objects.filter(sample=2)
+    for g in gs:
+        P.text(g.mb,g.doub+g.irrvf-0.1,'$\mathrm{%s}$'%g.p.get('morphclass'))
+
+    P.xlabel(r'$M_B$')
+    P.ylabel(r'$P_v\, +\, P_d$')
 
 
 
