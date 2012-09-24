@@ -126,8 +126,8 @@ def plotscale(p,left=0.65,right=0.9,frombottom=0.1,kpc=False):
   P.plot([x1,x2],[y,y],'k-')
   arcs=(x2-x1)*p['echelle']
   if not kpc:
-      kpc=(x2-x1)*arcsec2kpc(arcs,p['vr0'])/1.E3
-  P.text(x1-0.01,y+0.01,r'$%.1f^{\prime\prime}\approx %.1fkpc$'%(arcs,kpc),fontsize=9)
+      kpc=arcsec2kpc(arcs,p['vr0'])
+  P.text(x1-0.01,y+0.1,r'$%.1f^{\prime\prime}\approx %.1fkpc$'%(arcs,kpc),fontsize=9)
 
 
 def setYaxis_pc(inarr):
@@ -448,6 +448,22 @@ def classifPlot():
     P.xlabel(r'$M_B$')
     P.ylabel(r'$P_v\, +\, P_d$')
 
+
+def Plot():
+    gs=M.Galax.objects.filter(sample=1)
+    vsig=N.array([g.maxvel/2/g.sigma_cent/sq3 for g in gs])
+    merg=N.array([g.doub+g.irrvf for g in gs])
+    ew=N.array([g.p.get('HaEW') for g in gs],dtype='Float64')
+    P.scatter(vsig,N.log10(ew),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='D')
+
+    gs=M.Galax.objects.filter(sample=2)
+    vsig=N.array([g.maxvel/2/g.sigma_cent/sq3 for g in gs])
+    merg=N.array([g.doub+g.irrvf for g in gs])
+    ew=N.array([g.p.get('HaEW') for g in gs],dtype='Float64')
+    P.scatter(vsig,N.log10(ew),s=(merg+1)*40,c=merg,cmap=cm.bone_r,alpha=0.8,lw=1.4,marker='o')
+
+    P.xlabel(r'$v_{max} / \sigma_c^\ast$')
+    P.ylabel(r'$\log \mathrm{EW}(H\alpha)$')
 
 
 
