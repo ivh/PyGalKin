@@ -220,6 +220,11 @@ def isconstant(data):
 def relz(v):
     return sqrt((1+(v/c))/(1-(v/c)))-1
 
+def quadsuberr(s1,s1e,s2,s2e):
+    s=(s1**2 - s2**2)
+    sr=N.sqrt((2*s1*s1e)**2 + (2*s2*s2e)**2)/2/s
+    s=N.sqrt(s)
+    return s,sr*s
 
 # formatting
 def deg2hms(deg):

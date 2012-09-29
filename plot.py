@@ -223,20 +223,25 @@ def velSigmaPlot():
     P.ylabel(r'$v_{max}\quad (km\,s^{-1})$')
     P.xlabel(r'$\sigma^\ast_{c}\quad (km\,s^{-1})$')
     P.grid()
-    P.axis((9,60,0,185))
+    P.axis((8,60,0,185))
     P.legend(loc='upper left')
 
 def rotMassRandPlot():
     gs1=M.Galax.objects.filter(sample=1,mass_p2p__isnull=False)
     gs2=M.Galax.objects.filter(sample=2,mass_p2p__isnull=False)
+    roterr1=[g.p['velmasserr'] for g in gs1]
+    roterr2=[g.p['velmasserr'] for g in gs2]
+    sigerr1=[g.p['sigmasserr'] for g in gs1]
+    sigerr2=[g.p['sigmasserr'] for g in gs2]
     P.loglog([3E7,2E10],[3E7,2E10],'k--',label='$\mathrm{unity}$')
+
     ms,mv,inc=zip(*gs1.values_list('mass_sig','mass_p2p','incl'))
-    P.loglog(ms,mv,'ok',mfc='w',label='$sample\, 1$')
+    P.errorbar(ms,mv,roterr1,sigerr1, 'ok',mfc='w',label='$sample\, 1$')
     ms,mv,inc=zip(*gs2.values_list('mass_sig','mass_p2p','incl'))
-    P.loglog(ms,mv,'ok',mfc='k',label='$sample\, 2$')
+    P.errorbar(ms,mv,roterr2,sigerr2, 'ok',mfc='k',label='$sample\, 2$')
     P.ylabel(r'$M_{rot}\quad (M_\odot)$')
     P.xlabel(r'$M_{disp}\quad (M_\odot)$')
-    P.axis((6E7,3E10,1E6,1E11))
+    P.axis((3E7,3E10,1E6,1E11))
     P.grid(True)
     P.legend(loc='lower right')
 
