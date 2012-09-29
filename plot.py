@@ -210,7 +210,7 @@ def fillederrorplot(x,y,e1,e2=None,f='r--',c='r',alpha=0.5,label=None):
 def velSigmaPlot():
     gs1=M.Galax.objects.filter(sample=1,maxvel__isnull=False)
     gs2=M.Galax.objects.filter(sample=2,maxvel__isnull=False)
-    P.plot([9.,59.],[9.,59.],'k--',label='$\mathrm{unity}$')
+    P.plot([9.,59.],[9.,59.],'k--')
     v,s,inc=zip(*gs1.values_list('maxvel','sigma_cent','incl'))
     v=array(v)/2
     P.plot(s*sq3,v,'ok',label=r'$v_{max,1}$',mfc='w')
@@ -238,7 +238,15 @@ def rotMassRandPlot():
     P.xlabel(r'$M_{disp}\quad (M_\odot)$')
     P.axis((6E7,3E10,1E6,1E11))
     P.grid(True)
-    P.legend(loc='upper left')
+    P.legend(loc='lower right')
+
+def masshistPlot():
+    mfr1=array([g.mass_p2p/g.mass_sig for g in M.Galax.objects.filter(sample=1) ])
+    mfr2=array([g.mass_p2p/g.mass_sig for g in M.Galax.objects.filter(sample=2) ])
+    P.hist(log10(mfr1),bins=arange(-2.5,2.5,0.5),color='w',alpha=0.5,lw=2,hatch='--')
+    P.hist(log10(mfr2),bins=arange(-2.5,2.5,0.5),color='w',alpha=0.5,lw=2,hatch='//')
+    P.ylabel('$N$')
+    P.xlabel('$\log (M_{rot}/M_{disp})$')
 
 def photMassRandPlot():
     gs=M.Galax.objects.all()
@@ -309,7 +317,7 @@ def MsigmaPlot():
     P.plot(mb,sig,'o',label=r'$\sigma_{2}',mfc='k')
 
     P.grid()
-    P.axis((-13.2,-20.7,1,1.8))
+    P.axis((-13.2,-20.7,1.21,2.09))
     P.xlabel(r'$M_B$')
     P.ylabel(r'$\log \sigma_c^\ast\, (km\,s^{-1})$')
 

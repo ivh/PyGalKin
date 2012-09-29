@@ -53,7 +53,7 @@ def gaussh34(p, x):
     G = N.exp( -1*(X**2) /2) * p[2]
     return p[0]+ G*(1 + (p[4] * h3) + (p[5]*h4))
 
-def dofit(y, x=None, err=None, fu=gaussh34, errfu=errfu3, fullout=False, prin=False):
+def dofit(y, x=None, err=None, fu=gaussh34, errfu=errfu, fullout=False, prin=False):
     if isconstant(y): return -1
     if not x: x=N.arange(len(y),dtype='float64')
     y = y.astype('float64')

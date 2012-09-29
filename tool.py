@@ -165,10 +165,10 @@ def micron2Ghz(l):
 def arcsec2rad(arcsec):
     return N.radians(arcsec/3600.0)
 
-def arcsec2kpc(arcsec=1.0,vsys=1000):
+def arcsec2kpc(arcsec,vsys):
     return vsys/H0*1E3*arcsec2rad(arcsec)
 
-def kpc2arcsec(kpc=1.0,vsys=1000):
+def kpc2arcsec(kpc,v):
     return kpc/arcsec2kpc(vsys=vsys)
 
 def hubbledist(v):
