@@ -119,10 +119,15 @@ def hydrogen(n,m):
     m,n=float(m),float(n)
     return (n**2 * m**2 / (m**2 - n**2)) / 1.0967758E7
 
-def massKepler(r,v):
+def massKepler1(r,v):
     """ returns the mass from keplers law: M(<r)=r*(v**2)*G
     input in pc and km/s
-    mind the factors 1/2 !!
+    """
+    return ((v)**2)*r*1000*pc/Grav
+
+def massKepler2(r,v):
+    """ returns the mass from keplers law: M(<r)=r*(v**2)*G
+    input in pc and km/s
     """
     return ((v/2.)**2)*(r/2.)*pc/Grav
 
@@ -169,7 +174,7 @@ def arcsec2kpc(arcsec,vsys):
     return vsys/H0*1E3*arcsec2rad(arcsec)
 
 def kpc2arcsec(kpc,v):
-    return kpc/arcsec2kpc(vsys=vsys)
+    return kpc/arcsec2kpc(1.0,v)
 
 def hubbledist(v):
     return v/H0*1000
@@ -327,16 +332,6 @@ def selective_average(data,range='cat',Z=1.002912,axis=2):
     elif len(data.shape)==1: return N.average(data[zmin:zmax])
 selav=selective_average
 
-def pa2vec(pa):
-    return N.array([-N.sin(radians(pa)),N.cos(radians(pa))])
-
-def posvel(vf,dyncen,pa):
-    vec=pa2vec(pa)
-    x,y=N.indices(vf.shape)
-    pos=N.inner(vec,N.transpose([dyncen[0]-x,dyncen[1]-y])).reshape(-1)
-    vel=N.ma.array(vf,mask=vf.mask).reshape(-1)
-    return pos, vel
-
 def m2masks(angmap,pa,wedge):
     pa2=pa+pi
     mask1=angmap < pa-wedge
@@ -411,6 +406,21 @@ def rotcur(vf,cen,pa,wedge,incl):
 
     #return vf,masked_array(N.cos(angmap),mask1&mask2)
     return r1,r2,v1+offset,v2+offset
+
+def pa2vec(pa):
+    return N.array([-N.sin(radians(pa)),N.cos(radians(pa))])
+
+def posvel(vf,dyncen,pa):
+    x,y=dyncen
+    pos = Dismap(x,y,pa,0)
+    return pos,vf.reshape(-1)
+
+def posvel_old(vf,dyncen,pa):
+    vec=pa2vec(pa)
+    x,y=N.indices(vf.shape)
+    pos=N.inner(vec,N.transpose([dyncen[0]-x,dyncen[1]-y])).reshape(-1)
+    vel=N.ma.array(vf,mask=vf.mask).reshape(-1)
+    return pos, vel
 
 
 #########################
