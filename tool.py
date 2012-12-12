@@ -408,12 +408,22 @@ def rotcur(vf,cen,pa,wedge,incl):
     return r1,r2,v1+offset,v2+offset
 
 def pa2vec(pa):
-    return N.array([-N.sin(radians(pa)),N.cos(radians(pa))])
+    vec=N.array([-N.sin(radians(pa)),N.cos(radians(pa))])
+    norm=N.sqrt(vec[0]**2 + vec[1]**2)
+    return vec/norm
 
-def posvel(vf,dyncen,pa):
-    x,y=dyncen
-    pos = Dismap(x,y,pa,0)
-    return pos,vf.reshape(-1)
+
+def posvel_test(vf,dyncen,pa):
+    vec=pa2vec(pa)
+    x,y=N.indices(vf.shape)
+    x=x-dyncen[0]
+    y=y-dyncen[1]
+    vec*=N.sqrt(2)
+    print vec,dyncen
+    pos=N.inner(vec,N.transpose([x,y])).flatten()
+    vel=N.ma.array(vf,mask=vf.mask).flatten()
+    pos=N.ma.array(pos,mask=vel.mask)
+    return pos, vel
 
 def posvel_old(vf,dyncen,pa):
     vec=pa2vec(pa)
@@ -422,6 +432,7 @@ def posvel_old(vf,dyncen,pa):
     vel=N.ma.array(vf,mask=vf.mask).reshape(-1)
     return pos, vel
 
+posvel=posvel_old
 
 #########################
 ####  Cross correlation
