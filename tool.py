@@ -97,6 +97,9 @@ class spec(numpdict):
                 subarr.wave=N.arange(subarr.shape[-1])*subarr.dl + subarr.l0
         return subarr
 
+class AttrDict(dict):
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
 
 
 # physical functions

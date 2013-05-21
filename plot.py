@@ -4,7 +4,7 @@ plot.py
 
 from pylab import *
 from PyGalKin import *
-import PyGalKin.db as DB
+#import PyGalKin.db as DB
 import pylab as P # to make P not self-reference to plot.py
 import matplotlib
 import matplotlib.mlab as mlab
@@ -12,7 +12,7 @@ from matplotlib import rcParams, colors
 from mpl_toolkits.axes_grid import AxesGrid
 import aplpy
 
-from DjCigale.table import models as M
+#from DjCigale.table import models as M
 
 #matplotlib.use('Agg')
 #matplotlib.rc('text', usetex = True)
