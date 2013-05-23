@@ -380,7 +380,7 @@ def binRC(rin,vin,rbin=1.0):
         S[i]=vt.std()
     return R+(rbin/2.0),V,S
 
-def rotcur(vf,cen,pa,wedge,incl):
+def rotcur(vf,cen,pa,wedge,incl,merge=False):
     """ calculate a rotation curve from a VF"""
     while pa < 0.0: pa+=180.0
     while pa >= 180.0: pa-=180.0
@@ -402,13 +402,18 @@ def rotcur(vf,cen,pa,wedge,incl):
     #mask1,mask2=m2masks(angmap,pa,wedge)
     mask1=(angmap>wedge) & (angmap<2*pi-wedge)
     mask2=mask_or(angmap<pi-wedge,angmap>pi+wedge,copy=True)
-    r1=masked_array(dismap,mask1).flatten()
-    r2=masked_array(dismap,mask2).flatten()
-    v1=masked_array(vf,mask1).flatten()
-    v2=masked_array(vf,mask2).flatten()
-
-    #return vf,masked_array(N.cos(angmap),mask1&mask2)
-    return r1,r2,v1+offset,v2+offset
+    r1=masked_array(dismap,mask1)
+    r2=masked_array(dismap,mask2)
+    v1=masked_array(vf,mask1)
+    v2=masked_array(vf,mask2)
+    r1.mask = r1.mask | v1.mask
+    r2.mask = r2.mask | v2.mask
+    if not merge:
+        return r1.compressed(), r2.compressed(),\
+            v1.compressed() + offset, v2.compressed() + offset
+    else:
+        return N.ma.concatenate((-r1.compressed(),[0.0],r2.compressed())),\
+            N.ma.concatenate((v1.compressed() + offset,[offset],v2.compressed() + offset))
 
 def pa2vec(pa):
     vec=N.array([-N.sin(radians(pa)),N.cos(radians(pa))])
