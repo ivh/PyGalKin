@@ -369,16 +369,20 @@ def Dismap(x,y,pa,incl):
     return N.sqrt(d1**2 + d2**2)
 
 
-def binRC(rin,vin,rbin=1.0):
+def binRC(rin,vin,rbin=1.0,returnNbin=False):
     n=N.ceil(rin.max()/rbin)
     R=(N.arange(n))*rbin
     V=N.zeros_like(R)
     S=N.zeros_like(R)
+    Nbin=N.zeros_like(R)
     for i,r in enumerate(R):
         vt=masked_where((rin<r)|(rin>r+rbin),vin)
         V[i]=vt.mean()
         S[i]=vt.std()
-    return R+(rbin/2.0),V,S
+        if returnNbin: Nbin[i]=N.sum(~vt.mask)
+
+    if returnNbin: return R+(rbin/2.0),V,S,Nbin
+    else: return R+(rbin/2.0),V,S
 
 def rotcur(vf,cen,pa,wedge,incl,merge=False):
     """ calculate a rotation curve from a VF"""
