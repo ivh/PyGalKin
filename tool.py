@@ -369,7 +369,7 @@ def Dismap(x,y,pa,incl):
     return N.sqrt(d1**2 + d2**2)
 
 
-def binRC(rin,vin,rbin=1.0,returnNbin=False):
+def binRC(rin,vin,rbin=1.0,returnNbin=False,sumThis=None):
     n=N.ceil(rin.max()/rbin)
     R=(N.arange(n))*rbin
     V=N.zeros_like(R)
@@ -378,13 +378,15 @@ def binRC(rin,vin,rbin=1.0,returnNbin=False):
     for i,r in enumerate(R):
         vt=masked_where((rin<r)|(rin>r+rbin),vin)
         V[i]=vt.mean()
-        S[i]=vt.std()
         if returnNbin: Nbin[i]=N.sum(~vt.mask)
+        if sumThis != None:
+            S[i] = N.sum(masked_where((rin<r)|(rin>r+rbin),sumThis))
+        else: S[i]=vt.std()
 
     if returnNbin: return R+(rbin/2.0),V,S,Nbin
     else: return R+(rbin/2.0),V,S
 
-def rotcur(vf,cen,pa,wedge,incl,merge=False):
+def rotcur(vf,cen,pa,wedge,incl,sideload=None):
     """ calculate a rotation curve from a VF"""
     while pa < 0.0: pa+=180.0
     while pa >= 180.0: pa-=180.0
@@ -402,6 +404,7 @@ def rotcur(vf,cen,pa,wedge,incl,merge=False):
     offset=vf[cen[0],cen[1]]
     vf-=offset
     vf=vf/N.abs(N.cos(angmap))/N.sin(incl)
+    vf=vf/N.cos(angmap)/N.sin(incl)
 
     #mask1,mask2=m2masks(angmap,pa,wedge)
     mask1=(angmap>wedge) & (angmap<2*pi-wedge)
@@ -412,12 +415,39 @@ def rotcur(vf,cen,pa,wedge,incl,merge=False):
     v2=masked_array(vf,mask2)
     r1.mask = r1.mask | v1.mask
     r2.mask = r2.mask | v2.mask
-    if not merge:
+    v2 *= -1.0 # make one side negative
+    if sideload != None:
+        return r1.compressed(), r2.compressed(),\
+            v1.compressed() + offset, v2.compressed() + offset, \
+            masked_where(r1.mask,sideload).compressed(), \
+            masked_where(r2.mask,sideload).compressed()
+    else:
         return r1.compressed(), r2.compressed(),\
             v1.compressed() + offset, v2.compressed() + offset
-    else:
-        return N.ma.concatenate((-r1.compressed(),[0.0],r2.compressed())),\
-            N.ma.concatenate((v1.compressed() + offset,[offset],v2.compressed() + offset))
+
+
+def RcAsym(v1,e1,v2,e2):
+    if len(v1) > len(v2): # let one be the shorter array
+        v1,e1,v2,e2=v2,e2,v1,e1
+
+    v2=v2[:len(v1)]
+    e2=e2[:len(v1)]
+
+    v1=masked_where(N.isnan(v1),v1)
+    v2=masked_where(N.isnan(v2),v2)
+    m=ma.mask_or(v1.mask,v2.mask)
+    v1.mask,v2.mask=(m,)*2
+    e1=masked_where(m,e1)
+    e2=masked_where(m,e2)
+    v1,v2,e1,e2 = map(ma.compressed,(v1,v2,e1,e2))
+
+    weight=N.sqrt(e1**2 + e2**2)
+
+    A = N.sum( N.abs(v1+v2) / weight ) \
+        * 2. / N.sum( (N.abs(v1)+N.abs(v2)) / weight)
+
+    return A
+
 
 def pa2vec(pa):
     vec=N.array([-N.sin(radians(pa)),N.cos(radians(pa))])
@@ -985,3 +1015,10 @@ def sortout(inarr,banned=0):
                 yaxis=N.concatenate((yaxis,y))
                 val=N.concatenate((val,inarr[x,y]))
     return xaxis,yaxis,val
+
+
+
+def rebin(a, shape):
+    sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
+    return a.reshape(sh).mean(-1).mean(1)
+

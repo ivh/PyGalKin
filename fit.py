@@ -69,24 +69,3 @@ def dofit(y, x=None, err=None, fu=gaussh34, errfu=errfu, fullout=False, prin=Fal
         if status not in [1,2,3,4]: return [0.0]*len(p)
         else: return p
 
-
-def RcAsym(v1,e1,v2,e2):
-    if len(v1) > len(v2): # let one be the shorter array
-        v1,e1,v2,e2=v2,e2,v1,e1
-
-    v2=v2[:len(v1)]
-    #e2=e2[:len(v1)]
-
-    v1=masked_where(N.isnan(v1),v1)
-    v2=masked_where(N.isnan(v2),v2)
-    m=ma.mask_or(v1.mask,v2.mask)
-    v1.mask,v2.mask=(m,)*2
-    v1,v2 = map(ma.compressed,(v1,v2))
-
-    #weight=N.sqrt(e1**2 + e2**2)
-    weight=1.0
-
-    A = N.sum( N.abs(v1+v2) / weight ) \
-        * 2. / N.sum( (N.abs(v1)+N.abs(v1)) / weight)
-
-    return A
