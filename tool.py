@@ -6,6 +6,7 @@ general toolbox
 """
 
 from PyGalKin import *
+import ast
 
 # SHORTCUTS
 tab='\t'
@@ -98,8 +99,21 @@ class spec(numpdict):
         return subarr
 
 class AttrDict(dict):
-    __getattr__ = dict.__getitem__
-    __setattr__ = dict.__setitem__
+    def __init__(self, indict):
+        try:
+            dict(indict)
+        except ValueError:
+            indict = ast.literal_eval(indict)
+        super(AttrDict, self).__init__(indict)
+        self.__dict__ = self
+
+#    def __init__(self, *args, **kwargs):
+#        super(AttrDict, self).__init__(*args, **kwargs)
+#        self.__dict__ = self
+
+#class AttrDict(dict):
+#    __getattr__ = dict.__getitem__
+#    __setattr__ = dict.__setitem__
 
 
 # physical functions
@@ -265,9 +279,10 @@ def shift(vec,i):
     vec:  The vector to be shifted
     i:  The steps to shift the vector with
     """
-    n= vec.size
-    i %= n
-    return N.concatenate((vec[n-i:n],vec[0:n-i]))
+    #n= vec.size
+    #i %= n
+    #return N.concatenate((vec[n-i:n],vec[0:n-i]))
+    return N.roll(vec,i)
 
 def calcpeak(inarr,n):
     """ calculate the barycenter-velociy of the n highest pixels"""
@@ -1021,4 +1036,3 @@ def sortout(inarr,banned=0):
 def rebin(a, shape):
     sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
     return a.reshape(sh).mean(-1).mean(1)
-
