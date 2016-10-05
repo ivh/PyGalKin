@@ -10,7 +10,6 @@ import matplotlib
 import matplotlib.mlab as mlab
 from matplotlib import rcParams, colors
 from mpl_toolkits.axes_grid import AxesGrid
-import aplpy
 
 #from DjCigale.table import models as M
 

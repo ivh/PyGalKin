@@ -26,7 +26,6 @@ from mpfit import mpfit
 from math import pi,e,radians,degrees
 import matplotlib.mlab as mlab
 import pywcs
-import aplpy
 
 # OS etc.
 import os
