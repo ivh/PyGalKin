@@ -53,12 +53,13 @@ def gaussh34(p, x):
     G = N.exp( -1*(X**2) /2) * p[2]
     return p[0]+ G*(1 + (p[4] * h3) + (p[5]*h4))
 
-def dofit(y, x=None, err=None, fu=gaussh34, errfu=errfu, fullout=False, prin=False):
+def dofit(y, x=None, err=None, fu=gaussh34, errfu=errfu, fullout=False, prin=False, p=None):
     if isconstant(y): return -1
     if not x: x=N.arange(len(y),dtype='float64')
     y = y.astype('float64')
 
-    p = startpara(y)
+    if not p:
+        p = startpara(y)
     if fullout or prin:
         p,cov,infd,msg,status = \
             LS(errfu, p, args=(x,y,fu,err), full_output=True)
@@ -68,4 +69,3 @@ def dofit(y, x=None, err=None, fu=gaussh34, errfu=errfu, fullout=False, prin=Fal
         p, status = LS(errfu, p, args=(x,y,fu,err))
         if status not in [1,2,3,4]: return [0.0]*len(p)
         else: return p
-
