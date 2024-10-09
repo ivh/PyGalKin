@@ -5,7 +5,7 @@ some tools for world coordinate systems
 
 from PyGalKin import *
 
-import pywcs
+import astropy.wcs as pywcs
 
 def new_wcs(ra,dec,scale,pix=[1,1]):
     """

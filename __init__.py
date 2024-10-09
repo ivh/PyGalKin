@@ -25,7 +25,7 @@ from scipy.fftpack import fft
 from mpfit import mpfit
 from math import pi,e,radians,degrees
 import matplotlib.mlab as mlab
-import pywcs
+import astropy.wcs as pywcs
 
 # OS etc.
 import os
@@ -36,23 +36,23 @@ from copy import copy
 #import wx
 import pickle
 from sqlite3 import dbapi2 as sqlite
-from sdss import sqlcl
+#from sdss import sqlcl
 
 ##############
 # own things #
 ##############
-from tool import *
-import wcs as WCS
-import PyCigale as C
+from .tool import *
+from . import wcs as WCS
+from . import PyCigale as C
 #import PyArgus as A
-import InOutput as IO
+from . import InOutput as IO
 #import ModelVF as MV
 #import Gauss as G
-import fit as F
-import plot as P
+from . import fit as F
+from . import plot as P
 #import MacroGen as MG
-import db as DB
-import interact as I
+from . import db as DB
+from . import interact as I
 
 # Good ol' IDL
 #try: from pyIDL import idl as IDL

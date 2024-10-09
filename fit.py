@@ -63,7 +63,7 @@ def dofit(y, x=None, err=None, fu=gaussh34, errfu=errfu, fullout=False, prin=Fal
     if fullout or prin:
         p,cov,infd,msg,status = \
             LS(errfu, p, args=(x,y,fu,err), full_output=True)
-        if prin: print msg
+        if prin: print(msg)
         return p,cov,infd,msg,status
     else:
         p, status = LS(errfu, p, args=(x,y,fu,err))

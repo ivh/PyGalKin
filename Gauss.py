@@ -82,10 +82,10 @@ def count_double_single(data):
     else:
       double = double +1
   
-  print 'Total points '+str(single+double+empty)
-  print 'Single fits: '+str(single)
-  print 'Double fits: '+str(double)
-  print 'Empty fits: '+str(empty)
+  print('Total points '+str(single+double+empty))
+  print('Single fits: '+str(single))
+  print('Double fits: '+str(double))
+  print('Empty fits: '+str(empty))
   
 def gauss_to_spectra(data, array_length=None, first_peak=False, second_peak=False):
   """Converts all points from gaussian parameters to data arrays.
@@ -99,7 +99,7 @@ def gauss_to_spectra(data, array_length=None, first_peak=False, second_peak=Fals
         """
   # If the data is not in gauss form, return a copy
   if (data.p['is_gauss']==False):
-    print 'Object is not in gaussian form!'
+    print('Object is not in gaussian form!')
     return data.copy()
   
   # Default to length lz
@@ -185,7 +185,7 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
         """
   # If the object is already in gauss form, return a copy
   if (data.p['is_gauss']==True):
-    print 'Object already is in gaussian form!'
+    print('Object already is in gaussian form!')
     return data.copy()
 
   # Temporary variables (copy() ensures that properties of the object is kept)
@@ -212,7 +212,7 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
         points = points + [i,]
       else:
         nopoints = nopoints + [i,]
-    print 'points over limit: ' + str(len(points))
+    print('points over limit: ' + str(len(points)))
   else:
     points=[]
     manual_area = N.zeros((length_x, length_y))
@@ -234,25 +234,25 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
         nopoints = nopoints + [i,]
       
   
-    print 'Interactive points: '+str(len(manual_points))
+    print('Interactive points: '+str(len(manual_points)))
   
     # Compute the interactive fits
     if (len(manual_points) > 0):
       count=0
       for i in manual_points:
         count+=1
-        if (count%100 == 0): print str(i)+' '+str(count)
+        if (count%100 == 0): print(str(i)+' '+str(count))
         params, error = gauss_from_array_interactive(temp[i])
         temp2[i] = N.concatenate((params, error))
   
   
-  print 'Automatic points: '+str(len(points))
+  print('Automatic points: '+str(len(points)))
   
   # Compute the gauss fits and store them in temp2
   for i in points:
     params, error, status = gauss_from_array(temp[i], double=double, try_double=try_double, do_shift=do_shift)
-    if status != 1: print 'status != 1: ',params, status, i
-    print i
+    if status != 1: print('status != 1: ',params, status, i)
+    print(i)
         
         #params.astype('Float32').tofile(w)
         #error.astype('Float32').tofile(w)
@@ -267,7 +267,7 @@ def spectra_to_gauss(data, double=False, try_double=False, do_shift=False, limit
       #print 'Params: '+str(params)
       #print 'Error: '+str(error)
 
-  print 'Fitting finished.'
+  print('Fitting finished.')
   #temp3.shape=(-1,14)
   #temp2[points]=temp3
   

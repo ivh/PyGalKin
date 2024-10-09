@@ -159,7 +159,7 @@ def tilted_ring_model(data, width):
   temp1 = mpfit.mpfit(model_system_func, parinfo=parinfo, functkw=functkw, quiet=1)
   v_system = temp1.params[0]
   
-  print v_system
+  print(v_system)
   
   # Empty list for the rings
   pars = []
@@ -167,7 +167,7 @@ def tilted_ring_model(data, width):
   # Compute the rings
   for i in range(int(0.5*dim/width)):
     radius = i*width
-    print 'Ring: '+str(i+1)+', radius: '+str(radius)
+    print('Ring: '+str(i+1)+', radius: '+str(radius))
     
     # Parameters to fit
     parinfo = []
@@ -217,7 +217,7 @@ def tilted_ring_model(data, width):
     # Add the ring to pars
     pars.append({'centr_x':p[3], 'centr_y':p[4], 'vel':p[1], 'inclination':p[2], 'pa':p[0], 'radius':radius, 'width':width, 'dim':dim, 'scale':temp.scale()})
     
-    print str(pars[i])
+    print(str(pars[i]))
   
   return [v_system, pars]
 
@@ -281,7 +281,7 @@ def model_tilted_ring_func(p, fjac=None, x=None, y=None, err=None):
   result[points2] = result_temp[points2]
   result.setshape(dim*dim)
   
-  print str(p)
+  print(str(p))
   
   status=0
   return [status, result]
@@ -464,10 +464,10 @@ def fit_parameters(data, model_list, box_size=3):
   functkw = {'x':model_list, 'y':boxes_avg, 'err':[boxes, box_size]}
   
   # Fit parameters
-  print model_list,boxes_avg
+  print(model_list,boxes_avg)
   m = mpfit.mpfit(model_func, parinfo=parinfo, functkw=functkw, quiet=0)
   p = m.params
-  print p,m.status
+  print(p,m.status)
   
   # Create output model_list
   for i in range(len(model_list)):
@@ -496,7 +496,7 @@ def model_func(p, fjac=None, x=None, y=None, err=None):
   boxes = err[0]
   box_size = err[1]
 
-  print p
+  print(p)
   # Create a model_list
   for i in range(len(model_list)):
     model_list[i][1]['pa'][0] = p[1]
@@ -510,7 +510,7 @@ def model_func(p, fjac=None, x=None, y=None, err=None):
     model_list[i][1]['centr_offset_x'][0] = p[9]
     model_list[i][1]['centr_offset_y'][0] = p[10]
 
-  print model_list
+  print(model_list)
   
   # Create the model
   model = create_vf(model_list)
@@ -573,7 +573,7 @@ def get_boxes_avg(data, boxes, box_size):
 
 
 def create_vf(model_list):
-  vf = range(len(model_list))
+  vf = list(range(len(model_list)))
   for i in range(len(model_list)):
     if (model_list[i][0] == 'system'):
       vf[i] = create_system_vf(model_list[i][1])
@@ -684,7 +684,7 @@ def create_exp_vf(model, pars):
   r_and_phi = arguments_list(pars)
 
   arguments = [r_and_phi[0], pars]
-  v_model_exp = apply(model_expansion, arguments)
+  v_model_exp = model_expansion(*arguments)
 
   vf = v_model_exp*N.sin(r_and_phi[1])*N.sin(pars['inclination'][0]*M.pi/180)
    
@@ -708,7 +708,7 @@ def create_rot_vf(model, pars):
 
   arguments = [r_and_phi[0], pars]
   # Call model-function
-  v_model_rot = apply(model, arguments)
+  v_model_rot = model(*arguments)
 
   # Projection to the rotation plane
   vf = v_model_rot*N.cos(r_and_phi[1])*N.sin(pars['inclination']*M.pi/180)
@@ -918,40 +918,40 @@ def model_linear(r, pars):
 def model(model,name,*args):
   
   if model == 'linear':
-    print "creating the linear field..."
+    print("creating the linear field...")
     result,err=create_linear (args)
     if err != 0:
-      print "error"
+      print("error")
     else:  
-      print "done."
+      print("done.")
     
     
   elif model == 'disk':
-    print "creating the disk..."
+    print("creating the disk...")
     result,err=create_disk (args)
     if err != 0:
-      print "error"
+      print("error")
     else:  
-      print "done."
+      print("done.")
     
   elif model == 'shell':
-    print "creating the shell..."
+    print("creating the shell...")
     result,err=create_shell (args)
     if err != 0:
-      print "error"
+      print("error")
     else:  
-      print "done."
+      print("done.")
 
   elif model == 'sphere':
-    print "creating the sphere..."
+    print("creating the sphere...")
     result,err=create_sphere (args)
     if err != 0:
-      print "error"
+      print("error")
     else:  
-      print "done."
+      print("done.")
     
   else:
-    print "unknown model"
+    print("unknown model")
     result,err=N.zeros((1,1)),1
 
   # write the file if all went fine
@@ -960,7 +960,7 @@ def model(model,name,*args):
     IO.write_fits(result, name)
 
   else:
-    print "no file written"
+    print("no file written")
 
 
 
@@ -970,7 +970,7 @@ def create_linear (arg):
   rotation possible.
   """
   if len(arg) != 3:
-    print "Wrong number of arguments"
+    print("Wrong number of arguments")
     return N.zeros((1,1)),1
   else:
     dim=arg[0]             # dimension of the file.
@@ -1002,7 +1002,7 @@ def create_disk (arg):
   Parameters taken from there as well.
   """
   if len(arg) != 5:
-    print "Wrong number of arguments"
+    print("Wrong number of arguments")
     return N.zeros((1,1)),1
   else:
     dim=arg[0]                # dimension of the file.
@@ -1047,7 +1047,7 @@ def create_shell(arg):
   rotation means the rot-axis from top to left in degrees.
   """
   if len(arg) != 4:
-    print "Wrong number of arguments"
+    print("Wrong number of arguments")
     return N.zeros((1,1)),1
   else:
     dim=arg[0]                # dimension of the file.
@@ -1194,7 +1194,7 @@ def fit_linear(name):
           (8, get_box(rawdata,8)) ]
   
   result,chi = LS.leastSquaresFit(modelfu_linear, (100,-30,), data)
-  print result[0], M.fmod(result[1],360), chi
+  print(result[0], M.fmod(result[1],360), chi)
 
 
 
@@ -1215,6 +1215,6 @@ def fit_test():
           (7, 7),
           (8, 8) ]
   
-  print LS.leastSquaresFit(modelfu_test, (2,), data)
+  print(LS.leastSquaresFit(modelfu_test, (2,), data))
 
 

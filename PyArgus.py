@@ -58,7 +58,7 @@ def image2cube(data,tablefile='/home/tom/projekte/PyGalKin/argus-fibres.txt'):
     elif type(data) == type(N.array([])):
         pass
     else:
-        print 'unknown type of input'
+        print('unknown type of input')
         return -1
 
     if data.shape[1]==311:
@@ -72,7 +72,7 @@ def image2cube(data,tablefile='/home/tom/projekte/PyGalKin/argus-fibres.txt'):
         missing=3
         data=N.transpose(data)
     else:
-        print 'unknown type of input'
+        print('unknown type of input')
         return -1
 
     cube=N.zeros((dimX,dimY,SpecLenOrg),'Float32')
@@ -84,7 +84,7 @@ def image2cube(data,tablefile='/home/tom/projekte/PyGalKin/argus-fibres.txt'):
     # two header lines and missing spectra
     file.readline()
     file.readline()
-    print str(missing) + ' missing spectra'
+    print(str(missing) + ' missing spectra')
     for i in N.arange(missing): file.readline()
 
     #print data.shape,cube.shape
@@ -174,7 +174,7 @@ def skyfit(data,sky,region=skyregion,quiet=True):
         #print sdata.shape,ssky.shape
         fa={'data':sdata,'sky':ssky}
         fit=mpfit(skyfunc,functkw=fa,parinfo=parinfo,maxiter=200,quiet=quiet)
-        print fit.status
+        print(fit.status)
         factor[i]=fit.params[1]
     return factor
     
@@ -206,7 +206,7 @@ def contFit(data,order=6,sigmaclip=1.0,plot=False):
     data=N.where(N.isnan(data),0.0,data)
     x=N.arange(len(data))
     try: poly=P.polyfit(x,data,order)
-    except: print data
+    except: print(data)
     #print poly
     subtr=data-P.polyval(poly,x)
     flagged=N.where(N.abs(subtr) > (sigmaclip*N.std(subtr)),0,subtr)
@@ -229,7 +229,7 @@ def contFit(data,order=6,sigmaclip=1.0,plot=False):
 def PaModel(p, fjac=None, x=None, y=None, err=None, returnmodel=False):
     
     model=N.zeros(len(x),'Float32')+1.0
-    print p
+    print(p)
     PaNumbers=N.array([10,11,12,13,14,15,16,17])
     PaLa=PaLamb(PaNumbers)*p[0]
     for i in N.arange(len(PaLa)):
@@ -262,13 +262,13 @@ def fitAllPaschen(data,guessV=None,plot=False,prin=False,quiet=True):
     except OverflowError:
         return -1
 
-    print 'fitAllPaschen status: ',fit.status
+    print('fitAllPaschen status: ',fit.status)
     
     if plot==True:
         P.plot(data,'r')
         P.plot(PaModel(fit.params,x=x,returnmodel=True),'b')
     if prin==True:
-        print fit.niter,fit.params,fit.status
+        print(fit.niter,fit.params,fit.status)
     
     return fit.params
 
@@ -311,13 +311,13 @@ def fitAllPaschen_old(data,err,velRange=None,guessV=None,PaNumbers=[10,11,12,14,
     except OverflowError:
         return -1
 
-    print 'fitAllPaschen status: ',fit.status
+    print('fitAllPaschen status: ',fit.status)
     
     if plot==True:
         P.plot(relevant,'r')
         P.plot(funcAllPaschen_old(fit.params,x=N.arange(len(relevant)),n=nlines,returnmodel=True),'b')
     if prin==True:
-        print fit.niter,fit.params,fit.status
+        print(fit.niter,fit.params,fit.status)
     
     return fit.params
 
@@ -343,7 +343,7 @@ def findLine(data,type='single',velRange=None,guessV=None,restlamb=Sulfur,parinf
     Left,Right=int(lamb2pix(Left,Lamb0,Step)),int(lamb2pix(Right,Lamb0,Step))
     
     relevant=data[Left:Right]
-    print relevant,Left,Right,restlamb
+    print(relevant,Left,Right,restlamb)
     if type=='single':
         fit=G.fitgauss(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
     elif type=='double':
@@ -352,7 +352,7 @@ def findLine(data,type='single',velRange=None,guessV=None,restlamb=Sulfur,parinf
     elif type=='h34':
         fit=G.fitgaussh34(relevant,parinfo=parinfo,plot=plot,prin=prin,quiet=quiet)
     else:
-        print 'Unknown type of fit'
+        print('Unknown type of fit')
         return -1
 
     Z=pix2lamb(fit.params[1]+Left,Lamb0,Step) / restlamb
@@ -371,7 +371,7 @@ def emissionVF(data,velRange=None,guessV=None,restlamb=Sulfur,type='single',plot
     elif type=='h34':
         allparams=N.zeros((data.shape[0],6),'Float32')
     else:
-        print 'Unknown type of fit'
+        print('Unknown type of fit')
         return -1
 
 
@@ -423,7 +423,7 @@ def createPaschen(data,type='double',velRange=None,guessV=None,plot=False,plotfi
     else:
         fit,Z=fitresults
         fit=fit.params
-        print fit,Z
+        print(fit,Z)
 
     SynthSpec=createPa(fit,Z,D1=0.0,D2=0.0,type=type,PaNumb=PaNumb)
     
@@ -466,7 +466,7 @@ def createPaschenSul(data,velRange=None,guessV=None,plot=False,plotfit=False,PaN
     parinfo[6]['value']=fitpara[6]
     parinfo[6]['fixed']=1
     
-    print "second fit"
+    print("second fit")
     fitresults=findLine(data,velRange=velRange,guessV=z2vel(Z),restlamb=PaLamb(PaNumb),parinfo=parinfo,plot=plotfit)
     if fitresults==-1:
         return N.zeros(SpecLen,'Float32')
@@ -506,5 +506,5 @@ if __name__ == '__main__':
         
 
 def demo():
-    print "This file defines some functions. It is not meant to be executed. Import it instead!"
+    print("This file defines some functions. It is not meant to be executed. Import it instead!")
 

@@ -29,7 +29,7 @@ def doreductions():
 
             if 'p800.adp' in os.listdir('.'): paramname='p800.adp'
             elif 'p2000.adp' in os.listdir('.'): paramname='p2000.adp'
-            else: print "There is no parameter file."
+            else: print("There is no parameter file.")
 
             globalmacro.seek(globalcounter*256*3)
             globalmacro.write(pathprefix + i)
@@ -41,7 +41,7 @@ def doreductions():
 
             par=C.ADP(paramname)
             workingdir= pathprefix + i + bs
-            print workingdir
+            print(workingdir)
             reduc(reductname,workingdir,par)
             
             os.chdir('..')
@@ -68,7 +68,7 @@ def docubes():
             cubefile=open(cubename,'w')
             if 'p800.adp' in os.listdir('.'): paramname='p800.adp'
             elif 'p2000.adp' in os.listdir('.'): paramname='p2000.adp'
-            else: print "There is no parameter file."
+            else: print("There is no parameter file.")
 
             globalmacro.seek(globalcounter*256*3)
             globalmacro.write(pathprefix + i)
@@ -82,14 +82,14 @@ def docubes():
                 if os.path.isdir(j):
                     os.chdir(j)
                     workingdir= pathprefix + i + bs + j + bs
-                    print workingdir
+                    print(workingdir)
                     
                     
                     
                     if 'DATA' in os.listdir('.'):   ### DATA DIRECTORIES
 
                         #numbercycles=createADP('../' + paramname, i, j)
-                        print numbercycles
+                        print(numbercycles)
                         cube(cubefile,workingdir,j,str(numbercycles))   ### WRITE THE LINE INTO THE CUBE-MACRO
                         cubefile.write(nl)
                         

@@ -9,7 +9,7 @@ import pylab as P # to make P not self-reference to plot.py
 import matplotlib
 import matplotlib.mlab as mlab
 from matplotlib import rcParams, colors
-from mpl_toolkits.axes_grid import AxesGrid
+from mpl_toolkits.axes_grid1 import AxesGrid
 
 #from DjCigale.table import models as M
 
@@ -167,7 +167,7 @@ def showsum(data,vmin=1E5,vmax=2E6,range='cat',Z=1.002912,typ='sum'):
 
 
 def plotspec(data,region=None,plotlines=False,Z=1.0206,style=False,linestyle='steps',vminmax=None):
-    from PyArgus import SpecLen,Lamb0,Step
+    from .PyArgus import SpecLen,Lamb0,Step
     if style:
         P.plot((N.arange(SpecLen)*Step)+Lamb0,data,style,linestyle=linestyle)
     else:
@@ -210,10 +210,10 @@ def velSigmaPlot():
     gs1=M.Galax.objects.filter(sample=1,maxvel__isnull=False)
     gs2=M.Galax.objects.filter(sample=2,maxvel__isnull=False)
     P.plot([9.,103.],[9.,103.],'k--')
-    v,s,inc=map(N.array,zip(*gs1.values_list('maxvel','sigma_cent','incl')))
+    v,s,inc=list(map(N.array,list(zip(*gs1.values_list('maxvel','sigma_cent','incl')))))
     P.plot(s*sq3,v,'sk',label=r'$v_{max,1}$',mfc='w')
     P.plot(s*sq3,v/N.sin(N.radians(inc)),'ks',label='$v_{max,i,1}$',mfc='#ffd74e')
-    v,s,inc=map(N.array,zip(*gs2.values_list('maxvel','sigma_cent','incl')))
+    v,s,inc=list(map(N.array,list(zip(*gs2.values_list('maxvel','sigma_cent','incl')))))
     P.plot(s*sq3,v,'Dk',label=r'$v_{max,2}$',mfc='b')
     P.plot(s*sq3,v/N.sin(N.radians(inc)),'kD',label='$v_{max,i,2}$',mfc='g')
 
@@ -232,11 +232,11 @@ def rotMassRandPlot():
     sigerr2=N.array([g.p['sigmasserr'] for g in gs2])
     P.plot([7.4,10.3],[7.4,10.3],'k--',label='$\mathrm{unity}$')
 
-    ms,mv=zip(*gs1.values_list('mass_sig','mass_p2p'))
+    ms,mv=list(zip(*gs1.values_list('mass_sig','mass_p2p')))
     mse=sigerr1/ms * 0.434/2
     mve=roterr1/mv * 0.434
     P.errorbar(N.log10(ms),N.log10(mv),mve,mse, 'ok',mfc='w',label='$sample\, 1$')
-    ms,mv=zip(*gs2.values_list('mass_sig','mass_p2p'))
+    ms,mv=list(zip(*gs2.values_list('mass_sig','mass_p2p')))
     mse=sigerr2/ms * 0.434/2
     mve=roterr2/mv * 0.434
     P.errorbar(N.log10(ms),N.log10(mv),mve,mse, 'ok',mfc='k',label='$sample\, 2$')
@@ -280,10 +280,10 @@ def sigmasPlot():
     gs1=M.Galax.objects.filter(sample=1)
     gs2=M.Galax.objects.filter(sample=2)
     P.plot([7,65],[7,65],'k--')#,label='$\mathrm{unity}$')
-    s1,s2,s3=zip(*gs1.values_list('sigma_cent','sigma_weighmean','sigma_collap'))
+    s1,s2,s3=list(zip(*gs1.values_list('sigma_cent','sigma_weighmean','sigma_collap')))
     P.plot(s1,s2,'s',label=r'$\sigma_{i,1}$',mfc='w')
     P.plot(s1,s3,'s',label=r'$\langle\sigma\rangle_{i,1}$',mfc='#ffd74e')
-    s1,s2,s3=zip(*gs2.values_list('sigma_cent','sigma_weighmean','sigma_collap'))
+    s1,s2,s3=list(zip(*gs2.values_list('sigma_cent','sigma_weighmean','sigma_collap')))
     P.plot(s1,s2,'D',label=r'$\sigma_{i,2}$',mfc='g')
     P.plot(s1,s3,'D',label=r'$\langle\sigma\rangle_{i,2}$',mfc='b')
     P.xlabel(r'$\sigma_{c} (km\,s^{-1})$')
@@ -296,7 +296,7 @@ def LsigmaPlot():
     gs1=M.Galax.objects.filter(sample=1)
     gs2=M.Galax.objects.filter(sample=2)
     #sig,mb=zip(*gs1.values_list('sigma_cent','mb'))
-    HaLum,sig=zip(*[(g.p.get('HaLum'),g.sigma_cent) for g in gs1])
+    HaLum,sig=list(zip(*[(g.p.get('HaLum'),g.sigma_cent) for g in gs1]))
     HaLum=N.log10(N.array(HaLum).astype('Float64'))
     sigerr=N.array([g.p.get('sigerr') for g in gs1])
     sigerr= 0.433 * sigerr/sig
@@ -306,7 +306,7 @@ def LsigmaPlot():
     #P.errorbar(sig,HaLum,xerr=sigerr,fmt='o',ecolor='k',label=r'$\sigma_{1}',mfc='w')
     P.plot(sig,HaLum,'o',label=r'$\sigma_{1}',mfc='w')
 
-    HaLum,sig=zip(*[(g.p.get('HaLum'),g.sigma_cent) for g in gs2])
+    HaLum,sig=list(zip(*[(g.p.get('HaLum'),g.sigma_cent) for g in gs2]))
     HaLum=N.log10(N.array(HaLum).astype('Float64'))
     sigerr=N.array([g.p.get('sigerr') for g in gs2])
     sigerr= 0.433 * sigerr/sig
@@ -322,11 +322,11 @@ def LsigmaPlot():
 def MsigmaPlot():
     gs1=M.Galax.objects.filter(sample=1)
     gs2=M.Galax.objects.filter(sample=2)
-    sig,mb=zip(*gs1.values_list('sigma_cent','mb'))
+    sig,mb=list(zip(*gs1.values_list('sigma_cent','mb')))
     sig=N.log10(N.array(sig) *sq3)
     P.plot(mb,sig,'o',label=r'$\sigma_{1}',mfc='w')
 
-    sig,mb=zip(*gs2.values_list('sigma_cent','mb'))
+    sig,mb=list(zip(*gs2.values_list('sigma_cent','mb')))
     sig=N.log10(N.array(sig) *sq3)
     P.plot(mb,sig,'o',label=r'$\sigma_{2}',mfc='k')
 
@@ -492,7 +492,7 @@ def EW_vsigPlot():
 
 def classifPlot():
     P.axis((-13.1,-21,-0.2,4.4))
-    P.yticks(range(5),['$%d$'%i for i in range(5)])
+    P.yticks(list(range(5)),['$%d$'%i for i in range(5)])
     gs=M.Galax.objects.filter(sample=1,mb__isnull=False)
     for g in gs:
         P.text(g.mb,g.doub+g.irrvf+0.1,'$\mathrm{%s}$'%(g.p.get('morphclass') or ''),

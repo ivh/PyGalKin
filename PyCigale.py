@@ -306,7 +306,7 @@ def VF_gauss(data, second=False):
       temp[:,:] = data[:,:,4]/data.p['lz']*data.fsr() + lamb2vel(data.p['xlbneb']-0.5*data.p['xil']) + data.p['vr_offset']
     return temp
   else:
-    print 'Object is not in gaussian form!'
+    print('Object is not in gaussian form!')
 
 def VF_firstmom(data, slitname=None):
   """ giving back a 2d map with the first moment of the 3d cube"""
@@ -431,7 +431,7 @@ def LPfilter_vf(data):
 # IN CASE SOMEONE TRIES TO EXECUTE THIS FILE
 #
 def demo():
-    print "This file is the main file of a package. It is not meant to be executed. Import it instead!"
+    print("This file is the main file of a package. It is not meant to be executed. Import it instead!")
 
 if __name__ == '__main__':
     demo()

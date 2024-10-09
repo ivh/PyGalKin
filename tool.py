@@ -21,12 +21,12 @@ null='\0'
 # units:
 #        velocity: km/s
 #        wavelength: Angstrom
-lambHA=N.array([6562.7797852000003],'Float64')
-sol=N.array([299792.458],'Float64')
+lambHA=N.array([6562.7797852000003],'float64')
+sol=N.array([299792.458],'float64')
 c=sol
-H0=N.array([70.],'Float64')
-Grav=N.array([6.6726E-11*1.989E30/1000**3],'Float64') ### in solar masses and km
-pc=N.array([3.086E13],'Float64') ## in km
+H0=N.array([70.],'float64')
+Grav=N.array([6.6726E-11*1.989E30/1000**3],'float64') ### in solar masses and km
+pc=N.array([3.086E13],'float64') ## in km
 sq3 = N.sqrt(3.0)
 ## Roberts values
 ## [S III] 9068.8
@@ -91,9 +91,9 @@ class numpdict(N.ndarray):
 class spec(numpdict):
     def __new__(subtype, data, p=None, dtype=None, copy=False):
         subarr=numpdict.__new__(subtype, data, p, dtype, copy)
-        if p.has_key('l0'):
+        if 'l0' in p:
             subarr.l0=p['l0']
-            if p.has_key('dl'):
+            if 'dl' in p:
                 subarr.dl=p['dl']
                 subarr.wave=N.arange(subarr.shape[-1])*subarr.dl + subarr.l0
         return subarr
@@ -205,8 +205,8 @@ def units(have,want,number=''):
 
 def lamb2pix(data,Lamb0,Step):
     if type(data) == type(1) or type(data) == type(1.0):
-        return int(N.around((data-Lamb0)/Step).astype('Int32'))
-    else: return N.around((data-Lamb0)/Step).astype('Int32')
+        return int(N.around((data-Lamb0)/Step).astype('int32'))
+    else: return N.around((data-Lamb0)/Step).astype('int32')
 
 def dlamb2vel(data,lamb0):
     return data/lamb0*c
@@ -338,7 +338,7 @@ def doforeachpoint(data, function, *args, **keywords):
 def selective_sum(data,range='cat',Z=1.002912,axis=2):
     if range=='cat': zmin,zmax=lamb2pix(N.array([8470,8700])*Z,Lamb0,Step)
     else: zmin,zmax=0,data.shape[-1]
-    print data.shape
+    print(data.shape)
     return N.sum(data[:,:,zmin:zmax],axis)
 selsum=selective_sum
 
@@ -405,7 +405,7 @@ def rotcur(vf,cen,pa,wedge,incl,sideload=None):
     """ calculate a rotation curve from a VF"""
     while pa < 0.0: pa+=180.0
     while pa >= 180.0: pa-=180.0
-    pa,wedge,incl=map(N.radians,(pa,wedge,incl))
+    pa,wedge,incl=list(map(N.radians,(pa,wedge,incl)))
     x,y=getXY(vf)
     x.shape=vf.shape
     y.shape=vf.shape
@@ -454,7 +454,7 @@ def RcAsym(v1,e1,v2,e2):
     v1.mask,v2.mask=(m,)*2
     e1=masked_where(m,e1)
     e2=masked_where(m,e2)
-    v1,v2,e1,e2 = map(ma.compressed,(v1,v2,e1,e2))
+    v1,v2,e1,e2 = list(map(ma.compressed,(v1,v2,e1,e2)))
 
     weight=N.sqrt(e1**2 + e2**2)
 
@@ -476,7 +476,7 @@ def posvel_test(vf,dyncen,pa):
     x=x-dyncen[0]
     y=y-dyncen[1]
     vec*=N.sqrt(2)
-    print vec,dyncen
+    print(vec,dyncen)
     pos=N.inner(vec,N.transpose([x,y])).flatten()
     vel=N.ma.array(vf,mask=vf.mask).flatten()
     pos=N.ma.array(pos,mask=vel.mask)
@@ -511,24 +511,24 @@ def xcorr(galaxy,star,filtgal=False,filtstar=None,range=N.array([700,1300]),bary
     if len(galaxy.shape) == 3:
         galaxy.shape=(origshape[0]*origshape[1],origshape[2])
 
-    pos=N.zeros(galaxy.shape[0],'Float32')
-    wid=N.zeros(galaxy.shape[0],'Float32')
-    bary=N.zeros(galaxy.shape[0],'Float32')
-    secmom=N.zeros(galaxy.shape[0],'Float32')
-    cont=N.zeros(galaxy.shape[0],'Float32')
-    amp=N.zeros(galaxy.shape[0],'Float32')
-    h3=N.zeros(galaxy.shape[0],'Float32')
-    h4=N.zeros(galaxy.shape[0],'Float32')
+    pos=N.zeros(galaxy.shape[0],'float32')
+    wid=N.zeros(galaxy.shape[0],'float32')
+    bary=N.zeros(galaxy.shape[0],'float32')
+    secmom=N.zeros(galaxy.shape[0],'float32')
+    cont=N.zeros(galaxy.shape[0],'float32')
+    amp=N.zeros(galaxy.shape[0],'float32')
+    h3=N.zeros(galaxy.shape[0],'float32')
+    h4=N.zeros(galaxy.shape[0],'float32')
 
     fitl=(len(star)/2)-80+offset
     fitr=(len(star)/2)+80+offset
-    print fitl,fitr
+    print(fitl,fitr)
     for i in N.arange(len(pos)):
         if isconstant(galaxy[i]): continue
         gal=galaxy[i,range[0]:range[1]]
         gal-=contSubtr(gal,order=1)
         gal,x1=log_rebin(gal,wavecal)
-        print x1[1]-x1[0]
+        print(x1[1]-x1[0])
         if filtgal:
             gal.ndim=1
             gal=bandfilt(gal)
@@ -539,7 +539,7 @@ def xcorr(galaxy,star,filtgal=False,filtstar=None,range=N.array([700,1300]),bary
         xc=xc[fitl:fitr]
         fit=G.fitgaussh34(xc+1.0,err=1/xc,plot=plot,prin=True)
         #fit=fit2gauss(xc+1.0,plot=True)
-        if fit == -1: print "somethings wrong!"
+        if fit == -1: print("somethings wrong!")
         else:
             cont[i],pos[i],amp[i],wid[i],h3[i],h4[i]=fit.params
             #cont,pos[i],amp,wid[i],x4,x5,x6=fit.params
@@ -574,7 +574,7 @@ def offset2vel(data,calib=4.93750657338e-05):
 
 
 def sigmacal(star,plot=False):
-    sigmain=N.arange(0,20,1.0,'Float32')
+    sigmain=N.arange(0,20,1.0,'float32')
     sigmaout=sigmain.copy()*0.0
     wavecal=[8000,8000+(Step*len(sigmain))]
     star,x=log_rebin(star,wavecal)
@@ -584,7 +584,7 @@ def sigmacal(star,plot=False):
         xc=xc[280:-280]
         if plot: P.clf()
         fit=fitgauss(xc+1.0,plot=plot)
-        print fit.params[3]
+        print(fit.params[3])
         sigmaout[i]=fit.params[3]
     return dlamb2vel(sigmain*Step,CaT[1]),sigmaout
 
@@ -660,11 +660,11 @@ def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=True,returnall
         if len(Noise) != len(Signal): Noise=N.resize(Noise,Signal.shape)
         X,Y=getXY(data)
     else:
-        print "must have a noise level for non-spectral data"
+        print("must have a noise level for non-spectral data")
         return -1
 
     #print Signal.shape,Noise.shape,X.shape,Y.shape
-    print max(Signal),S.average(Noise),X[N.argmax(Signal)],Y[N.argmax(Signal)]
+    print(max(Signal),S.average(Noise),X[N.argmax(Signal)],Y[N.argmax(Signal)])
     # make a new IDL session
     idl=IDL()
 
@@ -687,7 +687,7 @@ def voronoi2dbinning(data,Noise=False,targetSN=20,plot=True,quiet=True,returnall
         idl.eval(idlcommand)
         idl.eval('device,/close')
     except:
-        print "something went wron while running idl"
+        print("something went wron while running idl")
         return -1
 
     # collect the output
@@ -706,9 +706,9 @@ def avbins2(data,BinNumber):
     """ average the data accordng to BinNumber, but return a 1d-vector instead of the same shape as data"""
     n=BinNumber.max()+1
     data=data.flatten()
-    result=N.zeros(n,dtype='Float32')
-    num=N.zeros(n,dtype='Int32')
-    sig=N.zeros(n,dtype='Float32')
+    result=N.zeros(n,dtype='float32')
+    num=N.zeros(n,dtype='int32')
+    sig=N.zeros(n,dtype='float32')
     for i in N.arange(n):
         result[i]=N.sum(N.where(BinNumber==i,data,0.0))
         num[i]=N.sum(N.where(BinNumber==i,1,0))
@@ -721,8 +721,8 @@ def avbins3(data,BinNumber):
     os=data.shape
     data=data.copy()
     data.shape=(os[0]*os[1],os[2])
-    result=N.zeros((n,os[2]),dtype='Float32')
-    num=N.zeros(n,dtype='Int32')
+    result=N.zeros((n,os[2]),dtype='float32')
+    num=N.zeros(n,dtype='int32')
     for i in N.arange(n):
         num[i]=N.sum(N.where(BinNumber==i,1,0))
         result[i,:]=N.sum(data[N.where(BinNumber==i),:],axis=1) / num[i]
@@ -730,7 +730,7 @@ def avbins3(data,BinNumber):
 
 def spreadbins2(data,BinNumber,shape=None):
     if not shape: shape=(N.sqrt(BinNumber.shape).astype('i'),N.sqrt(BinNumber.shape).astype('i'))
-    result=N.zeros(shape,dtype='Float32').flatten()
+    result=N.zeros(shape,dtype='float32').flatten()
     for i,bin in enumerate(BinNumber):
         result[i]=data[bin]
     result.shape=shape
@@ -744,7 +744,7 @@ def average_bins3(data,BinNumber):
     Nbins=max(BinNumber)+1
     data=N.reshape(data,(orig.shape[0]*orig.shape[1],orig.shape[2]))
 
-    BinValues=N.zeros((Nbins,orig.shape[2]),'Float32')
+    BinValues=N.zeros((Nbins,orig.shape[2]),'float32')
     counter=N.zeros((Nbins,))
 
     for i in N.arange(len(BinNumber)):
@@ -785,7 +785,7 @@ def binvalues(data,BinNumber):
     for i,bin in enumerate(BinNumber):
         BinValues[bin]= N.hstack((BinValues[bin],data[i]))
 
-    return map(N.mean,BinValues),map(N.std,BinValues),map(N.size,BinValues)
+    return list(map(N.mean,BinValues)),list(map(N.std,BinValues)),list(map(N.size,BinValues))
 
 def rad_profile(data,xbin,ybin,xcen,ycen,BinNumber):
     BinValues=binvalues(data,BinNumber)
@@ -874,7 +874,7 @@ def medianspec(data):
 def degrade_old(data,factor=4.25):
     oldlen=data.shape[-1]
     newlen=int(N.floor(oldlen/factor))
-    degr=N.zeros(newlen,'Float32')
+    degr=N.zeros(newlen,'float32')
     for i in N.arange(newlen):
         lower=int(N.ceil(i*factor))
         upper=int(N.floor((i+1)*factor))-1
@@ -893,7 +893,7 @@ def degrade(data,factor=4.25,quadratic=False):
     newlen=int(N.floor(oldlen/factor))
     ldata=N.resize(data,(extfactor,oldlen))
     ldata=N.transpose(ldata).flat
-    degr=N.zeros(newlen,'Float32')
+    degr=N.zeros(newlen,'float32')
     fac=int(factor*extfactor)
     for i in N.arange(newlen):
         #print len(ldata[i*fac:(i+1)*fac])
@@ -911,7 +911,7 @@ def degradeall(data,factor=4.25,quadratic=False):
 
     npix=data.shape[0]
     newlen=int(N.floor(data.shape[-1]/factor))
-    degrad=N.zeros((npix,newlen),'Float32')
+    degrad=N.zeros((npix,newlen),'float32')
     for i in N.arange(npix):
         degrad[i]=degrade(data[i,:],factor,quadratic=quadratic)
 
@@ -927,21 +927,21 @@ def sortbins(data,error,wave,start,binwidth=0.85,end=False,log=False):
         error.shape=(origshape[0]*origshape[1],origshape[2])
         wave.shape=(origshape[0]*origshape[1],origshape[2])
     if start < wave[:,0].max():
-        print "setting start to"+str(wave[:,0].max())
+        print("setting start to"+str(wave[:,0].max()))
         start=wave[:,0].max()
     if not end: end=wave[:,-1].min()
     if end > wave[:,-1].min():
-        print "setting end to"+str(wave[:,-1].min())
+        print("setting end to"+str(wave[:,-1].min()))
         send=wave[:,-1].min()
     leng=int((end-start)/binwidth)
     end=start+(leng*binwidth)
-    print start,end,binwidth,leng
+    print(start,end,binwidth,leng)
 
-    dat=N.zeros((data.shape[0],leng),'Float32')
+    dat=N.zeros((data.shape[0],leng),'float32')
     err=dat.copy()
     count=dat.copy()
     for i in N.arange(data.shape[0]):
-        bins=((wave-start)/binwidth).astype('Int32')
+        bins=((wave-start)/binwidth).astype('int32')
         for j in N.arange(data.shape[1]):
             if (bins[i,j] >= 0) and (bins[i,j] <leng):
                 #print i,j,bins.shape,bins[i,j]
@@ -977,7 +977,7 @@ def intdegradespec(data,n,method=N.average):
     y=N.arange(ny)
     z=N.arange(nz//n)
     erg=N.zeros((nx,ny,nz//n),dtype='f')
-    print erg.shape
+    print(erg.shape)
     for i in x:
         for j in y:
             for k in z:

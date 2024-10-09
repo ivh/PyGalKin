@@ -51,7 +51,7 @@ def toPAR(inarr,filename=None):
   """ writing my own parameter file with relevant parameters """
   if filename == None:
     if inarr.parname == None:
-      print "I know no filename"
+      print("I know no filename")
       return 1
     else:
       filename=inarr.parname
@@ -126,7 +126,7 @@ def toAD(input,filename=None):
 
   if filename == None:
     if inarr.p['imagename'] == None:
-      print "I know no filename"
+      print("I know no filename")
       return 1
     else:
       filename=inarr.p['imagename']
@@ -147,7 +147,7 @@ def toAD(input,filename=None):
   N.array([1],'Float32').tofile(file)      # zoom
 
   if inarr.ndim() == 2:
-    print "Writing 2D file"
+    print("Writing 2D file")
     N.array([0],'Int32').tofile(file)
     N.array([0],'Float32').tofile(file)
     N.array([1],'Float32').tofile(file)
@@ -156,7 +156,7 @@ def toAD(input,filename=None):
     N.arange(17,dtype='Int32').tofile(file) # unsused 68 bytes
 
   elif inarr.ndim() == 3:
-    print "Writing 3D file"
+    print("Writing 3D file")
     N.array([inarr.p['xl1']],'Float32').tofile(file)
     N.array([inarr.p['xil']],'Float32').tofile(file)
     N.array([inarr.p['vr0']],'Float32').tofile(file)
@@ -221,7 +221,7 @@ def toADP(inADP,filename=None):
 
   if filename == None:
     if inADP.p['paraname'] == None:
-      print "I know no filename"
+      print("I know no filename")
       return 1
     else:
       filename=inADP.p['paraname']
@@ -429,9 +429,9 @@ def ADTtoADP(outname,objname,ADT):
 
     outfile.write(objname+nl)
     adt.readline()
-    if adt.readline().split()[1] != ADT: print "observation numer mismatch"
+    if adt.readline().split()[1] != ADT: print("observation numer mismatch")
     adt.readline()
-    if adt.readline().split()[2] != objname: print "object name mismatch"
+    if adt.readline().split()[2] != objname: print("object name mismatch")
     pf=adt.readline().split()[3]
     filter=adt.readline().split()[2]
     adt.readline()
@@ -455,7 +455,7 @@ def ADTtoADP(outname,objname,ADT):
     # GETTING INFO FROM .ADT FILE FINISHED
     adt.close()
 
-    print pf,filter,nx,ny,nz,exppchan,scanlamb,queen
+    print(pf,filter,nx,ny,nz,exppchan,scanlamb,queen)
 
     outfile.write(tab+str(nx)+tab+'lx'+tab+'dimension X'+nl)
     outfile.write(tab+str(ny)+tab+'lx'+tab+'dimension X'+nl)
