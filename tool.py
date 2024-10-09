@@ -1031,8 +1031,15 @@ def sortout(inarr,banned=0):
                 val=N.concatenate((val,inarr[x,y]))
     return xaxis,yaxis,val
 
+def rebin(a, *args):
+    shape = a.shape
+    lenShape = len(shape)
+    factor = N.asarray(shape)/N.asarray(args)
+    evList = ['a.reshape('] + \
+             ['args[%d],factor[%d],'%(i,i) for i in range(lenShape)] + \
+             [')'] + ['.mean(%d)'%(i+1) for i in range(lenShape)]
+    return eval(''.join(evList))
 
-
-def rebin(a, shape):
-    sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
-    return a.reshape(sh).mean(-1).mean(1)
+#def rebin(a, shape):
+#    sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
+#    return a.reshape(sh).mean(-1).mean(1)

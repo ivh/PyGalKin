@@ -12,7 +12,7 @@ __PAR__= {}
 # scipy etc.
 # (pylab is imported in plot.py)
 import numpy as N
-import pyfits
+import astropy.io.fits as pyfits
 import scipy as S
 from scipy import interpolate
 from scipy import signal as Sig
