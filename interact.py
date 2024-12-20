@@ -12,6 +12,7 @@ from PyGalKin import *
 class measure(object):
     def __init__(self,g,img,vf,sig,fit,cube):
         self.g = g
+        self.g.p = eval(self.g.p)
         self.img = img
         self.vf = vf
         self.sig = sig
@@ -33,6 +34,7 @@ class measure(object):
         self.canvas.mpl_connect('button_press_event', self.button)
 
         self.avreg = 3
+        print(type(self.g.p))
         self.cx, self.cy = (self.g.p['relsize'],)*2
         self.px = 0
         self.py = 0
@@ -50,7 +52,6 @@ class measure(object):
         if self.g.p.get('axis'):
             self.ax1.axis(self.g.p.get('axis'))
 
-        self.canvas.set_window_title('%s'%self.g.name)
         P.P.show()
 
     def getAvRange(self,previous=False):
@@ -104,10 +105,10 @@ class measure(object):
     def draw_spec(self):
         self.axspec.clear()
         spec=self.cube[self.cx,self.cy,:]
-        self.axspec.plot(spec,'b',linestyle='steps')
+        self.axspec.plot(spec,'b',drawstyle='steps-mid')
         fit=F.gaussh34(self.fit[self.cx,self.cy], N.arange(len(spec)))
 #                """p0=cont p1=x0 p2=ampl p3=sigma p4=h3 p5=h4
-        self.axspec.plot(fit,'g-',linestyle='steps')
+        self.axspec.plot(fit,'g-',drawstyle='steps-mid')
         self.canvas.draw()
 
 
@@ -116,8 +117,8 @@ class measure(object):
         pos,vel=posvel(self.vf,self.g.p['dyncen'],self.g.pa)
         r1,r2,v1,v2=rotcur(self.vf,self.g.p['dyncen'],self.g.pa,self.g.p['wedge'],self.g.incl)
         self.axpv.plot(pos,vel,'.y',alpha=0.6)
-        self.axpv.plot(-r1,v1,'sr')
-        self.axpv.plot(r2,v2,'sb')
+        self.axpv.plot(N.array(-r1),N.array(v1),'sr')
+        self.axpv.plot(N.array(r2),N.array(v2),'sb')
         self.canvas.draw()
 
     def draw_markers(self):

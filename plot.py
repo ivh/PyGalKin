@@ -8,7 +8,7 @@ from PyGalKin import *
 import pylab as P # to make P not self-reference to plot.py
 import matplotlib
 import matplotlib.mlab as mlab
-from matplotlib import rcParams, colors
+from matplotlib import rcParams, colors, colormaps
 from mpl_toolkits.axes_grid1 import AxesGrid
 
 #from DjCigale.table import models as M
@@ -97,8 +97,8 @@ _sauron_inv_data = {
 
 sauron=colors.LinearSegmentedColormap('sauron', _sauron_data)
 sauron_inv=colors.LinearSegmentedColormap('sauron_inv', _sauron_inv_data)
-register_cmap(cmap=sauron)
-register_cmap(cmap=sauron_inv)
+colormaps.register(cmap=sauron)
+colormaps.register(cmap=sauron_inv)
 rcParams['image.cmap']='sauron'
 
 def imshow(*args, **kwargs):

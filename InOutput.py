@@ -21,8 +21,8 @@ def dump(data,filename):
   file.close()
 
 def load(filename):
-  file=open(filename,'r')
-  data=pickle.load(file)
+  file=open(filename,'rb')
+  data=pickle.load(file,encoding='latin1')
   file.close()
   return data
 
